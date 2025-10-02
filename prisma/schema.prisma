@@ -1,0 +1,1195 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USER MANAGEMENT & AUTHENTICATION
+// ============================================================================
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String
+  password          String   // Hashed password
+  role              UserRole @default(USER)
+  department        String?
+  phoneNumber       String?
+  isActive          Boolean  @default(true)
+  lastLoginAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  createdRequisitions       Requisition[]         @relation("RequisitionCreator")
+  approvedRequisitions      RequisitionApproval[] @relation("RequisitionApprover")
+  createdSuppliers          Supplier[]            @relation("SupplierCreator")
+  supplierReviews           SupplierReview[]      @relation("SupplierReviewer")
+  createdContracts          Contract[]            @relation("ContractCreator")
+  contractApprovals         ContractApproval[]    @relation("ContractApprover")
+  initiatedOnboardings      SupplierOnboarding[]  @relation("OnboardingInitiator")
+  reviewedOnboardings       SupplierOnboarding[]  @relation("OnboardingReviewer")
+  auditLogs                 AuditLog[]            @relation("AuditUser")
+  emailsSent                EmailLog[]            @relation("EmailSender")
+  notifications             Notification[]        @relation("NotificationUser")
+  sessionResumptions        SessionResumption[]   @relation("SessionUser")
+  purchaseOrders            PurchaseOrder[]       @relation("PurchaseOrderCreator")
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  PROCUREMENT_MANAGER
+  PROCUREMENT_SPECIALIST
+  APPROVER
+  FINANCE
+  USER
+}
+
+// ============================================================================
+// SESSION RESUMPTION - Track user's active processes
+// ============================================================================
+
+model SessionResumption {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation("SessionUser", fields: [userId], references: [id], onDelete: Cascade)
+  
+  moduleType      ModuleType
+  processId       String   // Reference to the specific process (supplierId, requisitionId, etc.)
+  processStep     String   // Current step in the workflow
+  processData     Json?    // Serialized form data or state
+  
+  lastAccessedAt  DateTime @default(now())
+  expiresAt       DateTime
+  isCompleted     Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId, isCompleted])
+  @@index([moduleType, processId])
+  @@map("session_resumptions")
+}
+
+enum ModuleType {
+  SUPPLIER_ONBOARDING
+  REQUISITION
+  CONTRACT
+  SUPPLIER_EVALUATION
+  PURCHASE_ORDER
+}
+
+// ============================================================================
+// SUPPLIER MANAGEMENT
+// ============================================================================
+
+model Supplier {
+  id                    String           @id @default(cuid())
+  supplierCode          String           @unique
+  
+  // Basic Information (Fields 1-5)
+  supplierName          String?          // Field 1: Supplier Name
+  contactPerson         String           // Field 2: Contact Person
+  companyName           String           // Field 3: Name of Business
+  tradingName           String?          // Field 4: Trading Name
+  registrationNumber    String?          // Field 5: Company Registration No.
+  
+  // Address (Fields 6-7)
+  physicalAddress       String?          // Field 6: Physical Address
+  postalAddress         String?          // Field 7: Postal Address
+  
+  // Contact (Fields 8-9)
+  contactPhone          String?          // Field 8: Contact Number
+  contactEmail          String           // Field 9: E-mail Address
+  
+  // Business Details (Fields 10-14)
+  natureOfBusiness      String?          // Field 10: Nature of Business
+  productsAndServices   String?          @db.Text // Field 11: Products and/or Services
+  associatedCompany     String?          // Field 12: Associated Company
+  associatedCompanyRegNo String?         // Field 13: Associated Company Registration No.
+  branchesContactNumbers String?         @db.Text // Field 14: Branches Contact Numbers
+  
+  // Banking Information (Fields 15-21)
+  bankAccountName       String?          // Field 15: Bank Account Name
+  bankName              String?          // Field 16: Bank Name
+  branchName            String?          // Field 17: Branch Name
+  branchNumber          String?          // Field 18: Branch Number
+  accountNumber         String?          // Field 19: Account Number
+  typeOfAccount         String?          // Field 20: Type of Account
+  
+  // Responsible Person - Banking (Fields 21-23)
+  rpBanking             String?          // Field 21: Responsible Person (RP) - Banking
+  rpBankingPhone        String?          // Field 22: RP Telephone Numbers - Banking
+  rpBankingEmail        String?          // Field 23: RP e-mail address - Banking
+  
+  // Responsible Person - Quality Management (Fields 24-26)
+  rpQuality             String?          // Field 24: Responsible Person (RP) - Quality Management
+  rpQualityPhone        String?          // Field 25: RP Telephone Numbers - Quality Management
+  rpQualityEmail        String?          // Field 26: RP e-mail address - Quality Management
+  
+  // Responsible Person - SHE (Fields 27-29)
+  rpSHE                 String?          // Field 27: Responsible Person (RP) - SHE
+  rpSHEPhone            String?          // Field 28: RP Telephone Numbers - SHE
+  rpSHEEmail            String?          // Field 29: RP e-mail address - SHE
+  
+  // BBBEE & Employment (Fields 30-31)
+  bbbeeLevel            String?          // Field 30: BBBEE Status
+  numberOfEmployees     Int?             // Field 31: Number of Employees
+  
+  // Responsible Person - BBBEE (Fields 32-34)
+  rpBBBEE               String?          // Field 32: Responsible Person (RP) - BBBEE
+  rpBBBEEPhone          String?          // Field 33: RP Telephone Numbers - BBBEE
+  rpBBBEEEmail          String?          // Field 34: RP e-mail address - BBBEE
+  
+  // Other Fields (Fields 35-39)
+  associatedCompanyBranchName String?    @db.Text // Field 35: Associated Company Branch Name
+  qualityManagementCert Boolean?         // Field 36: Quality management Certification
+  sheCertification      Boolean?         // Field 37: Safety, Health and Environment (SHE) Certification
+  authorizationAgreement Boolean?        // Field 38: Authorization agreement
+  field39               String?          // Field 39: (Additional field)
+  
+  // Legacy/Computed Fields (for backward compatibility)
+  businessType          BusinessType     @default(OTHER)
+  sector                String           @default("Other")
+  vatNumber             String?
+  taxClearance          String?
+  city                  String?
+  province              String?
+  postalCode            String?
+  country               String           @default("South Africa")
+  
+  // Airtable Integration
+  airtableRecordId      String?          @unique
+  airtableData          Json?            // Store complete Airtable response
+  
+  // Status
+  status                SupplierStatus   @default(PENDING)
+  isActive              Boolean          @default(true)
+  approvedAt            DateTime?
+  
+  // Metadata
+  createdById           String
+  createdBy             User             @relation("SupplierCreator", fields: [createdById], references: [id])
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  // Relations
+  onboarding            SupplierOnboarding?
+  evaluations           SupplierEvaluation[]
+  contracts             Contract[]
+  purchaseOrders        PurchaseOrder[]
+  deliveries            Delivery[]
+  invoices              Invoice[]
+  reviews               SupplierReview[]
+
+  @@index([supplierCode])
+  @@index([status])
+  @@index([businessType])
+  @@index([airtableRecordId])
+  @@map("suppliers")
+}
+
+enum BusinessType {
+  PTY_LTD
+  SOLE_PROPRIETORSHIP
+  PARTNERSHIP
+  CLOSE_CORPORATION
+  TRUST
+  NGO
+  OTHER
+}
+
+enum SupplierStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
+  INACTIVE
+}
+
+// ============================================================================
+// SUPPLIER ONBOARDING - Full workflow tracking
+// ============================================================================
+
+model SupplierOnboarding {
+  id                        String                    @id @default(cuid())
+  supplierId                String                    @unique
+  supplier                  Supplier                  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  // Workflow Status
+  currentStep               OnboardingStep            @default(INITIATE)
+  overallStatus             OnboardingStatus          @default(INITIATED)
+  onboardingToken           String?                   @unique
+  
+  // Contact Info
+  contactName               String
+  contactEmail              String
+  businessType              BusinessType
+  sector                    String
+  
+  // Email Tracking
+  emailSent                 Boolean                   @default(false)
+  emailSentAt               DateTime?
+  emailSubject              String?
+  emailContent              String?                   @db.Text
+  emailMessageId            String?
+  
+  // Supplier Response
+  supplierFormSubmitted     Boolean                   @default(false)
+  supplierFormSubmittedAt   DateTime?
+  supplierResponseData      Json?
+  
+  // Document Upload
+  documentsUploaded         Boolean                   @default(false)
+  documentsUploadedAt       DateTime?
+  requiredDocuments         String[]
+  
+  // Review & Approval
+  reviewStartedAt           DateTime?
+  reviewCompletedAt         DateTime?
+  reviewNotes               String?                   @db.Text
+  reviewedById              String?
+  reviewedBy                User?                     @relation("OnboardingReviewer", fields: [reviewedById], references: [id])
+  
+  // Revisions
+  revisionCount             Int                       @default(0)
+  revisionRequested         Boolean                   @default(false)
+  revisionNotes             String?                   @db.Text
+  revisionRequestedAt       DateTime?
+  
+  // Completion
+  approvalStatus            ApprovalStatus?
+  approvedAt                DateTime?
+  rejectedAt                DateTime?
+  rejectionReason           String?                   @db.Text
+  completedAt               DateTime?
+  
+  // Process Tracking
+  processStartedAt          DateTime                  @default(now())
+  processEndedAt            DateTime?
+  totalProcessingTimeHours  Float?
+  
+  // Initiated by
+  initiatedById             String
+  initiatedBy               User                      @relation("OnboardingInitiator", fields: [initiatedById], references: [id])
+  
+  // Timestamps
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+
+  // Relations
+  documents                 SupplierDocument[]
+  emailReminders            EmailReminder[]
+  verificationChecks        VerificationCheck[]
+  timeline                  OnboardingTimeline[]
+
+  @@index([currentStep])
+  @@index([overallStatus])
+  @@index([emailSent])
+  @@index([supplierFormSubmitted])
+  @@map("supplier_onboardings")
+}
+
+enum OnboardingStep {
+  INITIATE
+  PENDING_SUPPLIER_RESPONSE
+  REVIEW
+  REVISION_REQUESTED
+  COMPLETE
+}
+
+enum OnboardingStatus {
+  INITIATED
+  EMAIL_SENT
+  AWAITING_RESPONSE
+  DOCUMENTS_RECEIVED
+  UNDER_REVIEW
+  REVISION_NEEDED
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+// ============================================================================
+// ONBOARDING TIMELINE - Detailed audit trail
+// ============================================================================
+
+model OnboardingTimeline {
+  id                  String              @id @default(cuid())
+  onboardingId        String
+  onboarding          SupplierOnboarding  @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  
+  step                OnboardingStep
+  status              OnboardingStatus
+  action              String              // e.g., "Email sent", "Documents uploaded", "Review completed"
+  description         String?             @db.Text
+  performedBy         String?             // User ID or "System"
+  metadata            Json?               // Additional context data
+  
+  timestamp           DateTime            @default(now())
+
+  @@index([onboardingId, timestamp])
+  @@map("onboarding_timeline")
+}
+
+// ============================================================================
+// VERIFICATION CHECKS - Document and compliance verification
+// ============================================================================
+
+model VerificationCheck {
+  id                  String              @id @default(cuid())
+  onboardingId        String
+  onboarding          SupplierOnboarding  @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  
+  checkType           VerificationType
+  checkName           String
+  status              CheckStatus         @default(PENDING)
+  result              String?             @db.Text
+  verifiedBy          String?             // User ID or "System"
+  verifiedAt          DateTime?
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([onboardingId, checkType])
+  @@map("verification_checks")
+}
+
+enum VerificationType {
+  DOCUMENT_COMPLETENESS
+  TAX_COMPLIANCE
+  BBBEE_VERIFICATION
+  COMPANY_REGISTRATION
+  BANK_DETAILS
+  REFERENCE_CHECK
+  CREDIT_CHECK
+  LEGAL_COMPLIANCE
+}
+
+enum CheckStatus {
+  PENDING
+  IN_PROGRESS
+  PASSED
+  FAILED
+  REQUIRES_ATTENTION
+}
+
+// ============================================================================
+// SUPPLIER DOCUMENTS
+// ============================================================================
+
+model SupplierDocument {
+  id                  String              @id @default(cuid())
+  onboardingId        String?
+  onboarding          SupplierOnboarding? @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  
+  documentType        String
+  documentName        String
+  fileName            String
+  fileSize            Int
+  filePath            String
+  mimeType            String
+  
+  isRequired          Boolean             @default(false)
+  isVerified          Boolean             @default(false)
+  verifiedAt          DateTime?
+  verifiedBy          String?
+  verificationNotes   String?             @db.Text
+  
+  uploadedAt          DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([onboardingId])
+  @@index([documentType])
+  @@map("supplier_documents")
+}
+
+// ============================================================================
+// EMAIL TRACKING & REMINDERS
+// ============================================================================
+
+model EmailLog {
+  id                  String        @id @default(cuid())
+  
+  // Sender & Recipient
+  sentById            String?
+  sentBy              User?         @relation("EmailSender", fields: [sentById], references: [id])
+  recipientEmail      String
+  recipientName       String?
+  
+  // Email Details
+  subject             String
+  content             String        @db.Text
+  emailType           EmailType
+  
+  // Reference
+  referenceType       String?       // e.g., "supplier_onboarding", "requisition"
+  referenceId         String?
+  
+  // Status
+  status              EmailStatus   @default(PENDING)
+  messageId           String?
+  errorMessage        String?       @db.Text
+  
+  // Tracking
+  sentAt              DateTime?
+  deliveredAt         DateTime?
+  openedAt            DateTime?
+  clickedAt           DateTime?
+  bouncedAt           DateTime?
+  
+  // Metadata
+  metadata            Json?
+  
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([referenceType, referenceId])
+  @@index([status])
+  @@index([emailType])
+  @@map("email_logs")
+}
+
+enum EmailType {
+  ONBOARDING_INVITATION
+  REMINDER
+  APPROVAL_NOTIFICATION
+  REJECTION_NOTIFICATION
+  REVISION_REQUEST
+  COMPLETION_NOTIFICATION
+  CONTRACT_RENEWAL
+  PURCHASE_ORDER
+  GENERAL
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  FAILED
+}
+
+// ============================================================================
+// EMAIL REMINDERS - Automated follow-ups
+// ============================================================================
+
+model EmailReminder {
+  id                  String              @id @default(cuid())
+  onboardingId        String?
+  onboarding          SupplierOnboarding? @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  
+  recipientEmail      String
+  reminderType        ReminderType
+  scheduledFor        DateTime
+  
+  sent                Boolean             @default(false)
+  sentAt              DateTime?
+  
+  attempts            Int                 @default(0)
+  lastAttemptAt       DateTime?
+  errorMessage        String?             @db.Text
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([scheduledFor, sent])
+  @@index([onboardingId])
+  @@map("email_reminders")
+}
+
+enum ReminderType {
+  INITIAL_FOLLOW_UP
+  DOCUMENT_SUBMISSION
+  REVIEW_PENDING
+  REVISION_REQUIRED
+  FINAL_REMINDER
+  CUSTOM
+}
+
+// ============================================================================
+// PURCHASE REQUISITIONS
+// ============================================================================
+
+model Requisition {
+  id                      String                 @id @default(cuid())
+  requisitionNumber       String                 @unique
+  
+  // Requestor Info
+  requestedById           String
+  requestedBy             User                   @relation("RequisitionCreator", fields: [requestedById], references: [id])
+  department              String
+  priority                RequisitionPriority    @default(MEDIUM)
+  
+  // Details
+  title                   String
+  description             String?                @db.Text
+  justification           String?                @db.Text
+  budgetCode              String?
+  estimatedTotalAmount    Float
+  currency                String                 @default("ZAR")
+  
+  // Status & Workflow
+  status                  RequisitionStatus      @default(DRAFT)
+  currentApprovalLevel    Int                    @default(0)
+  
+  // Dates
+  requiredByDate          DateTime?
+  submittedAt             DateTime?
+  approvedAt              DateTime?
+  rejectedAt              DateTime?
+  completedAt             DateTime?
+  
+  // Process Tracking
+  processStartedAt        DateTime               @default(now())
+  processEndedAt          DateTime?
+  totalProcessingTimeHours Float?
+  
+  // Timestamps
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+
+  // Relations
+  lineItems               RequisitionLineItem[]
+  approvals               RequisitionApproval[]
+  purchaseOrder           PurchaseOrder?
+  comments                RequisitionComment[]
+  attachments             RequisitionAttachment[]
+
+  @@index([requisitionNumber])
+  @@index([status])
+  @@index([requestedById])
+  @@index([department])
+  @@map("requisitions")
+}
+
+enum RequisitionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum RequisitionStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  CANCELLED
+  CONVERTED_TO_PO
+  COMPLETED
+}
+
+// ============================================================================
+// REQUISITION LINE ITEMS
+// ============================================================================
+
+model RequisitionLineItem {
+  id                  String        @id @default(cuid())
+  requisitionId       String
+  requisition         Requisition   @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  
+  lineNumber          Int
+  itemDescription     String
+  itemCode            String?
+  quantity            Float
+  unitOfMeasure       String
+  unitPrice           Float
+  totalPrice          Float
+  
+  suggestedSupplier   String?
+  specifications      String?       @db.Text
+  notes               String?       @db.Text
+  
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([requisitionId, lineNumber])
+  @@map("requisition_line_items")
+}
+
+// ============================================================================
+// REQUISITION APPROVALS - Multi-level approval workflow
+// ============================================================================
+
+model RequisitionApproval {
+  id                  String             @id @default(cuid())
+  requisitionId       String
+  requisition         Requisition        @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  
+  approvalLevel       Int
+  approverId          String
+  approver            User               @relation("RequisitionApprover", fields: [approverId], references: [id])
+  
+  status              ApprovalStatus     @default(PENDING)
+  decision            String?            // APPROVE, REJECT, REQUEST_REVISION
+  comments            String?            @db.Text
+  
+  requestedAt         DateTime           @default(now())
+  respondedAt         DateTime?
+  
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([requisitionId, approvalLevel])
+  @@index([approverId, status])
+  @@map("requisition_approvals")
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVISION_REQUESTED
+}
+
+// ============================================================================
+// REQUISITION COMMENTS
+// ============================================================================
+
+model RequisitionComment {
+  id                  String        @id @default(cuid())
+  requisitionId       String
+  requisition         Requisition   @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  
+  userId              String
+  comment             String        @db.Text
+  isInternal          Boolean       @default(false)
+  
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([requisitionId])
+  @@map("requisition_comments")
+}
+
+// ============================================================================
+// REQUISITION ATTACHMENTS
+// ============================================================================
+
+model RequisitionAttachment {
+  id                  String        @id @default(cuid())
+  requisitionId       String
+  requisition         Requisition   @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  
+  fileName            String
+  filePath            String
+  fileSize            Int
+  mimeType            String
+  
+  uploadedAt          DateTime      @default(now())
+
+  @@index([requisitionId])
+  @@map("requisition_attachments")
+}
+
+// ============================================================================
+// PURCHASE ORDERS
+// ============================================================================
+
+model PurchaseOrder {
+  id                      String              @id @default(cuid())
+  poNumber                String              @unique
+  
+  requisitionId           String?             @unique
+  requisition             Requisition?        @relation(fields: [requisitionId], references: [id])
+  
+  supplierId              String
+  supplier                Supplier            @relation(fields: [supplierId], references: [id])
+  
+  // PO Details
+  title                   String
+  description             String?             @db.Text
+  totalAmount             Float
+  currency                String              @default("ZAR")
+  paymentTerms            String?
+  deliveryTerms           String?
+  
+  // Status
+  status                  POStatus            @default(DRAFT)
+  
+  // Dates
+  orderDate               DateTime            @default(now())
+  expectedDeliveryDate    DateTime?
+  actualDeliveryDate      DateTime?
+  
+  // Tracking
+  supplierAcknowledged    Boolean             @default(false)
+  supplierAcknowledgedAt  DateTime?
+  
+  // Created by
+  createdById             String
+  createdBy               User                @relation("PurchaseOrderCreator", fields: [createdById], references: [id])
+  
+  // Timestamps
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  // Relations
+  lineItems               POLineItem[]
+  deliveries              Delivery[]
+  invoices                Invoice[]
+
+  @@index([poNumber])
+  @@index([supplierId])
+  @@index([status])
+  @@map("purchase_orders")
+}
+
+enum POStatus {
+  DRAFT
+  ISSUED
+  ACKNOWLEDGED
+  IN_PROGRESS
+  PARTIALLY_DELIVERED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+// ============================================================================
+// PO LINE ITEMS
+// ============================================================================
+
+model POLineItem {
+  id                  String         @id @default(cuid())
+  purchaseOrderId     String
+  purchaseOrder       PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  
+  lineNumber          Int
+  itemDescription     String
+  itemCode            String?
+  quantity            Float
+  unitOfMeasure       String
+  unitPrice           Float
+  totalPrice          Float
+  
+  deliveredQuantity   Float          @default(0)
+  
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([purchaseOrderId, lineNumber])
+  @@map("po_line_items")
+}
+
+// ============================================================================
+// CONTRACTS
+// ============================================================================
+
+model Contract {
+  id                      String              @id @default(cuid())
+  contractNumber          String              @unique
+  
+  supplierId              String
+  supplier                Supplier            @relation(fields: [supplierId], references: [id])
+  
+  // Contract Details
+  contractName            String
+  contractType            ContractType
+  description             String?             @db.Text
+  
+  // Terms
+  totalValue              Float
+  currency                String              @default("ZAR")
+  paymentTerms            String?             @db.Text
+  deliveryTerms           String?             @db.Text
+  
+  // Dates
+  startDate               DateTime
+  endDate                 DateTime
+  renewalDate             DateTime?
+  autoRenewal             Boolean             @default(false)
+  renewalNoticeDays       Int                 @default(30)
+  
+  // Status
+  status                  ContractStatus      @default(DRAFT)
+  
+  // Tracking
+  daysUntilExpiry         Int?                // Computed field
+  isExpiringSoon          Boolean             @default(false)
+  renewalReminderSent     Boolean             @default(false)
+  renewalReminderSentAt   DateTime?
+  
+  // Created by
+  createdById             String
+  createdBy               User                @relation("ContractCreator", fields: [createdById], references: [id])
+  
+  // Timestamps
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  // Relations
+  approvals               ContractApproval[]
+  documents               ContractDocument[]
+  amendments              ContractAmendment[]
+
+  @@index([contractNumber])
+  @@index([supplierId])
+  @@index([status])
+  @@index([endDate])
+  @@map("contracts")
+}
+
+enum ContractType {
+  FIXED_PRICE
+  TIME_AND_MATERIALS
+  COST_PLUS
+  FRAMEWORK_AGREEMENT
+  SERVICE_LEVEL_AGREEMENT
+  OTHER
+}
+
+enum ContractStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ACTIVE
+  EXPIRED
+  TERMINATED
+  RENEWED
+}
+
+// ============================================================================
+// CONTRACT APPROVALS
+// ============================================================================
+
+model ContractApproval {
+  id                  String          @id @default(cuid())
+  contractId          String
+  contract            Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  
+  approverId          String
+  approver            User            @relation("ContractApprover", fields: [approverId], references: [id])
+  
+  status              ApprovalStatus  @default(PENDING)
+  comments            String?         @db.Text
+  
+  requestedAt         DateTime        @default(now())
+  respondedAt         DateTime?
+
+  @@index([contractId])
+  @@map("contract_approvals")
+}
+
+// ============================================================================
+// CONTRACT DOCUMENTS
+// ============================================================================
+
+model ContractDocument {
+  id                  String        @id @default(cuid())
+  contractId          String
+  contract            Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  
+  documentName        String
+  fileName            String
+  filePath            String
+  fileSize            Int
+  mimeType            String
+  version             Int           @default(1)
+  
+  uploadedAt          DateTime      @default(now())
+
+  @@index([contractId])
+  @@map("contract_documents")
+}
+
+// ============================================================================
+// CONTRACT AMENDMENTS
+// ============================================================================
+
+model ContractAmendment {
+  id                  String        @id @default(cuid())
+  contractId          String
+  contract            Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  
+  amendmentNumber     Int
+  description         String        @db.Text
+  effectiveDate       DateTime
+  
+  changesSummary      Json?
+  
+  createdAt           DateTime      @default(now())
+
+  @@index([contractId, amendmentNumber])
+  @@map("contract_amendments")
+}
+
+// ============================================================================
+// SUPPLIER EVALUATION
+// ============================================================================
+
+model SupplierEvaluation {
+  id                      String              @id @default(cuid())
+  supplierId              String
+  supplier                Supplier            @relation(fields: [supplierId], references: [id])
+  
+  evaluationPeriod        String              // e.g., "Q1 2025"
+  evaluationDate          DateTime            @default(now())
+  
+  // Scores (out of 100)
+  qualityScore            Float
+  deliveryScore           Float
+  priceScore              Float
+  serviceScore            Float
+  complianceScore         Float
+  overallScore            Float
+  
+  // Performance Metrics
+  onTimeDeliveryRate      Float?              // Percentage
+  defectRate              Float?              // Percentage
+  responseTime            Float?              // Hours
+  
+  // Status
+  performanceRating       PerformanceRating
+  
+  // Comments
+  strengths               String?             @db.Text
+  areasForImprovement     String?             @db.Text
+  recommendations         String?             @db.Text
+  
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  @@index([supplierId, evaluationDate])
+  @@map("supplier_evaluations")
+}
+
+enum PerformanceRating {
+  EXCELLENT
+  GOOD
+  SATISFACTORY
+  NEEDS_IMPROVEMENT
+  POOR
+}
+
+// ============================================================================
+// SUPPLIER REVIEWS
+// ============================================================================
+
+model SupplierReview {
+  id                  String        @id @default(cuid())
+  supplierId          String
+  supplier            Supplier      @relation(fields: [supplierId], references: [id])
+  
+  reviewedById        String
+  reviewedBy          User          @relation("SupplierReviewer", fields: [reviewedById], references: [id])
+  
+  rating              Int           // 1-5 stars
+  comment             String?       @db.Text
+  
+  createdAt           DateTime      @default(now())
+
+  @@index([supplierId])
+  @@map("supplier_reviews")
+}
+
+// ============================================================================
+// DELIVERY TRACKING
+// ============================================================================
+
+model Delivery {
+  id                      String              @id @default(cuid())
+  deliveryNumber          String              @unique
+  
+  purchaseOrderId         String
+  purchaseOrder           PurchaseOrder       @relation(fields: [purchaseOrderId], references: [id])
+  
+  supplierId              String
+  supplier                Supplier            @relation(fields: [supplierId], references: [id])
+  
+  // Delivery Details
+  expectedDeliveryDate    DateTime
+  actualDeliveryDate      DateTime?
+  
+  deliveryStatus          DeliveryStatus      @default(SCHEDULED)
+  
+  // Lead Time Tracking
+  orderPlacedDate         DateTime
+  leadTimeDays            Int?                // Actual lead time
+  expectedLeadTimeDays    Int
+  onTime                  Boolean?
+  delayDays               Int?
+  
+  // Location
+  deliveryAddress         String?
+  deliveryContact         String?
+  
+  // Notes
+  deliveryNotes           String?             @db.Text
+  issuesReported          String?             @db.Text
+  
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  @@index([deliveryNumber])
+  @@index([supplierId])
+  @@index([deliveryStatus])
+  @@map("deliveries")
+}
+
+enum DeliveryStatus {
+  SCHEDULED
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  DELAYED
+  FAILED
+  CANCELLED
+}
+
+// ============================================================================
+// INVOICES
+// ============================================================================
+
+model Invoice {
+  id                  String         @id @default(cuid())
+  invoiceNumber       String         @unique
+  
+  purchaseOrderId     String?
+  purchaseOrder       PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  
+  supplierId          String
+  supplier            Supplier       @relation(fields: [supplierId], references: [id])
+  
+  // Invoice Details
+  invoiceDate         DateTime
+  dueDate             DateTime
+  amount              Float
+  currency            String         @default("ZAR")
+  taxAmount           Float?
+  totalAmount         Float
+  
+  // Status
+  status              InvoiceStatus  @default(PENDING)
+  
+  // Payment
+  paidDate            DateTime?
+  paidAmount          Float?
+  paymentReference    String?
+  
+  // Documents
+  documentPath        String?
+  
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([invoiceNumber])
+  @@index([supplierId])
+  @@index([status])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  PENDING
+  APPROVED
+  PAID
+  OVERDUE
+  DISPUTED
+  CANCELLED
+}
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+model Notification {
+  id                  String              @id @default(cuid())
+  userId              String
+  user                User                @relation("NotificationUser", fields: [userId], references: [id], onDelete: Cascade)
+  
+  type                NotificationType
+  title               String
+  message             String              @db.Text
+  
+  // Reference
+  referenceType       String?
+  referenceId         String?
+  actionUrl           String?
+  
+  // Status
+  isRead              Boolean             @default(false)
+  readAt              DateTime?
+  
+  createdAt           DateTime            @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  REQUISITION_APPROVAL_NEEDED
+  REQUISITION_APPROVED
+  REQUISITION_REJECTED
+  SUPPLIER_ONBOARDING_COMPLETE
+  CONTRACT_EXPIRING
+  DELIVERY_DELAYED
+  INVOICE_DUE
+  GENERAL
+}
+
+// ============================================================================
+// AUDIT LOG - Complete activity tracking
+// ============================================================================
+
+model AuditLog {
+  id                  String        @id @default(cuid())
+  
+  // User
+  userId              String?
+  user                User?         @relation("AuditUser", fields: [userId], references: [id])
+  userName            String?       // Cached for deleted users
+  
+  // Action
+  action              String        // e.g., "CREATE", "UPDATE", "DELETE", "APPROVE"
+  entityType          String        // e.g., "Requisition", "Supplier", "Contract"
+  entityId            String
+  
+  // Changes
+  changes             Json?         // Before/after values
+  metadata            Json?         // Additional context
+  
+  // Context
+  ipAddress           String?
+  userAgent           String?
+  
+  timestamp           DateTime      @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId, timestamp])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// SYSTEM CONFIGURATION
+// ============================================================================
+
+model SystemConfig {
+  id                  String        @id @default(cuid())
+  key                 String        @unique
+  value               String        @db.Text
+  description         String?
+  category            String?
+  
+  updatedAt           DateTime      @updatedAt
+  createdAt           DateTime      @default(now())
+
+  @@map("system_config")
+}

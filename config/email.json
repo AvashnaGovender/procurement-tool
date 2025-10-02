@@ -1,0 +1,10 @@
+{
+  "host": "mail.theinnoverse.co.za",
+  "port": 465,
+  "secure": true,
+  "user": "agovender@theinnoverse.co.za",
+  "pass": "InnerPeace101",
+  "fromEmail": "agovender@theinnoverse.co.za",
+  "companyName": "The Innoverse",
+  "companyWebsite": "www.theinnoverse.co.za"
+}
