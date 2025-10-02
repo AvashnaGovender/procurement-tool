@@ -17,9 +17,12 @@ export default function SupplierOnboardingFormPage() {
   const onboardingToken = searchParams.get('token')
   
   const [loading, setLoading] = useState(false)
+  const [loadingData, setLoadingData] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [error, setError] = useState("")
+  const [revisionNotes, setRevisionNotes] = useState<string | null>(null)
+  const [existingFiles, setExistingFiles] = useState<{[key: string]: string[]}>({})
   
   // Form state
   const [formData, setFormData] = useState({
@@ -106,6 +109,36 @@ export default function SupplierOnboardingFormPage() {
     companyProfile: [],
   })
 
+  // Fetch existing data if token is provided
+  useEffect(() => {
+    const fetchExistingData = async () => {
+      if (!onboardingToken) return
+
+      setLoadingData(true)
+      try {
+        const response = await fetch(`/api/suppliers/get-by-token?token=${onboardingToken}`)
+        const data = await response.json()
+
+        if (data.success) {
+          // Pre-populate form with existing data
+          setFormData(data.formData)
+          setExistingFiles(data.uploadedFiles || {})
+          if (data.revisionNotes) {
+            setRevisionNotes(data.revisionNotes)
+          }
+        } else {
+          console.error('Failed to load existing data:', data.error)
+        }
+      } catch (error) {
+        console.error('Error fetching existing data:', error)
+      } finally {
+        setLoadingData(false)
+      }
+    }
+
+    fetchExistingData()
+  }, [onboardingToken])
+
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
@@ -188,13 +221,26 @@ export default function SupplierOnboardingFormPage() {
                   <CheckCircle className="h-16 w-16 text-green-600" />
                 </div>
               </div>
-              <h2 className="text-3xl font-bold text-gray-900">Thank You!</h2>
+              <h2 className="text-3xl font-bold text-gray-900">
+                {revisionNotes ? 'Application Updated!' : 'Thank You!'}
+              </h2>
               <p className="text-lg text-gray-600">
-                Your supplier onboarding form has been submitted successfully.
+                {revisionNotes 
+                  ? 'Your updated supplier information has been submitted successfully.'
+                  : 'Your supplier onboarding form has been submitted successfully.'
+                }
               </p>
               <p className="text-gray-500">
-                Our procurement team will review your submission and contact you shortly.
+                {revisionNotes
+                  ? 'Our procurement team will review your updates and contact you shortly.'
+                  : 'Our procurement team will review your submission and contact you shortly.'
+                }
               </p>
+              <div className="pt-4">
+                <p className="text-sm text-gray-400">
+                  You will receive a confirmation email shortly.
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -328,6 +374,20 @@ export default function SupplierOnboardingFormPage() {
     )
   }
 
+  // Show loading state while fetching data
+  if (loadingData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+            <p className="text-lg text-gray-600">Loading your application data...</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
       <div className="max-w-5xl mx-auto">
@@ -342,9 +402,41 @@ export default function SupplierOnboardingFormPage() {
               className="object-contain"
             />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Supplier Onboarding Form</h1>
-          <p className="text-lg text-gray-600">Please complete all required fields</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            {revisionNotes ? 'Update Your Application' : 'Supplier Onboarding Form'}
+          </h1>
+          <p className="text-lg text-gray-600">
+            {revisionNotes ? 'Please update the required information below' : 'Please complete all required fields'}
+          </p>
         </div>
+
+        {/* Revision Notice */}
+        {revisionNotes && (
+          <Alert className="mb-6 border-orange-500 bg-orange-50">
+            <AlertCircle className="h-5 w-5 text-orange-600" />
+            <AlertDescription className="ml-2">
+              <div className="font-semibold text-orange-900 mb-2">Revision Requested</div>
+              <div className="text-orange-800 whitespace-pre-wrap">{revisionNotes}</div>
+              <div className="mt-3 text-sm text-orange-700">
+                Your form has been pre-filled with your previous submission. Please review and update the information as needed.
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Document Re-upload Notice for Revisions */}
+        {revisionNotes && (
+          <Alert className="mb-6 border-blue-500 bg-blue-50">
+            <FileIcon className="h-5 w-5 text-blue-600" />
+            <AlertDescription className="ml-2">
+              <div className="font-semibold text-blue-900 mb-2">Document Upload Required</div>
+              <div className="text-blue-800 text-sm">
+                Please upload all required documents again. Your previous documents have been archived 
+                and will be available to our procurement team for reference.
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handlePreview} className="space-y-6">
           {/* Section 1: Basic Information */}

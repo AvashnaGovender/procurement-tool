@@ -32,6 +32,15 @@ interface Supplier {
   bbbeeLevel: string | null
   numberOfEmployees: number | null
   airtableData: any
+  onboarding?: {
+    id: string
+    revisionCount: number
+    revisionRequested: boolean
+    emailSent: boolean
+    supplierFormSubmitted: boolean
+    currentStep: string
+    overallStatus: string
+  }
 }
 
 export default function SupplierSubmissionsPage() {
@@ -79,6 +88,27 @@ export default function SupplierSubmissionsPage() {
       case 'PENDING': return 'bg-gray-500'
       default: return 'bg-blue-500'
     }
+  }
+
+  const getStatusDisplay = (supplier: Supplier) => {
+    const { status, onboarding } = supplier
+    
+    // Show proper status based on workflow stage
+    if (!onboarding) {
+      return status.replace('_', ' ')
+    }
+
+    // If form not submitted yet, show "Awaiting Documents"
+    if (!onboarding.supplierFormSubmitted && onboarding.emailSent) {
+      return 'AWAITING DOCUMENTS'
+    }
+
+    // If form submitted and under review, show revision count if applicable
+    if (status === 'UNDER_REVIEW' && onboarding.revisionCount > 0) {
+      return `UNDER REVIEW (Rev ${onboarding.revisionCount})`
+    }
+
+    return status.replace('_', ' ')
   }
 
   const statusCounts = {
@@ -212,7 +242,7 @@ export default function SupplierSubmissionsPage() {
                       <TableCell>{new Date(supplier.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell>
                         <Badge className={`${getStatusColor(supplier.status)} text-white`}>
-                          {supplier.status.replace('_', ' ')}
+                          {getStatusDisplay(supplier)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">

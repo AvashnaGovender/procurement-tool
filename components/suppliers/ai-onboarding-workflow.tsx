@@ -21,6 +21,8 @@ import {
   Download,
   Upload,
   UserCheck,
+  Loader2,
+  UserPlus,
 } from "lucide-react"
 
 interface AIOnboardingWorkflowProps {
@@ -149,12 +151,12 @@ export function AIOnboardingWorkflow({ step, onStepComplete }: AIOnboardingWorkf
     setIsProcessing(true)
 
     try {
-      // Load email template from settings
-      const response = await fetch('/api/settings/email-template')
+      // Load email templates from settings
+      const response = await fetch('/api/settings/email-templates')
       const data = await response.json()
       
       if (!data.success) {
-        throw new Error('Failed to load email template')
+        throw new Error('Failed to load email templates')
       }
 
       const selectedBusiness = businessTypes.find((b) => b.value === businessType)
@@ -167,8 +169,8 @@ export function AIOnboardingWorkflow({ step, onStepComplete }: AIOnboardingWorkf
       const companyName = (smtpData.success ? smtpData.config?.companyName : smtpData.companyName) || 'Our Company'
       const companyWebsite = (smtpData.success ? smtpData.config?.companyWebsite : smtpData.companyWebsite) || 'https://company.com'
 
-      // Replace template variables
-      let draftEmail = data.template.content
+      // Use the onboarding template and replace variables (except {formLink} which is replaced on backend)
+      let draftEmail = data.templates.onboarding.content
         .replace(/{supplierName}/g, contactName)
         .replace(/{companyName}/g, companyName)
         .replace(/{businessType}/g, selectedBusiness?.label || businessType)
@@ -187,12 +189,9 @@ export function AIOnboardingWorkflow({ step, onStepComplete }: AIOnboardingWorkf
 
 Thank you for your interest in becoming a supplier partner. We're excited to begin the onboarding process with your ${selectedBusiness?.label} business in the ${selectedSector?.label} sector.
 
-Based on your business type, we'll need the following documents:
-${selectedBusiness?.docs.map((doc) => `• ${doc}`).join("\n")}
+Please click the link below to complete your supplier registration form and upload the required documents.
 
-Please click the link below to complete your supplier registration form and upload the required documents. You'll also need to review and sign our Non-Disclosure Agreement (NDA).
-
-[Supplier Registration Portal Link]
+{formLink}
 
 If you have any questions, please don't hesitate to contact our procurement team.
 
@@ -204,10 +203,19 @@ Procurement Team`
     }
   }
 
-  const handleSendEmail = async () => {
+  const handleSendEmail = async (emailContent?: string) => {
     setIsProcessing(true)
     
     try {
+      // Use provided content or state content
+      const contentToSend = emailContent || aiDraftedEmail
+      
+      if (!contentToSend) {
+        throw new Error('Email content is empty')
+      }
+      
+      console.log('Sending email with content length:', contentToSend.length)
+      
       // Create onboarding record with supplier
       const onboardingResponse = await fetch('/api/onboarding/initiate', {
         method: 'POST',
@@ -219,7 +227,7 @@ Procurement Team`
           contactEmail,
           businessType,
           sector,
-          emailContent: aiDraftedEmail,
+          emailContent: contentToSend,
           requiredDocuments: businessTypes.find(b => b.value === businessType)?.docs || []
         }),
       })
@@ -241,7 +249,7 @@ Procurement Team`
         body: JSON.stringify({
           to: contactEmail,
           subject: 'Supplier Onboarding - Welcome to Our Procurement System',
-          content: aiDraftedEmail,
+          content: contentToSend,
           supplierName: contactName,
           businessType: businessType,
           sector: sector,
@@ -286,132 +294,155 @@ Procurement Team`
     }
   }
 
+  const handleInitiateAndSend = async () => {
+    setIsProcessing(true)
+    
+    try {
+      // Load email templates from settings
+      const response = await fetch('/api/settings/email-templates')
+      const data = await response.json()
+      
+      let emailContent = ''
+      
+      if (data.success && data.templates?.onboarding) {
+        const selectedBusiness = businessTypes.find((b) => b.value === businessType)
+        
+        // Get company info from SMTP settings
+        const smtpResponse = await fetch('/api/settings/smtp')
+        const smtpData = await smtpResponse.json()
+        
+        const companyName = (smtpData.success ? smtpData.config?.companyName : smtpData.companyName) || 'Schauenburg Systems'
+        const companyWebsite = (smtpData.success ? smtpData.config?.companyWebsite : smtpData.companyWebsite) || 'http://localhost:3000'
+
+        // Use the onboarding template and replace variables
+        emailContent = data.templates.onboarding.content
+          .replace(/{supplierName}/g, contactName)
+          .replace(/{companyName}/g, companyName)
+          .replace(/{businessType}/g, selectedBusiness?.label || businessType)
+          .replace(/{companyWebsite}/g, companyWebsite)
+      } else {
+        // Fallback template
+        const selectedBusiness = businessTypes.find((b) => b.value === businessType)
+        
+        emailContent = `Dear ${contactName},
+
+Thank you for your interest in becoming a supplier partner with Schauenburg Systems. We're excited to begin the onboarding process with you.
+
+To complete your supplier registration, please click the link below to access our supplier portal and complete the registration form with your company details.
+
+{formLink}
+
+If you have any questions or need assistance, please don't hesitate to contact our procurement team.
+
+Best regards,
+Schauenburg Systems Procurement Team`
+      }
+      
+      console.log('Loaded email content length:', emailContent.length)
+      console.log('Email content preview:', emailContent.substring(0, 100))
+      
+      // Now send the email with the loaded content
+      await handleSendEmail(emailContent)
+      
+    } catch (error) {
+      console.error('Error in handleInitiateAndSend:', error)
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`)
+      setIsProcessing(false)
+    }
+  }
+
   if (step === "initiate") {
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <Bot className="h-5 w-5 text-blue-500" />
-              <CardTitle>Step 1: Initiate AI Onboarding Workflow</CardTitle>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <UserPlus className="h-5 w-5 text-blue-500" />
+            <CardTitle>Initiate Supplier Onboarding</CardTitle>
+          </div>
+          <CardDescription>
+            Provide supplier contact details to begin the onboarding process. An email with the registration form will be sent automatically.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="contactName">Contact Person Name *</Label>
+              <Input
+                id="contactName"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="Enter full name"
+                required
+              />
             </div>
-            <CardDescription>
-              Provide contact details and business type. AI will draft a personalized onboarding email.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="contactName">Contact Person Name *</Label>
-                <Input
-                  id="contactName"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  placeholder="Enter full name"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="contactEmail">Contact Email Address *</Label>
-                <Input
-                  id="contactEmail"
-                  type="email"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  placeholder="Enter email address"
-                  required
-                />
-              </div>
+            <div>
+              <Label htmlFor="contactEmail">Contact Email Address *</Label>
+              <Input
+                id="contactEmail"
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                placeholder="Enter email address"
+                required
+              />
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="businessType">Type of Business *</Label>
-                <Select value={businessType} onValueChange={setBusinessType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select business type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {businessTypes.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="sector">Sector *</Label>
-                <Select value={sector} onValueChange={setSector}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select sector" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sectors.map((sectorOption) => (
-                      <SelectItem key={sectorOption.value} value={sectorOption.value}>
-                        {sectorOption.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="businessType">Type of Business *</Label>
+              <Select value={businessType} onValueChange={setBusinessType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select business type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {businessTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+            <div>
+              <Label htmlFor="sector">Sector *</Label>
+              <Select value={sector} onValueChange={setSector}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select sector" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sectors.map((sectorOption) => (
+                    <SelectItem key={sectorOption.value} value={sectorOption.value}>
+                      {sectorOption.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
+          <div className="pt-4">
             <Button
-              onClick={handleInitiateWorkflow}
+              onClick={handleInitiateAndSend}
               disabled={!contactName || !contactEmail || !businessType || !sector || isProcessing}
               className="w-full"
+              size="lg"
             >
               {isProcessing ? (
                 <>
-                  <Bot className="h-4 w-4 mr-2 animate-spin" />
-                  AI is drafting email...
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Sending Onboarding Email...
                 </>
               ) : (
                 <>
-                  <Bot className="h-4 w-4 mr-2" />
-                  Generate AI Onboarding Email
+                  <Send className="h-5 w-5 mr-2" />
+                  Send Onboarding Email
                 </>
               )}
             </Button>
-          </CardContent>
-        </Card>
-
-        {aiDraftedEmail && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center space-x-2">
-                <Mail className="h-5 w-5 text-green-500" />
-                <CardTitle>AI-Generated Onboarding Email</CardTitle>
-              </div>
-              <CardDescription>Review and send the automatically generated email to the supplier</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Textarea
-                value={aiDraftedEmail}
-                onChange={(e) => setAiDraftedEmail(e.target.value)}
-                rows={12}
-                className="font-mono text-sm"
-              />
-              <div className="flex justify-end">
-                <Button onClick={handleSendEmail} disabled={isProcessing}>
-                  {isProcessing ? (
-                    <>
-                      <Clock className="h-4 w-4 mr-2 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4 mr-2" />
-                      Send Email & Start Workflow
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 

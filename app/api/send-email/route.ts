@@ -69,16 +69,38 @@ export async function POST(request: NextRequest) {
     let emailContent = content
     if (onboardingToken) {
       const formUrl = `http://localhost:3000/supplier-onboarding-form?token=${onboardingToken}`
-      // Replace any existing form links
+      // Email-safe button with table-based layout for better compatibility
+      const formLinkHtml = `
+<table cellpadding="0" cellspacing="0" border="0" style="margin: 25px 0;">
+  <tr>
+    <td align="center" style="background-color: #3b82f6; border-radius: 8px; padding: 0;">
+      <a href="${formUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff !important; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">Complete Registration Form</a>
+    </td>
+  </tr>
+</table>`
+      
+      // Replace {formLink} placeholder with HTML link button
       emailContent = emailContent
-        .replace(/https?:\/\/forms\.office\.com[^\s]*/g, formUrl)
-        .replace(/https?:\/\/airtable\.com[^\s]*/g, formUrl)
-        .replace(/http:\/\/localhost:3000\/supplier-onboarding-form/g, formUrl)
+        .replace(/{formLink}/g, formLinkHtml)
+        .replace(/\{formLink\}/g, formLinkHtml)
+        .replace(/https?:\/\/forms\.office\.com[^\s]*/g, formLinkHtml)
+        .replace(/https?:\/\/airtable\.com[^\s]*/g, formLinkHtml)
+        .replace(/http:\/\/localhost:3000\/supplier-onboarding-form[^\s]*/g, formLinkHtml)
     }
     
-    console.log('Sending email to:', to)
+    console.log('=== EMAIL SENDING DEBUG ===')
+    console.log('To:', to)
     console.log('Subject:', emailSubject)
-    console.log('Content length:', emailContent.length)
+    console.log('Original content length:', content.length)
+    console.log('Processed content length:', emailContent.length)
+    console.log('Token included:', !!onboardingToken)
+    console.log('Content preview (first 200 chars):', emailContent.substring(0, 200))
+    if (onboardingToken) {
+      console.log('Form link included:', emailContent.includes('supplier-onboarding-form'))
+      console.log('Has {formLink} placeholder before processing:', content.includes('{formLink}'))
+      console.log('Has {formLink} placeholder after processing:', emailContent.includes('{formLink}'))
+    }
+    console.log('==========================')
     
     // Send email via configured service
     const emailResult = await sendEmailViaService({
@@ -147,19 +169,164 @@ async function sendEmailViaService({
     })
     
     // Verify connection configuration
+    console.log('🔍 Verifying SMTP connection...')
     await transporter.verify()
-    console.log('SMTP connection verified successfully')
+    console.log('✅ SMTP connection verified successfully')
     
-    const mailOptions = {
-      from: config.fromEmail,
-      to: to,
-      subject: subject,
-      text: content,
-      html: content.replace(/\n/g, '<br>')
+        // Create professional HTML email
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { 
+      margin: 0; 
+      padding: 0; 
+      font-family: Arial, sans-serif; 
+      background-color: #f4f4f4; 
     }
+    .email-container { 
+      max-width: 600px; 
+      margin: 0 auto; 
+      background-color: #ffffff; 
+    }
+    .header { 
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+      padding: 40px 30px; 
+      text-align: center; 
+    }
+    .logo { 
+      max-width: 150px; 
+      height: auto; 
+      margin-bottom: 20px; 
+    }
+    .header-text { 
+      color: #ffffff; 
+      font-size: 24px; 
+      font-weight: bold; 
+      margin: 0; 
+    }
+    .content { 
+      padding: 40px 30px; 
+      color: #333333; 
+      line-height: 1.6; 
+    }
+    .greeting { 
+      font-size: 18px; 
+      font-weight: bold; 
+      color: #1e40af; 
+      margin-bottom: 20px; 
+    }
+    .info-box { 
+      background-color: #eff6ff; 
+      border-left: 4px solid #3b82f6; 
+      padding: 20px; 
+      margin: 25px 0; 
+      border-radius: 4px; 
+    }
+    .cta-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      color: #ffffff !important;
+      padding: 15px 40px;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 16px;
+      text-align: center;
+      margin: 20px 0;
+    }
+    .footer { 
+      background-color: #f9fafb; 
+      padding: 30px; 
+      text-align: center; 
+      color: #6b7280; 
+      font-size: 14px; 
+      border-top: 1px solid #e5e7eb; 
+    }
+    .footer-link { 
+      color: #3b82f6; 
+      text-decoration: none; 
+    }
+    @media only screen and (max-width: 600px) {
+      .content { 
+        padding: 30px 20px; 
+      }
+      .header { 
+        padding: 30px 20px; 
+      }
+      .header-text { 
+        font-size: 20px; 
+      }
+      .greeting { 
+        font-size: 16px; 
+      }
+      .info-box { 
+        padding: 15px; 
+      }
+      .cta-button {
+        display: block;
+        margin: 20px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <img src="cid:logo" alt="Schauenburg Systems" class="logo" />
+      <p class="header-text">Welcome to Schauenburg Systems</p>
+    </div>
+    
+    <div class="content">
+      ${content.replace(/\n/g, '<br>')}
+    </div>
+    
+    <div class="footer">
+      <p>Schauenburg Systems</p>
+      <p>
+        <a href="${config.companyWebsite || '#'}" class="footer-link">${config.companyWebsite || 'Visit our website'}</a>
+      </p>
+      <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
+        If you have questions, please contact our procurement team.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+        `
+        
+        const mailOptions = {
+          from: `"${config.companyName || 'Schauenburg Systems'}" <${config.fromEmail}>`,
+          to: to,
+          subject: subject,
+          html: htmlContent,
+          attachments: [
+            {
+              filename: 'logo.png',
+              path: path.join(process.cwd(), 'public', 'logo.png'),
+              cid: 'logo'
+            }
+          ]
+        }
+    
+    console.log('📧 Sending onboarding email...')
+    console.log('Email details:', {
+      from: mailOptions.from,
+      to: mailOptions.to,
+      subject: mailOptions.subject
+    })
     
     const result = await transporter.sendMail(mailOptions)
-    console.log('Email sent successfully:', result.messageId)
+    console.log('✅ Email sent successfully!')
+    console.log('Email result:', {
+      messageId: result.messageId,
+      accepted: result.accepted,
+      rejected: result.rejected,
+      response: result.response
+    })
     
     return {
       id: result.messageId,

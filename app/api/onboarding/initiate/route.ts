@@ -61,7 +61,12 @@ export async function POST(request: NextRequest) {
       // Create onboarding record
       const onboarding = await tx.supplierOnboarding.create({
         data: {
-          supplierId: supplier.id,
+          supplier: {
+            connect: { id: supplier.id }
+          },
+          initiatedBy: {
+            connect: { id: dbUser.id }
+          },
           contactName,
           contactEmail,
           businessType: businessType.toUpperCase().replace('-', '_'),

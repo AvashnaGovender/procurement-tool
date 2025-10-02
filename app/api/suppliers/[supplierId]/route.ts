@@ -11,15 +11,71 @@ export async function GET(
       select: {
         id: true,
         supplierCode: true,
-        companyName: true,
+        
+        // Basic Information
+        supplierName: true,
         contactPerson: true,
-        contactEmail: true,
+        companyName: true,
+        tradingName: true,
+        registrationNumber: true,
+        
+        // Address
+        physicalAddress: true,
+        postalAddress: true,
+        
+        // Contact
         contactPhone: true,
-        status: true,
-        createdAt: true,
+        contactEmail: true,
+        
+        // Business Details
         natureOfBusiness: true,
+        productsAndServices: true,
+        associatedCompany: true,
+        associatedCompanyRegNo: true,
+        branchesContactNumbers: true,
+        
+        // Banking Information
+        bankAccountName: true,
+        bankName: true,
+        branchName: true,
+        branchNumber: true,
+        accountNumber: true,
+        typeOfAccount: true,
+        
+        // Responsible Person - Banking
+        rpBanking: true,
+        rpBankingPhone: true,
+        rpBankingEmail: true,
+        
+        // Responsible Person - Quality Management
+        rpQuality: true,
+        rpQualityPhone: true,
+        rpQualityEmail: true,
+        
+        // Responsible Person - SHE
+        rpSHE: true,
+        rpSHEPhone: true,
+        rpSHEEmail: true,
+        
+        // BBBEE & Employment
         bbbeeLevel: true,
         numberOfEmployees: true,
+        
+        // Responsible Person - BBBEE
+        rpBBBEE: true,
+        rpBBBEEPhone: true,
+        rpBBBEEEmail: true,
+        
+        // Other Fields
+        associatedCompanyBranchName: true,
+        qualityManagementCert: true,
+        sheCertification: true,
+        authorizationAgreement: true,
+        field39: true,
+        
+        // Status & Metadata
+        status: true,
+        createdAt: true,
         airtableData: true,
       }
     })

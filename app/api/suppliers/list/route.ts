@@ -20,6 +20,17 @@ export async function GET(request: NextRequest) {
         bbbeeLevel: true,
         numberOfEmployees: true,
         airtableData: true,
+        onboarding: {
+          select: {
+            id: true,
+            revisionCount: true,
+            revisionRequested: true,
+            emailSent: true,
+            supplierFormSubmitted: true,
+            currentStep: true,
+            overallStatus: true,
+          }
+        }
       }
     })
 

@@ -8,15 +8,15 @@ import { ArrowLeft, ExternalLink, Download } from "lucide-react"
 export default function DocumentPreviewPage({ 
   params 
 }: { 
-  params: Promise<{ supplierId: string; supplierCode: string; category: string; filename: string }> 
+  params: Promise<{ supplierId: string; supplierCode: string; version: string; category: string; filename: string }> 
 }) {
   const router = useRouter()
   const resolvedParams = use(params)
-  const { supplierCode, category, filename } = resolvedParams
+  const { supplierCode, version, category, filename } = resolvedParams
 
   // Decode the filename in case it has special characters
   const decodedFilename = decodeURIComponent(filename)
-  const fileUrl = `/api/suppliers/documents/${supplierCode}/${category}/${decodedFilename}`
+  const fileUrl = `/api/suppliers/documents/${supplierCode}/${version}/${category}/${decodedFilename}`
   
   // Determine file type
   const fileExt = decodedFilename.toLowerCase().split('.').pop()
@@ -39,6 +39,9 @@ export default function DocumentPreviewPage({
           <h1 className="text-lg font-semibold text-gray-900 truncate max-w-md">
             {decodedFilename}
           </h1>
+          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+            {version.toUpperCase()}
+          </span>
         </div>
         <div className="flex gap-2">
           <Button
@@ -52,46 +55,52 @@ export default function DocumentPreviewPage({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              const link = document.createElement('a')
-              link.href = fileUrl
-              link.download = decodedFilename
-              link.click()
-            }}
+            asChild
           >
-            <Download className="h-4 w-4 mr-2" />
-            Download
+            <a href={fileUrl} download={decodedFilename}>
+              <Download className="h-4 w-4 mr-2" />
+              Download
+            </a>
           </Button>
         </div>
       </div>
 
-      {/* Preview Content */}
-      <div className="flex-1 overflow-hidden">
+      {/* Preview Area */}
+      <div className="flex-1 overflow-hidden flex items-center justify-center p-6">
         {isPdf ? (
           <iframe
             src={fileUrl}
-            className="w-full h-full border-0"
+            className="w-full h-full border-0 bg-white rounded shadow-lg"
             title={decodedFilename}
           />
         ) : isImage ? (
-          <div className="w-full h-full flex items-center justify-center p-8">
+          <div className="max-w-full max-h-full flex items-center justify-center">
             <img
               src={fileUrl}
               alt={decodedFilename}
-              className="max-w-full max-h-full object-contain shadow-2xl rounded"
+              className="max-w-full max-h-full object-contain rounded shadow-lg"
             />
           </div>
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-gray-500 mb-4">Preview not available for this file type</p>
-              <Button
-                onClick={() => window.open(fileUrl, '_blank')}
-              >
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+            <div className="mb-4">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Download className="h-8 w-8 text-gray-400" />
+              </div>
+              <h2 className="text-lg font-semibold mb-2">Preview Not Available</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                This file type cannot be previewed in the browser.
+              </p>
+              <p className="text-xs text-gray-500 mb-6">
+                File: {decodedFilename}
+              </p>
+            </div>
+            <Button asChild className="w-full">
+              <a href={fileUrl} download={decodedFilename}>
                 <Download className="h-4 w-4 mr-2" />
                 Download File
-              </Button>
-            </div>
+              </a>
+            </Button>
           </div>
         )}
       </div>

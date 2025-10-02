@@ -18,7 +18,9 @@ import {
   Phone, 
   Building2,
   Download,
-  Eye
+  Eye,
+  Edit,
+  UserCheck
 } from "lucide-react"
 
 interface Supplier {
@@ -62,21 +64,99 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     }
   }
 
-  const updateSupplierStatus = async (newStatus: string) => {
+  const updateSupplierStatus = async (newStatus: string, rejectionReason?: string) => {
     try {
+      // Show confirmation for approval
+      if (newStatus === 'APPROVED') {
+        const confirmed = window.confirm(
+          `Are you sure you want to approve "${supplier?.companyName}"?\n\n` +
+          `An approval email will be automatically sent to: ${supplier?.contactEmail}`
+        )
+        if (!confirmed) return
+      }
+
+      // Show prompt for rejection reason
+      if (newStatus === 'REJECTED') {
+        const reason = window.prompt(
+          `Please provide a reason for rejecting "${supplier?.companyName}":\n\n` +
+          `This reason will be included in the rejection email sent to: ${supplier?.contactEmail}\n\n` +
+          `Rejection Reason:`,
+          ''
+        )
+        
+        if (reason === null) return // User cancelled
+        
+        if (!reason || reason.trim() === '') {
+          alert('❌ Rejection reason is required. Please provide a reason for rejection.')
+          return
+        }
+        
+        rejectionReason = reason.trim()
+      }
+
       const response = await fetch('/api/suppliers/update-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ supplierId: supplier?.id, status: newStatus })
+        body: JSON.stringify({ 
+          supplierId: supplier?.id, 
+          status: newStatus,
+          rejectionReason: rejectionReason 
+        })
       })
 
       const data = await response.json()
       
       if (data.success) {
+        if (newStatus === 'APPROVED') {
+          alert(`✅ Supplier approved successfully!\n\nAn approval notification email has been sent to ${supplier?.contactEmail}`)
+        } else if (newStatus === 'REJECTED') {
+          alert(`Supplier rejected.\n\nA rejection notification email with your feedback has been sent to ${supplier?.contactEmail}`)
+        }
         await fetchSupplier()
       }
     } catch (error) {
       console.error('Error updating status:', error)
+      alert('Failed to update supplier status. Please try again.')
+    }
+  }
+
+  const requestRevision = async () => {
+    try {
+      const revisionNotes = window.prompt(
+        `Request revisions from "${supplier?.companyName}":\n\n` +
+        `Please specify what needs to be updated or corrected.\n` +
+        `This will be sent to: ${supplier?.contactEmail}\n\n` +
+        `Revision Request:`,
+        ''
+      )
+      
+      if (revisionNotes === null) return // User cancelled
+      
+      if (!revisionNotes || revisionNotes.trim() === '') {
+        alert('❌ Revision notes are required. Please specify what needs to be revised.')
+        return
+      }
+
+      const response = await fetch('/api/suppliers/request-revision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          supplierId: supplier?.id, 
+          revisionNotes: revisionNotes.trim()
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        alert(`✅ Revision request sent successfully!\n\nAn email with your feedback has been sent to ${supplier?.contactEmail}`)
+        await fetchSupplier()
+      } else {
+        alert(`Failed to send revision request: ${data.error}`)
+      }
+    } catch (error) {
+      console.error('Error requesting revision:', error)
+      alert('Failed to send revision request. Please try again.')
     }
   }
 
@@ -149,83 +229,317 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
           </TabsList>
 
           <TabsContent value="details" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Contact Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm">{supplier.contactEmail}</span>
+            {/* Basic Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-blue-600" />
+                  Basic Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Supplier Name</label>
+                    <p className="text-sm font-medium">{supplier.supplierName || 'N/A'}</p>
                   </div>
-                  {supplier.contactPhone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm">{supplier.contactPhone}</span>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Contact Person</label>
+                    <p className="text-sm font-medium">{supplier.contactPerson || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Name of Business</label>
+                    <p className="text-sm font-medium">{supplier.companyName || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Trading Name</label>
+                    <p className="text-sm font-medium">{supplier.tradingName || 'N/A'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs text-gray-500 uppercase">Company Registration No.</label>
+                    <p className="text-sm font-medium">{supplier.registrationNumber || 'N/A'}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Address Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Mail className="h-5 w-5 text-blue-600" />
+                  Address & Contact
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="text-xs text-gray-500 uppercase">Physical Address</label>
+                    <p className="text-sm font-medium whitespace-pre-wrap">{supplier.physicalAddress || 'N/A'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs text-gray-500 uppercase">Postal Address</label>
+                    <p className="text-sm font-medium whitespace-pre-wrap">{supplier.postalAddress || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Contact Number</label>
+                    <p className="text-sm font-medium">{supplier.contactPhone || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">E-mail Address</label>
+                    <p className="text-sm font-medium">{supplier.contactEmail || 'N/A'}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Business Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                  Business Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Nature of Business</label>
+                    <p className="text-sm font-medium">{supplier.natureOfBusiness || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Associated Company</label>
+                    <p className="text-sm font-medium">{supplier.associatedCompany || 'N/A'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs text-gray-500 uppercase">Products and/or Services</label>
+                    <p className="text-sm font-medium whitespace-pre-wrap">{supplier.productsAndServices || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Associated Company Registration No.</label>
+                    <p className="text-sm font-medium">{supplier.associatedCompanyRegNo || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Associated Company Branch Name</label>
+                    <p className="text-sm font-medium">{supplier.associatedCompanyBranchName || 'N/A'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs text-gray-500 uppercase">Branches Contact Numbers</label>
+                    <p className="text-sm font-medium whitespace-pre-wrap">{supplier.branchesContactNumbers || 'N/A'}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Banking Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-blue-600" />
+                  Banking Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Bank Account Name</label>
+                    <p className="text-sm font-medium">{supplier.bankAccountName || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Bank Name</label>
+                    <p className="text-sm font-medium">{supplier.bankName || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Branch Name</label>
+                    <p className="text-sm font-medium">{supplier.branchName || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Branch Number</label>
+                    <p className="text-sm font-medium">{supplier.branchNumber || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Account Number</label>
+                    <p className="text-sm font-medium">{supplier.accountNumber || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Type of Account</label>
+                    <p className="text-sm font-medium">{supplier.typeOfAccount || 'N/A'}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Responsible Persons */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <UserCheck className="h-5 w-5 text-blue-600" />
+                  Responsible Persons
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Banking RP */}
+                <div>
+                  <h4 className="font-semibold text-sm text-blue-600 mb-3">Banking</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-4">
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Name</label>
+                      <p className="text-sm font-medium">{supplier.rpBanking || 'N/A'}</p>
                     </div>
-                  )}
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Telephone</label>
+                      <p className="text-sm font-medium">{supplier.rpBankingPhone || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Email</label>
+                      <p className="text-sm font-medium">{supplier.rpBankingEmail || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quality Management RP */}
+                <div>
+                  <h4 className="font-semibold text-sm text-blue-600 mb-3">Quality Management</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-4">
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Name</label>
+                      <p className="text-sm font-medium">{supplier.rpQuality || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Telephone</label>
+                      <p className="text-sm font-medium">{supplier.rpQualityPhone || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Email</label>
+                      <p className="text-sm font-medium">{supplier.rpQualityEmail || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SHE RP */}
+                <div>
+                  <h4 className="font-semibold text-sm text-blue-600 mb-3">Safety, Health and Environment (SHE)</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-4">
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Name</label>
+                      <p className="text-sm font-medium">{supplier.rpSHE || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Telephone</label>
+                      <p className="text-sm font-medium">{supplier.rpSHEPhone || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Email</label>
+                      <p className="text-sm font-medium">{supplier.rpSHEEmail || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BBBEE RP */}
+                <div>
+                  <h4 className="font-semibold text-sm text-blue-600 mb-3">BBBEE</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-4">
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Name</label>
+                      <p className="text-sm font-medium">{supplier.rpBBBEE || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Telephone</label>
+                      <p className="text-sm font-medium">{supplier.rpBBBEEPhone || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">Email</label>
+                      <p className="text-sm font-medium">{supplier.rpBBBEEEmail || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* BBBEE & Employment */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-blue-600" />
+                  BBBEE & Employment
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">BBBEE Status</label>
+                    <p className="text-sm font-medium">{supplier.bbbeeLevel || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Number of Employees</label>
+                    <p className="text-sm font-medium">{supplier.numberOfEmployees || 'N/A'}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Certifications */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-blue-600" />
+                  Certifications & Agreements
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm">{supplier.contactPerson}</span>
+                    <div className={`w-4 h-4 rounded flex items-center justify-center ${supplier.qualityManagementCert ? 'bg-green-500' : 'bg-gray-300'}`}>
+                      {supplier.qualityManagementCert && <CheckCircle className="h-3 w-3 text-white" />}
+                    </div>
+                    <span className="text-sm">Quality Management Certification</span>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Business Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <span className="text-sm text-gray-600">Nature of Business:</span>
-                    <div className="text-sm font-medium">{supplier.natureOfBusiness || 'N/A'}</div>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-4 h-4 rounded flex items-center justify-center ${supplier.sheCertification ? 'bg-green-500' : 'bg-gray-300'}`}>
+                      {supplier.sheCertification && <CheckCircle className="h-3 w-3 text-white" />}
+                    </div>
+                    <span className="text-sm">Safety, Health and Environment (SHE) Certification</span>
                   </div>
-                  <div>
-                    <span className="text-sm text-gray-600">BBBEE Level:</span>
-                    <div className="text-sm font-medium">{supplier.bbbeeLevel || 'N/A'}</div>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-4 h-4 rounded flex items-center justify-center ${supplier.authorizationAgreement ? 'bg-green-500' : 'bg-gray-300'}`}>
+                      {supplier.authorizationAgreement && <CheckCircle className="h-3 w-3 text-white" />}
+                    </div>
+                    <span className="text-sm">Authorization Agreement Signed</span>
                   </div>
-                  <div>
-                    <span className="text-sm text-gray-600">Employees:</span>
-                    <div className="text-sm font-medium">{supplier.numberOfEmployees || 'N/A'}</div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {supplier.airtableData && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Full Submission Data</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-gray-50 p-4 rounded text-sm overflow-auto max-h-96">
-                    <pre className="whitespace-pre-wrap">
-                      {JSON.stringify(supplier.airtableData, null, 2)}
-                    </pre>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="documents">
-            {supplier.airtableData?.uploadedFiles ? (
-              <div className="space-y-4">
-                {Object.entries(supplier.airtableData.uploadedFiles).map(([category, files]: [string, any]) => (
-                  <Card key={category}>
+            {supplier.airtableData?.allVersions ? (
+              <div className="space-y-6">
+                {/* Show all versions */}
+                {supplier.airtableData.allVersions.map((versionData: any, versionIndex: number) => (
+                  <Card key={versionIndex} className={versionIndex === supplier.airtableData.allVersions.length - 1 ? 'border-blue-500 border-2' : ''}>
                     <CardHeader>
-                      <CardTitle className="text-lg capitalize">
-                        {category.replace(/([A-Z])/g, ' $1').trim()}
-                      </CardTitle>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">
+                          Version {versionData.version} {versionIndex === supplier.airtableData.allVersions.length - 1 && <Badge className="ml-2 bg-blue-500">Current</Badge>}
+                        </CardTitle>
+                        <div className="text-sm text-gray-500">
+                          {new Date(versionData.date).toLocaleString()}
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2">
-                        {files.map((file: string, index: number) => {
-                          const fileExt = file.toLowerCase().split('.').pop()
-                          const isPdf = fileExt === 'pdf'
-                          const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(fileExt || '')
-                          const fileUrl = `/api/suppliers/documents/${supplier.supplierCode}/${category}/${file}`
+                      <div className="space-y-4">
+                        {Object.entries(versionData.uploadedFiles || {}).map(([category, files]: [string, any]) => (
+                          <div key={category}>
+                            <h4 className="font-semibold text-sm mb-2 capitalize">
+                              {category.replace(/([A-Z])/g, ' $1').trim()}
+                            </h4>
+                            <div className="space-y-2 pl-4">
+                              {files.map((file: string, index: number) => {
+                                const fileExt = file.toLowerCase().split('.').pop()
+                                const isPdf = fileExt === 'pdf'
+                                const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(fileExt || '')
+                                const fileUrl = `/api/suppliers/documents/${supplier.supplierCode}/v${versionData.version}/${category}/${file}`
                           
                           return (
                             <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded hover:bg-gray-100 transition-colors">
@@ -244,7 +558,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                                   <Button 
                                     variant="ghost" 
                                     size="sm"
-                                    onClick={() => router.push(`/admin/supplier-submissions/${supplier.id}/preview/${supplier.supplierCode}/${category}/${encodeURIComponent(file)}`)}
+                                    onClick={() => window.open(`/admin/supplier-submissions/${supplier.id}/preview/${supplier.supplierCode}/v${versionData.version}/${category}/${encodeURIComponent(file)}`, '_blank')}
                                   >
                                     <Eye className="h-4 w-4 mr-1" />
                                     Preview
@@ -255,12 +569,16 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                                   size="sm"
                                   onClick={() => window.open(fileUrl, '_blank')}
                                 >
-                                  <Download className="h-4 w-4" />
+                                  <Download className="h-4 w-4 mr-1" />
+                                  Download
                                 </Button>
                               </div>
                             </div>
                           )
                         })}
+                      </div>
+                    </div>
+                  ))}
                       </div>
                     </CardContent>
                   </Card>
@@ -288,14 +606,15 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                   </AlertDescription>
                 </Alert>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <Button
-                    className="h-20 flex flex-col"
+                    className="h-20 flex flex-col bg-green-600 hover:bg-green-700"
                     onClick={() => updateSupplierStatus('APPROVED')}
                     disabled={supplier.status === 'APPROVED'}
                   >
                     <CheckCircle className="h-6 w-6 mb-2" />
-                    Approve Supplier
+                    <span className="font-semibold">Approve Supplier</span>
+                    <span className="text-xs mt-1 opacity-90">Email notification will be sent</span>
                   </Button>
                   <Button
                     variant="destructive"
@@ -304,16 +623,21 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                     disabled={supplier.status === 'REJECTED'}
                   >
                     <XCircle className="h-6 w-6 mb-2" />
-                    Reject Supplier
+                    <span className="font-semibold">Reject Supplier</span>
+                    <span className="text-xs mt-1 opacity-90">Email notification will be sent</span>
                   </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4">
                   <Button
                     variant="outline"
-                    className="h-20 flex flex-col"
-                    onClick={() => updateSupplierStatus('UNDER_REVIEW')}
-                    disabled={supplier.status === 'UNDER_REVIEW'}
+                    className="h-20 flex flex-col border-orange-500 text-orange-600 hover:bg-orange-50"
+                    onClick={requestRevision}
+                    disabled={supplier.status === 'APPROVED' || supplier.status === 'REJECTED'}
                   >
-                    <Clock className="h-6 w-6 mb-2" />
-                    Mark Under Review
+                    <Edit className="h-6 w-6 mb-2" />
+                    <span className="font-semibold">Request Revision</span>
+                    <span className="text-xs mt-1 opacity-90">Email notification will be sent</span>
                   </Button>
                 </div>
               </CardContent>

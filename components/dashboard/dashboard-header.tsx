@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
-import { Bell, Search, Settings } from "lucide-react"
+import { Bell, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import Link from "next/link"
+import { UserMenu } from "@/components/user-menu"
 
 export function DashboardHeader() {
   return (
@@ -28,11 +28,7 @@ export function DashboardHeader() {
             <Button variant="ghost" size="sm">
               <Bell className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/settings">
-                <Settings className="h-4 w-4" />
-              </Link>
-            </Button>
+            <UserMenu />
           </div>
         </div>
       </div>

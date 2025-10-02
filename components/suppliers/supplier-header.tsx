@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, Download, Home, Settings } from "lucide-react"
+import { Search, Plus, Download, Home } from "lucide-react"
 import Link from "next/link"
 
 export function SupplierHeader() {
@@ -33,11 +33,6 @@ export function SupplierHeader() {
               <Link href="/suppliers/onboard">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Supplier
-              </Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/settings">
-                <Settings className="h-4 w-4" />
               </Link>
             </Button>
           </div>

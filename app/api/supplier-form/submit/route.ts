@@ -104,19 +104,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Process file uploads
-    const uploadedFiles: { [key: string]: string[] } = {}
-    const uploadsDir = join(process.cwd(), 'data', 'uploads', 'suppliers')
+        // Process file uploads
+        const uploadedFiles: { [key: string]: string[] } = {}
+        const uploadsDir = join(process.cwd(), 'data', 'uploads', 'suppliers')
 
-    // Create uploads directory if it doesn't exist
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true })
-    }
+        // Create uploads directory if it doesn't exist
+        if (!existsSync(uploadsDir)) {
+          await mkdir(uploadsDir, { recursive: true })
+        }
 
-    // Generate unique supplier ID for folder
-    const supplierId = `SUP-${Date.now()}`
-    const supplierDir = join(uploadsDir, supplierId)
-    await mkdir(supplierDir, { recursive: true })
+        // Use existing supplier code if available, otherwise generate new one
+        const supplierId = existingSupplier?.supplierCode || `SUP-${Date.now()}-${Math.random().toString(36).substring(7)}`
+        const supplierDir = join(uploadsDir, supplierId)
+        
+        // Determine version number for file uploads
+        let versionNumber = 1
+        if (existingOnboarding && existingOnboarding.revisionCount > 0) {
+          versionNumber = existingOnboarding.revisionCount + 1
+        }
+        
+        // Create versioned directory for this submission
+        const versionDir = join(supplierDir, `v${versionNumber}`)
+        await mkdir(versionDir, { recursive: true })
+        
+        console.log('📁 Using supplier folder:', supplierId)
+        console.log('📁 Version:', versionNumber)
 
     // File categories
     const fileCategories = [
@@ -129,7 +141,7 @@ export async function POST(request: NextRequest) {
     // Process each file category
     for (const category of fileCategories) {
       const categoryFiles: string[] = []
-      const categoryDir = join(supplierDir, category)
+      const categoryDir = join(versionDir, category)
       
       // Check if there are files for this category
       let fileIndex = 0
@@ -151,7 +163,7 @@ export async function POST(request: NextRequest) {
           await writeFile(filePath, buffer)
           categoryFiles.push(fileName)
           
-          console.log(`✅ Saved file: ${category}/${fileName}`)
+          console.log(`✅ Saved file: v${versionNumber}/${category}/${fileName}`)
         }
         
         fileIndex++
@@ -212,7 +224,11 @@ export async function POST(request: NextRequest) {
         uploadedFiles,
         submissionDate: new Date().toISOString(),
         source: 'custom-form',
-        onboardingToken: onboardingToken || undefined
+        onboardingToken: onboardingToken || undefined,
+        version: versionNumber,
+        allVersions: existingSupplier?.airtableData?.allVersions 
+          ? [...existingSupplier.airtableData.allVersions, { version: versionNumber, uploadedFiles, date: new Date().toISOString() }]
+          : [{ version: versionNumber, uploadedFiles, date: new Date().toISOString() }]
       } as any,
       status: 'UNDER_REVIEW' as any,
     }
@@ -258,7 +274,12 @@ export async function POST(request: NextRequest) {
       // Create new onboarding record (for standalone submissions without workflow)
       onboarding = await prisma.supplierOnboarding.create({
         data: {
-          supplierId: supplier.id,
+          supplier: {
+            connect: { id: supplier.id }
+          },
+          initiatedBy: {
+            connect: { id: systemUser.id }
+          },
           contactName: supplierData.contactPerson,
           contactEmail: supplierData.emailAddress,
           businessType: 'OTHER',
@@ -274,7 +295,6 @@ export async function POST(request: NextRequest) {
             ...supplierData,
             uploadedFiles
           } as any,
-          initiatedById: systemUser.id,
           requiredDocuments: [],
         }
       })
@@ -322,9 +342,16 @@ export async function POST(request: NextRequest) {
 
     // Send email notifications
     try {
-      await sendEmailNotifications(supplier, supplierData, uploadedFiles, adminEmail, adminName)
+      console.log('📧 Attempting to send email notifications...')
+      await sendEmailNotifications(supplier, supplierData, uploadedFiles, adminEmail, adminName, existingOnboarding)
+      console.log('✅ Email notifications sent successfully')
     } catch (emailError) {
-      console.error('⚠️ Email notification failed (form still submitted):', emailError)
+      console.error('⚠️ Email notification failed (form still submitted):')
+      console.error(emailError)
+      if (emailError instanceof Error) {
+        console.error('Error message:', emailError.message)
+        console.error('Error stack:', emailError.stack)
+      }
     }
 
     return NextResponse.json({
@@ -352,13 +379,25 @@ async function sendEmailNotifications(
   supplierData: any,
   uploadedFiles: { [key: string]: string[] },
   adminEmail: string | null,
-  adminName: string | null
+  adminName: string | null,
+  onboarding: any = null
 ) {
   try {
+    console.log('📧 sendEmailNotifications called')
+    console.log('Admin email:', adminEmail)
+    console.log('Supplier email:', supplierData.emailAddress)
+    
     // Load SMTP configuration
     const configPath = join(process.cwd(), 'data', 'smtp-config.json')
     const configData = await readFile(configPath, 'utf8')
     const smtpConfig = JSON.parse(configData)
+
+    console.log('SMTP Config loaded:', {
+      host: smtpConfig.host,
+      port: smtpConfig.port,
+      user: smtpConfig.user,
+      hasPassword: !!smtpConfig.pass
+    })
 
     if (!smtpConfig || !smtpConfig.host) {
       console.log('⚠️ SMTP not configured, skipping email notifications')
@@ -382,12 +421,18 @@ async function sendEmailNotifications(
     // Determine recipient email (use logged-in user's email or fallback to company email)
     const recipientEmail = adminEmail || smtpConfig.fromEmail
     const senderName = adminName || smtpConfig.companyName || 'Procurement Team'
+    
+    // Check if this is a revision
+    const isRevision = onboarding?.revisionCount > 0
+    const revisionNotes = onboarding?.revisionNotes || null
 
     // 1. Send notification to admin (logged-in user who will process this)
     const adminNotification = {
       from: smtpConfig.fromEmail,
       to: recipientEmail, // Send to logged-in user's email
-      subject: `New Supplier Onboarding Submission: ${supplierData.nameOfBusiness}`,
+      subject: isRevision 
+        ? `Revision Submitted: ${supplierData.nameOfBusiness} (Revision ${onboarding.revisionCount})`
+        : `New Supplier Onboarding Submission: ${supplierData.nameOfBusiness}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -473,16 +518,56 @@ async function sendEmailNotifications(
             .footer p {
               margin: 5px 0;
             }
+            @media only screen and (max-width: 600px) {
+              .header {
+                padding: 30px 20px !important;
+              }
+              .header h1 {
+                font-size: 22px !important;
+              }
+              .content {
+                padding: 30px 20px !important;
+              }
+              .info-section {
+                padding: 15px !important;
+              }
+              .info-section h2 {
+                font-size: 16px !important;
+              }
+              .label {
+                min-width: auto !important;
+                display: block !important;
+                margin-bottom: 5px !important;
+              }
+              .button {
+                padding: 12px 30px !important;
+                font-size: 14px !important;
+              }
+              .footer {
+                padding: 20px !important;
+              }
+            }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>New Supplier Onboarding Submission</h1>
+              <h1>${isRevision ? 'Revised Supplier Submission' : 'New Supplier Onboarding Submission'}</h1>
               <p>Schauenburg Systems Procurement</p>
             </div>
             <div class="content">
-              <p>A new supplier has completed the onboarding form and submitted their documentation for review.</p>
+              ${isRevision ? `
+                <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 5px; padding: 20px; margin-bottom: 25px;">
+                  <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 18px;">🔄 Revision Submission (Version ${onboarding.revisionCount + 1})</h3>
+                  <p style="margin: 0 0 15px 0; color: #856404; font-weight: 600;">The supplier has updated their submission based on your revision request.</p>
+                  <div style="background: white; border-radius: 5px; padding: 15px; margin-top: 15px;">
+                    <p style="margin: 0 0 8px 0; font-weight: 600; color: #333;">Original Revision Request:</p>
+                    <p style="margin: 0; color: #666; white-space: pre-wrap; font-size: 14px; line-height: 1.6;">${revisionNotes}</p>
+                  </div>
+                </div>
+              ` : `
+                <p>A new supplier has completed the onboarding form and submitted their documentation for review.</p>
+              `}
               
               <div class="info-section">
                 <h2>Company Information</h2>
@@ -538,6 +623,12 @@ async function sendEmailNotifications(
 
               <div class="info-section">
                 <h2>Submission Details</h2>
+                ${isRevision ? `
+                  <div class="info-row">
+                    <span class="label">Submission Type:</span>
+                    <span class="value" style="color: #ffc107; font-weight: 600;">Revision ${onboarding.revisionCount}</span>
+                  </div>
+                ` : ''}
                 <div class="info-row">
                   <span class="label">Documents Submitted:</span>
                   <span class="value">${totalFiles} files in ${Object.keys(uploadedFiles).length} categories</span>
@@ -553,13 +644,16 @@ async function sendEmailNotifications(
               </div>
               
               <div class="button-container">
-                <a href="http://localhost:3000/admin/supplier-submissions" class="button">
+                <a href="http://localhost:3000/suppliers/onboard?tab=review" class="button">
                   Review Submission in Dashboard
                 </a>
               </div>
 
               <p style="margin-top: 30px; font-size: 14px; color: #666;">
-                Please review the submission and verify all documents within 1-2 business days.
+                ${isRevision 
+                  ? 'Please review the updated submission and the changes made based on your revision request.' 
+                  : 'Please review the submission and verify all documents within 1-2 business days.'
+                }
               </p>
             </div>
             <div class="footer">
@@ -572,8 +666,15 @@ async function sendEmailNotifications(
       `
     }
 
-    await transporter.sendMail(adminNotification)
+    console.log('📧 Sending admin notification...')
+    console.log('Admin email details:', {
+      from: adminNotification.from,
+      to: adminNotification.to,
+      subject: adminNotification.subject
+    })
+    const adminResult = await transporter.sendMail(adminNotification)
     console.log(`✅ Admin notification email sent to: ${recipientEmail}`)
+    console.log('Admin email result:', adminResult)
 
     // 2. Send auto-reply to supplier
     const supplierEmail = {
@@ -581,6 +682,13 @@ async function sendEmailNotifications(
       replyTo: recipientEmail, // Allow supplier to reply directly to the admin
       to: supplierData.emailAddress,
       subject: `Supplier Onboarding Submission Received - Schauenburg Systems`,
+      attachments: [
+        {
+          filename: 'logo.png',
+          path: join(process.cwd(), 'public', 'logo.png'),
+          cid: 'logo'
+        }
+      ],
       html: `
         <!DOCTYPE html>
         <html>
@@ -589,20 +697,22 @@ async function sendEmailNotifications(
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
             .container { max-width: 600px; margin: 0 auto; background: white; }
             .header { 
-              background: #0047AB; 
-              color: white; 
+              background: #ffffff; 
+              color: #0047AB; 
               padding: 50px 30px; 
               text-align: center; 
+              border-bottom: 3px solid #0047AB;
             }
             .header h1 {
               margin: 0;
               font-size: 32px;
               font-weight: 600;
+              color: #0047AB;
             }
             .header p {
               margin: 15px 0 0 0;
               font-size: 16px;
-              opacity: 0.95;
+              color: #666;
             }
             .content { 
               background: white; 
@@ -651,6 +761,8 @@ async function sendEmailNotifications(
               padding-left: 50px;
               position: relative;
               font-size: 15px;
+              min-height: 32px;
+              line-height: 1.5;
             }
             .steps li:before {
               content: counter(step-counter);
@@ -659,14 +771,50 @@ async function sendEmailNotifications(
               width: 32px;
               height: 32px;
               border-radius: 50%;
-              display: inline-flex;
+              display: flex;
               align-items: center;
               justify-content: center;
               position: absolute;
               left: 0;
-              top: -2px;
+              top: 0;
               font-weight: bold;
               font-size: 16px;
+              flex-shrink: 0;
+            }
+            @media only screen and (max-width: 600px) {
+              .header {
+                padding: 30px 20px !important;
+              }
+              .header h1 {
+                font-size: 24px !important;
+              }
+              .content {
+                padding: 30px 20px !important;
+              }
+              .steps li {
+                padding-left: 45px !important;
+                font-size: 14px !important;
+              }
+              .steps li:before {
+                width: 28px !important;
+                height: 28px !important;
+                font-size: 14px !important;
+              }
+              .info-box {
+                padding: 15px !important;
+              }
+              .highlight-box {
+                padding: 15px !important;
+              }
+              .highlight-box strong {
+                font-size: 16px !important;
+              }
+              h3 {
+                font-size: 18px !important;
+              }
+              .footer {
+                padding: 20px !important;
+              }
             }
             .highlight-box {
               background: #e3f2fd;
@@ -712,6 +860,7 @@ async function sendEmailNotifications(
         <body>
           <div class="container">
             <div class="header">
+              <img src="cid:logo" alt="Schauenburg Systems" style="max-width: 180px; height: auto; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto;" />
               <h1>Thank You</h1>
               <p>Your supplier onboarding submission has been received</p>
             </div>
@@ -764,11 +913,24 @@ async function sendEmailNotifications(
       `
     }
 
-    await transporter.sendMail(supplierEmail)
+    console.log('📧 Sending supplier auto-reply...')
+    console.log('Supplier email details:', {
+      from: supplierEmail.from,
+      to: supplierEmail.to,
+      replyTo: supplierEmail.replyTo,
+      subject: supplierEmail.subject
+    })
+    const supplierResult = await transporter.sendMail(supplierEmail)
     console.log(`✅ Supplier auto-reply email sent (Reply-To: ${recipientEmail})`)
+    console.log('Supplier email result:', supplierResult)
 
   } catch (error) {
-    console.error('Error sending emails:', error)
+    console.error('❌ Error sending emails:')
+    console.error(error)
+    if (error instanceof Error) {
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+    }
     throw error
   }
 }
