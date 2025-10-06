@@ -397,8 +397,8 @@ export default function SupplierOnboardingFormPage() {
             <Image
               src="/logo.png"
               alt="Company Logo"
-              width={120}
-              height={120}
+              width={240}
+              height={240}
               className="object-contain"
             />
           </div>
@@ -919,7 +919,7 @@ export default function SupplierOnboardingFormPage() {
                 { key: 'taxClearance', label: 'Tax Clearance Certificate *', required: true },
                 { key: 'vatCertificate', label: 'VAT Registration Certificate', required: false },
                 { key: 'bankConfirmation', label: 'Bank Confirmation Letter *', required: true },
-                { key: 'nda', label: 'Non-Disclosure Agreement (NDA)', required: false },
+                { key: 'nda', label: 'Non-Disclosure Agreement (NDA) - Signed *', required: true },
                 { key: 'healthSafety', label: 'Health and Safety Policy', required: false },
                 { key: 'creditApplication', label: 'Credit Application Form', required: false },
                 { key: 'qualityCert', label: 'Quality Certification', required: false },
@@ -930,6 +930,32 @@ export default function SupplierOnboardingFormPage() {
               ].map(({ key, label, required }) => (
                 <div key={key} className="border rounded-lg p-4">
                   <Label className="mb-2 block">{label}</Label>
+                  
+                  {/* NDA Download Section */}
+                  {key === 'nda' && (
+                    <Alert className="mb-3 bg-blue-50 border-blue-200">
+                      <FileIcon className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="ml-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-blue-900 mb-1">Please download our standard NDA template</p>
+                            <p className="text-xs text-blue-700">Download → Sign manually → Upload signed version</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="ml-4 shrink-0"
+                            onClick={() => window.open('/templates/standard-nda.pdf', '_blank')}
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            Download NDA
+                          </Button>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
                   <div className="space-y-2">
                     <Input
                       type="file"
