@@ -1,8 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -16,29 +15,29 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { LogOut } from "lucide-react"
 
 export function UserMenu() {
-  const [user, setUser] = useState<any>(null)
+  const { data: session, status } = useSession()
   const router = useRouter()
-  const supabase = createClient()
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
-    }
-    getUser()
-  }, [supabase])
-
-  if (!user) {
+  if (status === "loading") {
     return null
   }
 
-  const initials = user.email
+  if (!session?.user) {
+    return null
+  }
+
+  const initials = session.user.name
+    ?.split(" ")
+    .map(n => n[0])
+    .join("")
+    .toUpperCase()
+    .substring(0, 2) || session.user.email
     ?.split("@")[0]
     ?.substring(0, 2)
     .toUpperCase() || "U"
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
+    await signOut({ redirect: false })
     router.push("/login")
     router.refresh()
   }
@@ -55,8 +54,9 @@ export function UserMenu() {
       <DropdownMenuContent className="w-56" align="end">
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{session.user.name}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
+              {session.user.email}
             </p>
           </div>
         </DropdownMenuLabel>

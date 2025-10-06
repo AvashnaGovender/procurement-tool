@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { createClient } from '@/lib/supabase/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { randomBytes } from 'crypto'
 
 export async function POST(request: NextRequest) {
@@ -9,31 +10,46 @@ export async function POST(request: NextRequest) {
     const { contactName, contactEmail, businessType, sector, emailContent, requiredDocuments } = body
 
     // Get authenticated user
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const session = await getServerSession(authOptions)
     
-    if (authError || !user) {
+    if (!session?.user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized. Please login first.' },
         { status: 401 }
       )
     }
 
-    // Find or create user in our database
-    let dbUser = await prisma.user.findUnique({
-      where: { email: user.email! }
+    // Get user from database
+    const dbUser = await prisma.user.findUnique({
+      where: { email: session.user.email! }
     })
 
     if (!dbUser) {
-      dbUser = await prisma.user.create({
-        data: {
-          email: user.email!,
-          name: user.email!.split('@')[0],
-          password: 'supabase-auth',
-          role: 'USER',
-          isActive: true,
-        }
-      })
+      return NextResponse.json(
+        { success: false, error: 'User not found in database.' },
+        { status: 404 }
+      )
+    }
+
+    // Check for duplicate email address
+    const existingSupplier = await prisma.supplier.findFirst({
+      where: { contactEmail }
+    })
+
+    if (existingSupplier) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'A supplier with this email address already exists.',
+          existingSupplier: {
+            id: existingSupplier.id,
+            companyName: existingSupplier.companyName,
+            contactPerson: existingSupplier.contactPerson,
+            status: existingSupplier.status
+          }
+        },
+        { status: 400 }
+      )
     }
 
     // Generate unique onboarding token

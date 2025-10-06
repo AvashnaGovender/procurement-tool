@@ -7,5 +7,20 @@ import {
 } from 'next-themes'
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  return <NextThemesProvider {...props}>{children}</NextThemesProvider>
+  return (
+    <NextThemesProvider 
+      {...props}
+      onThemeChange={(theme) => {
+        // Handle custom "original" theme
+        if (theme === 'original') {
+          document.documentElement.classList.add('original')
+          document.documentElement.classList.remove('dark', 'light')
+        } else {
+          document.documentElement.classList.remove('original')
+        }
+      }}
+    >
+      {children}
+    </NextThemesProvider>
+  )
 }

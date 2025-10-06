@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { 
   Loader2, 
   ArrowLeft,
@@ -17,10 +20,10 @@ import {
   Mail, 
   Phone, 
   Building2,
-  Download,
   Eye,
   Edit,
-  UserCheck
+  UserCheck,
+  Trash2
 } from "lucide-react"
 
 interface Supplier {
@@ -43,6 +46,18 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const resolvedParams = use(params)
   const [supplier, setSupplier] = useState<Supplier | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showCompletion, setShowCompletion] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [companyNameConfirm, setCompanyNameConfirm] = useState("")
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+  const [rejectReason, setRejectReason] = useState("")
+  const [revisionDialogOpen, setRevisionDialogOpen] = useState(false)
+  const [revisionNotes, setRevisionNotes] = useState("")
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false)
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false)
+  const [successMessage, setSuccessMessage] = useState("")
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
 
   useEffect(() => {
     fetchSupplier()
@@ -64,79 +79,97 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     }
   }
 
-  const updateSupplierStatus = async (newStatus: string, rejectionReason?: string) => {
+  const handleApproveClick = () => {
+    setApproveDialogOpen(true)
+  }
+
+  const handleRejectClick = () => {
+    setRejectDialogOpen(true)
+    setRejectReason("")
+  }
+
+  const confirmApprove = async () => {
     try {
-      // Show confirmation for approval
-      if (newStatus === 'APPROVED') {
-        const confirmed = window.confirm(
-          `Are you sure you want to approve "${supplier?.companyName}"?\n\n` +
-          `An approval email will be automatically sent to: ${supplier?.contactEmail}`
-        )
-        if (!confirmed) return
-      }
-
-      // Show prompt for rejection reason
-      if (newStatus === 'REJECTED') {
-        const reason = window.prompt(
-          `Please provide a reason for rejecting "${supplier?.companyName}":\n\n` +
-          `This reason will be included in the rejection email sent to: ${supplier?.contactEmail}\n\n` +
-          `Rejection Reason:`,
-          ''
-        )
-        
-        if (reason === null) return // User cancelled
-        
-        if (!reason || reason.trim() === '') {
-          alert('❌ Rejection reason is required. Please provide a reason for rejection.')
-          return
-        }
-        
-        rejectionReason = reason.trim()
-      }
-
       const response = await fetch('/api/suppliers/update-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           supplierId: supplier?.id, 
-          status: newStatus,
-          rejectionReason: rejectionReason 
+          status: 'APPROVED'
         })
       })
 
       const data = await response.json()
       
       if (data.success) {
-        if (newStatus === 'APPROVED') {
-          alert(`✅ Supplier approved successfully!\n\nAn approval notification email has been sent to ${supplier?.contactEmail}`)
-        } else if (newStatus === 'REJECTED') {
-          alert(`Supplier rejected.\n\nA rejection notification email with your feedback has been sent to ${supplier?.contactEmail}`)
-        }
+        setShowCompletion(true)
+        setSuccessMessage(`Supplier approved successfully!\n\nAn approval email has been sent to ${supplier?.contactEmail}`)
+        setSuccessDialogOpen(true)
         await fetchSupplier()
+      } else {
+        setErrorMessage(`Failed to approve supplier: ${data.error}`)
+        setErrorDialogOpen(true)
       }
     } catch (error) {
       console.error('Error updating status:', error)
-      alert('Failed to update supplier status. Please try again.')
+      setErrorMessage('Failed to update supplier status. Please try again.')
+      setErrorDialogOpen(true)
+    } finally {
+      setApproveDialogOpen(false)
     }
   }
 
-  const requestRevision = async () => {
-    try {
-      const revisionNotes = window.prompt(
-        `Request revisions from "${supplier?.companyName}":\n\n` +
-        `Please specify what needs to be updated or corrected.\n` +
-        `This will be sent to: ${supplier?.contactEmail}\n\n` +
-        `Revision Request:`,
-        ''
-      )
-      
-      if (revisionNotes === null) return // User cancelled
-      
-      if (!revisionNotes || revisionNotes.trim() === '') {
-        alert('❌ Revision notes are required. Please specify what needs to be revised.')
-        return
-      }
+  const confirmReject = async () => {
+    if (!rejectReason.trim()) {
+      setErrorMessage('Rejection reason is required. Please provide a reason for rejection.')
+      setErrorDialogOpen(true)
+      return
+    }
 
+    try {
+      const response = await fetch('/api/suppliers/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          supplierId: supplier?.id, 
+          status: 'REJECTED',
+          rejectionReason: rejectReason.trim()
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        setSuccessMessage(`Supplier rejected successfully!\n\nA rejection notification email with your feedback has been sent to ${supplier?.contactEmail}`)
+        setSuccessDialogOpen(true)
+        await fetchSupplier()
+      } else {
+        setErrorMessage(`Failed to reject supplier: ${data.error}`)
+        setErrorDialogOpen(true)
+      }
+    } catch (error) {
+      console.error('Error updating status:', error)
+      setErrorMessage('Failed to update supplier status. Please try again.')
+      setErrorDialogOpen(true)
+    } finally {
+      setRejectDialogOpen(false)
+      setRejectReason("")
+    }
+  }
+
+  const handleRevisionClick = () => {
+    setRevisionDialogOpen(true)
+    setRevisionNotes("")
+  }
+
+  const confirmRevision = async () => {
+    if (!revisionNotes.trim()) {
+      setErrorMessage('Revision notes are required. Please specify what needs to be revised.')
+      setErrorDialogOpen(true)
+      return
+    }
+
+    try {
       const response = await fetch('/api/suppliers/request-revision', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -149,14 +182,60 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       const data = await response.json()
       
       if (data.success) {
-        alert(`✅ Revision request sent successfully!\n\nAn email with your feedback has been sent to ${supplier?.contactEmail}`)
+        setSuccessMessage(`Revision request sent successfully!\n\nAn email with your feedback has been sent to ${supplier?.contactEmail}`)
+        setSuccessDialogOpen(true)
         await fetchSupplier()
       } else {
-        alert(`Failed to send revision request: ${data.error}`)
+        setErrorMessage(`Failed to send revision request: ${data.error}`)
+        setErrorDialogOpen(true)
       }
     } catch (error) {
       console.error('Error requesting revision:', error)
-      alert('Failed to send revision request. Please try again.')
+      setErrorMessage('Failed to send revision request. Please try again.')
+      setErrorDialogOpen(true)
+    } finally {
+      setRevisionDialogOpen(false)
+      setRevisionNotes("")
+    }
+  }
+
+  const handleDeleteClick = () => {
+    setDeleteDialogOpen(true)
+    setCompanyNameConfirm("")
+  }
+
+  const confirmDelete = async () => {
+    if (companyNameConfirm !== supplier?.companyName) {
+      setErrorMessage('Company name does not match. Please try again.')
+      setErrorDialogOpen(true)
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/suppliers/${supplier?.id}/delete`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        setSuccessMessage(`Supplier "${supplier?.companyName}" has been permanently deleted. Redirecting to suppliers list...`)
+        setSuccessDialogOpen(true)
+        setTimeout(() => {
+          router.push('/suppliers/onboard?tab=review')
+        }, 2000)
+      } else {
+        setErrorMessage(`Failed to delete supplier: ${data.error}`)
+        setErrorDialogOpen(true)
+      }
+    } catch (error) {
+      console.error('Error deleting supplier:', error)
+      setErrorMessage('Failed to delete supplier. Please try again.')
+      setErrorDialogOpen(true)
+    } finally {
+      setDeleteDialogOpen(false)
+      setCompanyNameConfirm("")
     }
   }
 
@@ -194,6 +273,46 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Completion Dialog */}
+      <Dialog open={showCompletion} onOpenChange={setShowCompletion}>
+        <DialogContent className="sm:max-w-lg">
+          <div className="text-center space-y-5 p-2">
+            <div className="flex justify-center">
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle className="h-9 w-9 text-green-600" />
+              </div>
+            </div>
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900">Onboarding Successful!</h2>
+              <p className="text-gray-600 mt-1">The supplier has been successfully added to your database.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Card className="bg-green-50 border-green-200">
+                <CardContent className="py-4 text-center">
+                  <div className="text-sm font-medium text-green-800">Database Entry</div>
+                  <div className="text-xs text-green-700">Supplier profile created</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-green-50 border-green-200">
+                <CardContent className="py-4 text-center">
+                  <div className="text-sm font-medium text-green-800">Notification Sent</div>
+                  <div className="text-xs text-green-700">Approval email delivered</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-green-50 border-green-200">
+                <CardContent className="py-4 text-center">
+                  <div className="text-sm font-medium text-green-800">Documents Stored</div>
+                  <div className="text-xs text-green-700">All files archived securely</div>
+                </CardContent>
+              </Card>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-1">
+              <Button variant="outline" onClick={() => router.push('/suppliers')}>View All Suppliers</Button>
+              <Button onClick={() => router.push('/suppliers/onboard?tab=review')}>Close</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -564,14 +683,6 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                                     Preview
                                   </Button>
                                 )}
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => window.open(fileUrl, '_blank')}
-                                >
-                                  <Download className="h-4 w-4 mr-1" />
-                                  Download
-                                </Button>
                               </div>
                             </div>
                           )
@@ -606,38 +717,36 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                   </AlertDescription>
                 </Alert>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="flex flex-col gap-4">
                   <Button
-                    className="h-20 flex flex-col bg-green-600 hover:bg-green-700"
-                    onClick={() => updateSupplierStatus('APPROVED')}
+                    onClick={handleApproveClick}
                     disabled={supplier.status === 'APPROVED'}
                   >
-                    <CheckCircle className="h-6 w-6 mb-2" />
-                    <span className="font-semibold">Approve Supplier</span>
-                    <span className="text-xs mt-1 opacity-90">Email notification will be sent</span>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Approve Supplier
                   </Button>
                   <Button
                     variant="destructive"
-                    className="h-20 flex flex-col"
-                    onClick={() => updateSupplierStatus('REJECTED')}
+                    onClick={handleRejectClick}
                     disabled={supplier.status === 'REJECTED'}
                   >
-                    <XCircle className="h-6 w-6 mb-2" />
-                    <span className="font-semibold">Reject Supplier</span>
-                    <span className="text-xs mt-1 opacity-90">Email notification will be sent</span>
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Reject Supplier
                   </Button>
-                </div>
-                
-                <div className="grid grid-cols-1 gap-4">
                   <Button
                     variant="outline"
-                    className="h-20 flex flex-col border-orange-500 text-orange-600 hover:bg-orange-50"
-                    onClick={requestRevision}
+                    onClick={handleRevisionClick}
                     disabled={supplier.status === 'APPROVED' || supplier.status === 'REJECTED'}
                   >
-                    <Edit className="h-6 w-6 mb-2" />
-                    <span className="font-semibold">Request Revision</span>
-                    <span className="text-xs mt-1 opacity-90">Email notification will be sent</span>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Request Revision
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleDeleteClick}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Supplier
                   </Button>
                 </div>
               </CardContent>
@@ -645,6 +754,222 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Delete Supplier</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete the supplier and all associated data.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <h4 className="font-medium text-red-900 mb-2">Supplier Information:</h4>
+              <div className="text-sm text-red-800 space-y-1">
+                <div><strong>Company:</strong> {supplier?.companyName}</div>
+                <div><strong>Email:</strong> {supplier?.contactEmail}</div>
+                <div><strong>Status:</strong> {supplier?.status}</div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                To confirm deletion, type the company name:
+              </label>
+              <Input
+                placeholder={supplier?.companyName}
+                value={companyNameConfirm}
+                onChange={(e) => setCompanyNameConfirm(e.target.value)}
+                className="border-red-300 focus:border-red-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDelete}
+              disabled={companyNameConfirm !== supplier?.companyName}
+            >
+              Delete Supplier
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approve Confirmation Dialog */}
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-green-600">Approve Supplier</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to approve this supplier? An approval email will be automatically sent.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-medium text-green-900 mb-2">Supplier Information:</h4>
+              <div className="text-sm text-green-800 space-y-1">
+                <div><strong>Company:</strong> {supplier?.companyName}</div>
+                <div><strong>Email:</strong> {supplier?.contactEmail}</div>
+                <div><strong>Status:</strong> {supplier?.status}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmApprove}>
+              Approve Supplier
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Confirmation Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Reject Supplier</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this supplier. This reason will be included in the rejection email.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <h4 className="font-medium text-red-900 mb-2">Supplier Information:</h4>
+              <div className="text-sm text-red-800 space-y-1">
+                <div><strong>Company:</strong> {supplier?.companyName}</div>
+                <div><strong>Email:</strong> {supplier?.contactEmail}</div>
+                <div><strong>Status:</strong> {supplier?.status}</div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Rejection Reason:
+              </label>
+              <Textarea
+                placeholder="Please specify why this supplier is being rejected..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                className="border-red-300 focus:border-red-500"
+                rows={4}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmReject}>
+              Reject Supplier
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revision Request Dialog */}
+      <Dialog open={revisionDialogOpen} onOpenChange={setRevisionDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-orange-600">Request Revision</DialogTitle>
+            <DialogDescription>
+              Please specify what needs to be updated or corrected. This feedback will be sent to the supplier.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <h4 className="font-medium text-orange-900 mb-2">Supplier Information:</h4>
+              <div className="text-sm text-orange-800 space-y-1">
+                <div><strong>Company:</strong> {supplier?.companyName}</div>
+                <div><strong>Email:</strong> {supplier?.contactEmail}</div>
+                <div><strong>Status:</strong> {supplier?.status}</div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Revision Notes:
+              </label>
+              <Textarea
+                placeholder="Please specify what needs to be updated or corrected..."
+                value={revisionNotes}
+                onChange={(e) => setRevisionNotes(e.target.value)}
+                className="border-orange-300 focus:border-orange-500"
+                rows={4}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setRevisionDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="outline" onClick={confirmRevision}>
+              Send Revision Request
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Dialog */}
+      <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-green-600">Success</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="text-sm text-green-800 whitespace-pre-line">
+                {successMessage}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button onClick={() => setSuccessDialogOpen(false)}>
+              OK
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error Dialog */}
+      <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Error</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="text-sm text-red-800 whitespace-pre-line">
+                {errorMessage}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setErrorDialogOpen(false)}>
+              OK
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

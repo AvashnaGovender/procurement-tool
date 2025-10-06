@@ -67,25 +67,22 @@ export async function POST(request: NextRequest) {
     
     // Replace form link with onboarding-specific link if token is provided
     let emailContent = content
+    
+    // First, convert ALL newlines to <br /> before any HTML replacement
+    // This ensures the text content is properly formatted FIRST
+    emailContent = emailContent.replace(/\n/g, '<br />\n')
+    
     if (onboardingToken) {
       const formUrl = `http://localhost:3000/supplier-onboarding-form?token=${onboardingToken}`
-      // Email-safe button with table-based layout for better compatibility
-      const formLinkHtml = `
-<table cellpadding="0" cellspacing="0" border="0" style="margin: 25px 0;">
-  <tr>
-    <td align="center" style="background-color: #3b82f6; border-radius: 8px; padding: 0;">
-      <a href="${formUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff !important; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">Complete Registration Form</a>
-    </td>
-  </tr>
-</table>`
       
-      // Replace {formLink} placeholder with HTML link button
+      // Create a clean HTML button with no newlines inside it
+      const formLinkHtml = `<div style="text-align: center; margin: 30px 0;"><a href="${formUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">Complete Registration Form</a></div>`
+      
+      // Replace {formLink} placeholder ONLY (remove other replacements that might cause duplicates)
       emailContent = emailContent
         .replace(/{formLink}/g, formLinkHtml)
         .replace(/\{formLink\}/g, formLinkHtml)
-        .replace(/https?:\/\/forms\.office\.com[^\s]*/g, formLinkHtml)
-        .replace(/https?:\/\/airtable\.com[^\s]*/g, formLinkHtml)
-        .replace(/http:\/\/localhost:3000\/supplier-onboarding-form[^\s]*/g, formLinkHtml)
+        .replace(/\[Supplier Registration Portal Link\]/g, formLinkHtml)
     }
     
     console.log('=== EMAIL SENDING DEBUG ===')
@@ -99,6 +96,12 @@ export async function POST(request: NextRequest) {
       console.log('Form link included:', emailContent.includes('supplier-onboarding-form'))
       console.log('Has {formLink} placeholder before processing:', content.includes('{formLink}'))
       console.log('Has {formLink} placeholder after processing:', emailContent.includes('{formLink}'))
+      console.log('HTML button content:', emailContent.includes('<table cellpadding="0"'))
+      console.log('Full HTML button preview:', emailContent.match(/<table cellpadding="0".*?<\/table>/s)?.[0]?.substring(0, 200))
+      console.log('FULL EMAIL CONTENT:')
+      console.log('==================')
+      console.log(emailContent)
+      console.log('==================')
     }
     console.log('==========================')
     
@@ -173,127 +176,161 @@ async function sendEmailViaService({
     await transporter.verify()
     console.log('✅ SMTP connection verified successfully')
     
-        // Create professional HTML email
+        // Debug: Log the content being inserted into the template
+        console.log('=== EMAIL TEMPLATE DEBUG ===')
+        console.log('Content being inserted into template:', content.substring(0, 300))
+        console.log('Content contains HTML table:', content.includes('<table'))
+        console.log('Content contains HTML anchor:', content.includes('<a href'))
+        console.log('Content contains formLink placeholder:', content.includes('{formLink}'))
+        console.log('Content contains formLink HTML:', content.includes('<table cellpadding="0"'))
+        console.log('FULL CONTENT FOR TEMPLATE:')
+        console.log('=========================')
+        console.log(content)
+        console.log('=========================')
+        console.log('================================')
+        
+        // Create mobile-friendly HTML email (Outlook compatible)
         const htmlContent = `
-<!DOCTYPE html>
-<html>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { 
-      margin: 0; 
-      padding: 0; 
-      font-family: Arial, sans-serif; 
-      background-color: #f4f4f4; 
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Schauenburg Systems - Supplier Onboarding</title>
+  <style type="text/css">
+    /* Reset styles for email clients */
+    body, table, td, p, a, li, blockquote {
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
     }
-    .email-container { 
-      max-width: 600px; 
-      margin: 0 auto; 
-      background-color: #ffffff; 
+    table, td {
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
     }
-    .header { 
-      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
-      padding: 40px 30px; 
-      text-align: center; 
-    }
-    .logo { 
-      max-width: 150px; 
-      height: auto; 
-      margin-bottom: 20px; 
-    }
-    .header-text { 
-      color: #ffffff; 
-      font-size: 24px; 
-      font-weight: bold; 
-      margin: 0; 
-    }
-    .content { 
-      padding: 40px 30px; 
-      color: #333333; 
-      line-height: 1.6; 
-    }
-    .greeting { 
-      font-size: 18px; 
-      font-weight: bold; 
-      color: #1e40af; 
-      margin-bottom: 20px; 
-    }
-    .info-box { 
-      background-color: #eff6ff; 
-      border-left: 4px solid #3b82f6; 
-      padding: 20px; 
-      margin: 25px 0; 
-      border-radius: 4px; 
-    }
-    .cta-button {
-      display: inline-block;
-      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-      color: #ffffff !important;
-      padding: 15px 40px;
+    img {
+      -ms-interpolation-mode: bicubic;
+      border: 0;
+      height: auto;
+      line-height: 100%;
+      outline: none;
       text-decoration: none;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 16px;
+    }
+    
+    /* Main styles */
+    body {
+      height: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+    }
+    
+    .email-container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+    }
+    
+    .header {
+      background-color: #ffffff;
+      padding: 40px 30px;
       text-align: center;
-      margin: 20px 0;
+      border-bottom: 3px solid #1e40af;
     }
-    .footer { 
-      background-color: #f9fafb; 
-      padding: 30px; 
-      text-align: center; 
-      color: #6b7280; 
-      font-size: 14px; 
-      border-top: 1px solid #e5e7eb; 
+    
+    .logo {
+      max-width: 150px;
+      height: auto;
+      margin-bottom: 20px;
+      display: block;
     }
-    .footer-link { 
-      color: #3b82f6; 
-      text-decoration: none; 
+    
+    .header-text {
+      color: #1e40af;
+      font-size: 24px;
+      font-weight: bold;
+      margin: 0;
+      line-height: 1.2;
     }
+    
+    .content {
+      padding: 40px 30px;
+      color: #333333;
+      line-height: 1.6;
+      font-size: 16px;
+    }
+    
+    .footer {
+      background-color: #f9fafb;
+      padding: 30px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 14px;
+      border-top: 1px solid #e5e7eb;
+    }
+    
+    .footer-link {
+      color: #3b82f6;
+      text-decoration: none;
+    }
+    
+    /* Mobile styles */
     @media only screen and (max-width: 600px) {
-      .content { 
-        padding: 30px 20px; 
+      .email-container {
+        width: 100% !important;
       }
-      .header { 
-        padding: 30px 20px; 
+      .content {
+        padding: 30px 20px !important;
       }
-      .header-text { 
-        font-size: 20px; 
+      .header {
+        padding: 30px 20px !important;
       }
-      .greeting { 
-        font-size: 16px; 
+      .header-text {
+        font-size: 20px !important;
       }
-      .info-box { 
-        padding: 15px; 
-      }
-      .cta-button {
-        display: block;
-        margin: 20px 0;
+      .footer {
+        padding: 20px !important;
       }
     }
   </style>
 </head>
-<body>
-  <div class="email-container">
-    <div class="header">
-      <img src="cid:logo" alt="Schauenburg Systems" class="logo" />
-      <p class="header-text">Welcome to Schauenburg Systems</p>
-    </div>
-    
-    <div class="content">
-      ${content.replace(/\n/g, '<br>')}
-    </div>
-    
-    <div class="footer">
-      <p>Schauenburg Systems</p>
-      <p>
-        <a href="${config.companyWebsite || '#'}" class="footer-link">${config.companyWebsite || 'Visit our website'}</a>
-      </p>
-      <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
-        If you have questions, please contact our procurement team.
-      </p>
-    </div>
-  </div>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f4f4f4;">
+    <tr>
+      <td align="center" style="padding: 20px 0;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" class="email-container" style="background-color: #ffffff;">
+          <!-- Header -->
+          <tr>
+            <td class="header" style="background-color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 3px solid #1e40af;">
+              <img src="cid:logo" alt="Schauenburg Systems" class="logo" style="max-width: 150px; height: auto; margin-bottom: 20px; display: block;" />
+              <p class="header-text" style="color: #1e40af; font-size: 24px; font-weight: bold; margin: 0; line-height: 1.2;">Welcome to Schauenburg Systems</p>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td class="content" style="padding: 40px 30px; color: #333333; line-height: 1.6; font-size: 16px;">
+              ${content}
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td class="footer" style="background-color: #f9fafb; padding: 30px; text-align: center; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0 0 10px 0;">Schauenburg Systems</p>
+              <p style="margin: 0 0 10px 0;">
+                <a href="${config.companyWebsite || 'https://schauenburg.co.za'}" class="footer-link" style="color: #3b82f6; text-decoration: underline; font-weight: normal;">Visit our website</a>
+              </p>
+              <p style="margin: 15px 0 0 0; font-size: 12px; color: #9ca3af;">
+                If you have questions, please contact our procurement team.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
         `

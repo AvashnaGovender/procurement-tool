@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createAuditLog } from '@/lib/audit-logger'
-import { cookies } from 'next/headers'
-import { createClient } from '@/lib/supabase/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,33 +17,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get authenticated user from Supabase session
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get authenticated user
+    const session = await getServerSession(authOptions)
     
-    if (authError || !user) {
+    if (!session?.user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized. Please login first.' },
         { status: 401 }
       )
     }
 
-    // Find or create user in our database based on Supabase user
-    let dbUser = await prisma.user.findUnique({
-      where: { email: user.email }
+    // Get user from database
+    const dbUser = await prisma.user.findUnique({
+      where: { email: session.user.email! }
     })
 
-    // If user doesn't exist in our database, create them
     if (!dbUser) {
-      dbUser = await prisma.user.create({
-        data: {
-          email: user.email!,
-          name: user.email!.split('@')[0], // Use email prefix as name
-          password: 'supabase-auth', // Placeholder since we use Supabase auth
-          role: 'USER',
-          isActive: true,
-        }
-      })
+      return NextResponse.json(
+        { success: false, error: 'User not found in database.' },
+        { status: 404 }
+      )
     }
 
     // Generate supplier code

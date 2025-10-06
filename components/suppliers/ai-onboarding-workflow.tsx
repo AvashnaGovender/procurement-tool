@@ -9,15 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
-  Bot,
   Mail,
   FileText,
   CheckCircle,
   Clock,
   AlertCircle,
   Send,
-  Eye,
   Download,
   Upload,
   UserCheck,
@@ -36,7 +35,9 @@ export function AIOnboardingWorkflow({ step, onStepComplete }: AIOnboardingWorkf
   const [contactEmail, setContactEmail] = useState("")
   const [businessType, setBusinessType] = useState("")
   const [sector, setSector] = useState("")
-  const [aiDraftedEmail, setAiDraftedEmail] = useState("")
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false)
+  const [duplicateInfo, setDuplicateInfo] = useState<{ id?: string, companyName?: string, contactPerson?: string, status?: string } | null>(null)
+  const [lastEmailContent, setLastEmailContent] = useState<string>("")
 
   const businessTypes = [
     {
@@ -235,6 +236,13 @@ Procurement Team`
       const onboardingResult = await onboardingResponse.json()
       
       if (!onboardingResult.success) {
+        if (onboardingResult.existingSupplier) {
+          setDuplicateInfo(onboardingResult.existingSupplier)
+          setLastEmailContent(contentToSend)
+          setDuplicateDialogOpen(true)
+          setIsProcessing(false)
+          return
+        }
         throw new Error(onboardingResult.error || 'Failed to create onboarding record')
       }
 
@@ -351,100 +359,6 @@ Schauenburg Systems Procurement Team`
     }
   }
 
-  if (step === "initiate") {
-    return (
-      <Card>
-        <CardHeader>
-          <div className="flex items-center space-x-2">
-            <UserPlus className="h-5 w-5 text-blue-500" />
-            <CardTitle>Initiate Supplier Onboarding</CardTitle>
-          </div>
-          <CardDescription>
-            Provide supplier contact details to begin the onboarding process. An email with the registration form will be sent automatically.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="contactName">Contact Person Name *</Label>
-              <Input
-                id="contactName"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                placeholder="Enter full name"
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="contactEmail">Contact Email Address *</Label>
-              <Input
-                id="contactEmail"
-                type="email"
-                value={contactEmail}
-                onChange={(e) => setContactEmail(e.target.value)}
-                placeholder="Enter email address"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="businessType">Type of Business *</Label>
-              <Select value={businessType} onValueChange={setBusinessType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select business type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {businessTypes.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="sector">Sector *</Label>
-              <Select value={sector} onValueChange={setSector}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select sector" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sectors.map((sectorOption) => (
-                    <SelectItem key={sectorOption.value} value={sectorOption.value}>
-                      {sectorOption.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="pt-4">
-            <Button
-              onClick={handleInitiateAndSend}
-              disabled={!contactName || !contactEmail || !businessType || !sector || isProcessing}
-              className="w-full"
-              size="lg"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Sending Onboarding Email...
-                </>
-              ) : (
-                <>
-                  <Send className="h-5 w-5 mr-2" />
-                  Send Onboarding Email
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
 
   if (step === "pending") {
     return (
@@ -640,6 +554,163 @@ Schauenburg Systems Procurement Team`
           </div>
         </CardContent>
       </Card>
+    )
+  }
+
+
+  async function handleSendDuplicateAnyway() {
+    if (!duplicateInfo?.id) {
+      setDuplicateDialogOpen(false)
+      return
+    }
+    try {
+      setIsProcessing(true)
+      const resp = await fetch('/api/onboarding/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supplierId: duplicateInfo.id, emailContent: lastEmailContent })
+      })
+      const data = await resp.json()
+      if (!resp.ok || !data.success) {
+        throw new Error(data?.error || 'Failed to send onboarding email')
+      }
+      setDuplicateDialogOpen(false)
+      onStepComplete('pending')
+    } catch (err) {
+      console.error('Failed to send duplicate onboarding email', err)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  if (step === "initiate") {
+    return (
+      <>
+        <Card className="bg-slate-600 border-slate-500 shadow-lg">
+          <CardHeader className="border-b border-slate-500 pb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center">
+                <UserPlus className="h-5 w-5 text-blue-400" />
+              </div>
+              <div>
+                <CardTitle className="text-white text-xl">AI-Powered Supplier Onboarding</CardTitle>
+                <CardDescription className="text-slate-300">
+                  Let our AI help you initiate the supplier onboarding process
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="space-y-6">
+              {/* Contact Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="contactName" className="text-slate-200">Contact Person Name</Label>
+                  <Input
+                    id="contactName"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="Enter contact person's full name"
+                    className="bg-slate-700 border-slate-500 text-white placeholder:text-slate-400"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contactEmail" className="text-slate-200">Email Address</Label>
+                  <Input
+                    id="contactEmail"
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="Enter email address"
+                    className="bg-slate-700 border-slate-500 text-white placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              {/* Business Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="businessType" className="text-slate-200">Business Type</Label>
+                  <Select value={businessType} onValueChange={setBusinessType}>
+                    <SelectTrigger className="bg-slate-700 border-slate-500 text-white">
+                      <SelectValue placeholder="Select business type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {businessTypes.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sector" className="text-slate-200">Business Sector</Label>
+                  <Select value={sector} onValueChange={setSector}>
+                    <SelectTrigger className="bg-slate-700 border-slate-500 text-white">
+                      <SelectValue placeholder="Select sector" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manufacturing">Manufacturing</SelectItem>
+                      <SelectItem value="services">Services</SelectItem>
+                      <SelectItem value="construction">Construction</SelectItem>
+                      <SelectItem value="technology">Technology</SelectItem>
+                      <SelectItem value="consulting">Consulting</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={handleInitiateAndSend}
+                  disabled={!contactName || !contactEmail || !businessType || !sector || isProcessing}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Send Onboarding Email
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Duplicate Detected Dialog */}
+        <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-foreground">Duplicate Supplier Email Detected</DialogTitle>
+              <DialogDescription>
+                A supplier with this email already exists. You can send the onboarding email again to the existing supplier or cancel and change the email address.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 text-sm">
+              <div><strong>Email:</strong> {contactEmail}</div>
+              <div><strong>Company:</strong> {duplicateInfo?.companyName}</div>
+              <div><strong>Contact:</strong> {duplicateInfo?.contactPerson}</div>
+              <div><strong>Status:</strong> {duplicateInfo?.status}</div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDuplicateDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleSendDuplicateAnyway} disabled={isProcessing}>
+                {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Send Onboarding Email
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
     )
   }
 

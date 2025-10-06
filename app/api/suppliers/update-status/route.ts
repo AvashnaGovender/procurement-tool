@@ -152,9 +152,10 @@ async function sendApprovalEmail(supplier: any) {
       background-color: #ffffff; 
     }
     .header { 
-      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+      background-color: #ffffff; 
       padding: 40px 30px; 
       text-align: center; 
+      border-bottom: 3px solid #1e40af; 
     }
     .logo { 
       max-width: 150px; 
@@ -162,10 +163,11 @@ async function sendApprovalEmail(supplier: any) {
       margin-bottom: 20px; 
     }
     .header-text { 
-      color: #ffffff; 
+      color: #1e40af; 
       font-size: 24px; 
       font-weight: bold; 
       margin: 0; 
+      line-height: 1.2; 
     }
     .content { 
       padding: 40px 30px; 
@@ -364,9 +366,10 @@ async function sendRejectionEmail(supplier: any, rejectionReason: string) {
       background-color: #ffffff; 
     }
     .header { 
-      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+      background-color: #ffffff; 
       padding: 40px 30px; 
       text-align: center; 
+      border-bottom: 3px solid #1e40af; 
     }
     .logo { 
       max-width: 150px; 
@@ -374,10 +377,11 @@ async function sendRejectionEmail(supplier: any, rejectionReason: string) {
       margin-bottom: 20px; 
     }
     .header-text { 
-      color: #ffffff; 
+      color: #1e40af; 
       font-size: 24px; 
       font-weight: bold; 
       margin: 0; 
+      line-height: 1.2; 
     }
     .content { 
       padding: 40px 30px; 

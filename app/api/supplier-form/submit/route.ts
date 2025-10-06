@@ -4,7 +4,8 @@ import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import nodemailer from 'nodemailer'
-import { createClient } from '@/lib/supabase/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -323,18 +324,11 @@ export async function POST(request: NextRequest) {
     let adminEmail = null
     let adminName = null
     try {
-      const supabase = await createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const session = await getServerSession(authOptions)
       
-      if (user?.email) {
-        adminEmail = user.email
-        
-        // Try to get user's name from database
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email },
-          select: { name: true }
-        })
-        adminName = dbUser?.name || user.email.split('@')[0]
+      if (session?.user?.email) {
+        adminEmail = session.user.email
+        adminName = session.user.name || session.user.email.split('@')[0]
       }
     } catch (error) {
       console.log('Could not get authenticated user, using default email')
@@ -434,91 +428,145 @@ async function sendEmailNotifications(
         ? `Revision Submitted: ${supplierData.nameOfBusiness} (Revision ${onboarding.revisionCount})`
         : `New Supplier Onboarding Submission: ${supplierData.nameOfBusiness}`,
       html: `
-        <!DOCTYPE html>
-        <html>
+        <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+        <html xmlns="http://www.w3.org/1999/xhtml">
         <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-            .container { max-width: 650px; margin: 0 auto; background: white; }
-            .header { 
-              background: #0047AB; 
-              color: white; 
-              padding: 40px 30px; 
-              text-align: center; 
+          <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Supplier Onboarding Notification</title>
+          <style type="text/css">
+            /* Reset styles for email clients */
+            body, table, td, p, a, li, blockquote {
+              -webkit-text-size-adjust: 100%;
+              -ms-text-size-adjust: 100%;
             }
+            table, td {
+              mso-table-lspace: 0pt;
+              mso-table-rspace: 0pt;
+            }
+            img {
+              -ms-interpolation-mode: bicubic;
+              border: 0;
+              height: auto;
+              line-height: 100%;
+              outline: none;
+              text-decoration: none;
+            }
+            
+            /* Main styles */
+            body {
+              height: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              width: 100% !important;
+              font-family: Arial, sans-serif;
+              background-color: #f4f4f4;
+            }
+            
+            .email-container {
+              max-width: 650px;
+              margin: 0 auto;
+              background-color: #ffffff;
+            }
+            
+            .header {
+              background-color: #ffffff;
+              padding: 40px 30px;
+              text-align: center;
+              border-bottom: 3px solid #1e40af;
+            }
+            
             .header h1 {
               margin: 0;
               font-size: 26px;
               font-weight: 600;
+              color: #1e40af;
+              line-height: 1.2;
             }
+            
             .header p {
               margin: 10px 0 0 0;
               font-size: 14px;
+              color: #64748b;
               opacity: 0.9;
             }
-            .content { 
-              background: white; 
-              padding: 40px 30px; 
+            
+            .content {
+              background: white;
+              padding: 40px 30px;
+              color: #333333;
+              line-height: 1.6;
+              font-size: 16px;
             }
+            
             .info-section {
               background: #f8f9fa;
               border-left: 4px solid #0047AB;
               padding: 20px;
               margin: 25px 0;
-              border-radius: 5px;
             }
+            
             .info-section h2 {
               margin: 0 0 15px 0;
               color: #0047AB;
               font-size: 18px;
               font-weight: 600;
             }
-            .info-row { 
-              margin: 12px 0; 
+            
+            .info-row {
+              margin: 12px 0;
               padding: 10px 0;
               border-bottom: 1px solid #e0e0e0;
             }
+            
             .info-row:last-child {
               border-bottom: none;
             }
-            .label { 
-              font-weight: 600; 
+            
+            .label {
+              font-weight: 600;
               color: #0047AB;
               display: inline-block;
               min-width: 160px;
             }
+            
             .value {
               color: #333;
             }
-            .button { 
-              display: inline-block; 
-              background: #0047AB; 
-              color: white; 
-              padding: 14px 40px; 
-              text-decoration: none; 
-              border-radius: 5px; 
-              margin: 30px 0 20px 0;
+            
+            .button-container {
+              text-align: center;
+              margin: 30px 0;
+            }
+            
+            .button {
+              display: inline-block;
+              background: #0047AB;
+              color: white;
+              padding: 14px 40px;
+              text-decoration: none;
               font-weight: 600;
               font-size: 16px;
             }
-            .button:hover {
-              background: #003380;
-            }
-            .button-container {
-              text-align: center;
-            }
-            .footer { 
+            
+            .footer {
               background: #f8f9fa;
-              text-align: center; 
-              padding: 25px 30px; 
-              color: #666; 
-              font-size: 12px; 
+              text-align: center;
+              padding: 25px 30px;
+              color: #666;
+              font-size: 12px;
               border-top: 3px solid #0047AB;
             }
+            
             .footer p {
               margin: 5px 0;
             }
+            
+            /* Mobile styles */
             @media only screen and (max-width: 600px) {
+              .email-container {
+                width: 100% !important;
+              }
               .header {
                 padding: 30px 20px !important;
               }
@@ -549,118 +597,175 @@ async function sendEmailNotifications(
             }
           </style>
         </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>${isRevision ? 'Revised Supplier Submission' : 'New Supplier Onboarding Submission'}</h1>
-              <p>Schauenburg Systems Procurement</p>
-            </div>
-            <div class="content">
-              ${isRevision ? `
-                <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 5px; padding: 20px; margin-bottom: 25px;">
-                  <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 18px;">🔄 Revision Submission (Version ${onboarding.revisionCount + 1})</h3>
-                  <p style="margin: 0 0 15px 0; color: #856404; font-weight: 600;">The supplier has updated their submission based on your revision request.</p>
-                  <div style="background: white; border-radius: 5px; padding: 15px; margin-top: 15px;">
-                    <p style="margin: 0 0 8px 0; font-weight: 600; color: #333;">Original Revision Request:</p>
-                    <p style="margin: 0; color: #666; white-space: pre-wrap; font-size: 14px; line-height: 1.6;">${revisionNotes}</p>
-                  </div>
-                </div>
-              ` : `
-                <p>A new supplier has completed the onboarding form and submitted their documentation for review.</p>
-              `}
-              
-              <div class="info-section">
-                <h2>Company Information</h2>
-                <div class="info-row">
-                  <span class="label">Company Name:</span>
-                  <span class="value">${supplierData.nameOfBusiness}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Trading Name:</span>
-                  <span class="value">${supplierData.tradingName || 'N/A'}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Registration No:</span>
-                  <span class="value">${supplierData.companyRegistrationNo}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Supplier Code:</span>
-                  <span class="value">${supplier.supplierCode}</span>
-                </div>
-              </div>
+        <body style="margin: 0; padding: 0; background-color: #f4f4f4;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f4f4f4;">
+            <tr>
+              <td align="center" style="padding: 20px 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="650" class="email-container" style="background-color: #ffffff;">
+                  <!-- Header -->
+                  <tr>
+                    <td class="header" style="background-color: #0047AB; padding: 40px 30px; text-align: center;">
+                      <h1 style="margin: 0; font-size: 26px; font-weight: 600; color: #ffffff; line-height: 1.2;">${isRevision ? 'Revised Supplier Submission' : 'New Supplier Onboarding Submission'}</h1>
+                      <p style="margin: 10px 0 0 0; font-size: 14px; color: #ffffff; opacity: 0.9;">Schauenburg Systems Procurement</p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Content -->
+                  <tr>
+                    <td class="content" style="background: white; padding: 40px 30px; color: #333333; line-height: 1.6; font-size: 16px;">
+                      ${isRevision ? `
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #fff3cd; border: 2px solid #ffc107; margin-bottom: 25px;">
+                          <tr>
+                            <td style="padding: 20px;">
+                              <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 18px;">🔄 Revision Submission (Version ${onboarding.revisionCount + 1})</h3>
+                              <p style="margin: 0 0 15px 0; color: #856404; font-weight: 600;">The supplier has updated their submission based on your revision request.</p>
+                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: white;">
+                                <tr>
+                                  <td style="padding: 15px;">
+                                    <p style="margin: 0 0 8px 0; font-weight: 600; color: #333;">Original Revision Request:</p>
+                                    <p style="margin: 0; color: #666; white-space: pre-wrap; font-size: 14px; line-height: 1.6;">${revisionNotes}</p>
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                      ` : `
+                        <p>A new supplier has completed the onboarding form and submitted their documentation for review.</p>
+                      `}
+                      
+                      <!-- Company Information -->
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f8f9fa; border-left: 4px solid #0047AB; margin: 25px 0;">
+                        <tr>
+                          <td style="padding: 20px;">
+                            <h2 style="margin: 0 0 15px 0; color: #0047AB; font-size: 18px; font-weight: 600;">Company Information</h2>
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                              <tr>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
+                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Company Name:</span>
+                                  <span style="color: #333;">${supplierData.nameOfBusiness}</span>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
+                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Trading Name:</span>
+                                  <span style="color: #333;">${supplierData.tradingName || 'N/A'}</span>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
+                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Registration No:</span>
+                                  <span style="color: #333;">${supplierData.companyRegistrationNo}</span>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 10px 0;">
+                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Supplier Code:</span>
+                                  <span style="color: #333;">${supplier.supplierCode}</span>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
 
-              <div class="info-section">
-                <h2>Contact Details</h2>
-                <div class="info-row">
-                  <span class="label">Contact Person:</span>
-                  <span class="value">${supplierData.contactPerson}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Email:</span>
-                  <span class="value">${supplierData.emailAddress}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Phone:</span>
-                  <span class="value">${supplierData.contactNumber}</span>
-                </div>
-              </div>
+                      <!-- Contact Details -->
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f8f9fa; border-left: 4px solid #0047AB; margin: 25px 0;">
+                        <tr>
+                          <td style="padding: 20px;">
+                            <h2 style="margin: 0 0 15px 0; color: #0047AB; font-size: 18px; font-weight: 600;">Contact Details</h2>
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                              <tr>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
+                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Contact Person:</span>
+                                  <span style="color: #333;">${supplierData.contactPerson}</span>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
+                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Email:</span>
+                                  <span style="color: #333;">${supplierData.emailAddress}</span>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 10px 0;">
+                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Phone:</span>
+                                  <span style="color: #333;">${supplierData.contactNumber}</span>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
 
-              <div class="info-section">
-                <h2>Business Details</h2>
-                <div class="info-row">
-                  <span class="label">Nature of Business:</span>
-                  <span class="value">${supplierData.natureOfBusiness}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">BBBEE Status:</span>
-                  <span class="value">${supplierData.bbbeeStatus}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Number of Employees:</span>
-                  <span class="value">${supplierData.numberOfEmployees}</span>
-                </div>
-              </div>
+                      <!-- Submission Details -->
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f8f9fa; border-left: 4px solid #0047AB; margin: 25px 0;">
+                        <tr>
+                          <td style="padding: 20px;">
+                            <h2 style="margin: 0 0 15px 0; color: #0047AB; font-size: 18px; font-weight: 600;">Submission Details</h2>
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                              ${isRevision ? `
+                                <tr>
+                                  <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
+                                    <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Submission Type:</span>
+                                    <span style="color: #ffc107; font-weight: 600;">Revision ${onboarding.revisionCount}</span>
+                                  </td>
+                                </tr>
+                              ` : ''}
+                              <tr>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
+                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Documents Submitted:</span>
+                                  <span style="color: #333;">${totalFiles} files in ${Object.keys(uploadedFiles).length} categories</span>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
+                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Categories:</span>
+                                  <span style="color: #333; font-size: 13px;">${documentCategories}</span>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 10px 0;">
+                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Submission Date:</span>
+                                  <span style="color: #333;">${new Date().toLocaleString()}</span>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                      
+                      <!-- Button -->
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0;">
+                        <tr>
+                          <td align="center">
+                            <a href="http://localhost:3000/suppliers/onboard?tab=review" style="display: inline-block; background: #0047AB; color: white; padding: 14px 40px; text-decoration: none; font-weight: 600; font-size: 16px;">
+                              Review Submission in Dashboard
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
 
-              <div class="info-section">
-                <h2>Submission Details</h2>
-                ${isRevision ? `
-                  <div class="info-row">
-                    <span class="label">Submission Type:</span>
-                    <span class="value" style="color: #ffc107; font-weight: 600;">Revision ${onboarding.revisionCount}</span>
-                  </div>
-                ` : ''}
-                <div class="info-row">
-                  <span class="label">Documents Submitted:</span>
-                  <span class="value">${totalFiles} files in ${Object.keys(uploadedFiles).length} categories</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Categories:</span>
-                  <span class="value" style="font-size: 13px;">${documentCategories}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Submission Date:</span>
-                  <span class="value">${new Date().toLocaleString()}</span>
-                </div>
-              </div>
-              
-              <div class="button-container">
-                <a href="http://localhost:3000/suppliers/onboard?tab=review" class="button">
-                  Review Submission in Dashboard
-                </a>
-              </div>
-
-              <p style="margin-top: 30px; font-size: 14px; color: #666;">
-                ${isRevision 
-                  ? 'Please review the updated submission and the changes made based on your revision request.' 
-                  : 'Please review the submission and verify all documents within 1-2 business days.'
-                }
-              </p>
-            </div>
-            <div class="footer">
-              <p>This is an automated notification from Schauenburg Systems Procurement System.</p>
-              <p style="margin-top: 10px; color: #999;">© ${new Date().getFullYear()} Schauenburg Systems. All rights reserved.</p>
-            </div>
-          </div>
+                      <p style="margin-top: 30px; font-size: 14px; color: #666;">
+                        ${isRevision 
+                          ? 'Please review the updated submission and the changes made based on your revision request.' 
+                          : 'Please review the submission and verify all documents within 1-2 business days.'
+                        }
+                      </p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Footer -->
+                  <tr>
+                    <td class="footer" style="background: #f8f9fa; text-align: center; padding: 25px 30px; color: #666; font-size: 12px; border-top: 3px solid #0047AB;">
+                      <p style="margin: 5px 0;">This is an automated notification from Schauenburg Systems Procurement System.</p>
+                      <p style="margin: 10px 0 0 0; color: #999;">© ${new Date().getFullYear()} Schauenburg Systems. All rights reserved.</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
         </body>
         </html>
       `
@@ -690,98 +795,141 @@ async function sendEmailNotifications(
         }
       ],
       html: `
-        <!DOCTYPE html>
-        <html>
+        <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+        <html xmlns="http://www.w3.org/1999/xhtml">
         <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-            .container { max-width: 600px; margin: 0 auto; background: white; }
-            .header { 
-              background: #ffffff; 
-              color: #0047AB; 
-              padding: 50px 30px; 
-              text-align: center; 
-              border-bottom: 3px solid #0047AB;
+          <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Supplier Onboarding Confirmation</title>
+          <style type="text/css">
+            /* Reset styles for email clients */
+            body, table, td, p, a, li, blockquote {
+              -webkit-text-size-adjust: 100%;
+              -ms-text-size-adjust: 100%;
             }
+            table, td {
+              mso-table-lspace: 0pt;
+              mso-table-rspace: 0pt;
+            }
+            img {
+              -ms-interpolation-mode: bicubic;
+              border: 0;
+              height: auto;
+              line-height: 100%;
+              outline: none;
+              text-decoration: none;
+            }
+            
+            /* Main styles */
+            body {
+              height: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              width: 100% !important;
+              font-family: Arial, sans-serif;
+              background-color: #f4f4f4;
+            }
+            
+            .email-container {
+              max-width: 600px;
+              margin: 0 auto;
+              background-color: #ffffff;
+            }
+            
+            .header {
+              background: #ffffff;
+              color: #1e40af;
+              padding: 50px 30px;
+              text-align: center;
+              border-bottom: 3px solid #1e40af;
+            }
+            
             .header h1 {
               margin: 0;
               font-size: 32px;
               font-weight: 600;
-              color: #0047AB;
+              color: #1e40af;
+              line-height: 1.2;
             }
+            
             .header p {
               margin: 15px 0 0 0;
               font-size: 16px;
               color: #666;
             }
-            .content { 
-              background: white; 
-              padding: 40px 30px; 
+            
+            .content {
+              background: white;
+              padding: 40px 30px;
+              color: #333333;
+              line-height: 1.6;
+              font-size: 16px;
             }
-            .info-box { 
-              background: #f8f9fa; 
-              padding: 20px; 
-              border-radius: 8px; 
-              margin: 25px 0; 
-              border-left: 4px solid #0047AB; 
+            
+            .info-box {
+              background: #f8f9fa;
+              padding: 20px;
+              margin: 25px 0;
+              border-left: 4px solid #0047AB;
             }
+            
             .info-box h3 {
               margin-top: 0;
               color: #0047AB;
               font-size: 18px;
             }
-            .info-box ul {
-              list-style: none;
-              padding-left: 0;
-              margin: 15px 0 0 0;
+            
+            .highlight-box {
+              background: #e3f2fd;
+              border: 2px solid #0047AB;
+              padding: 18px;
+              margin: 25px 0;
+              text-align: center;
             }
-            .info-box li {
-              margin: 10px 0;
-              padding-left: 25px;
-              position: relative;
-              font-size: 15px;
-            }
-            .info-box li:before {
-              content: "•";
+            
+            .highlight-box strong {
               color: #0047AB;
-              font-weight: bold;
-              position: absolute;
-              left: 0;
               font-size: 18px;
             }
-            .steps {
-              counter-reset: step-counter;
-              list-style: none;
-              padding-left: 0;
-              margin: 20px 0;
+            
+            .footer {
+              background: #f8f9fa;
+              text-align: center;
+              padding: 30px;
+              color: #666;
+              font-size: 13px;
+              border-top: 3px solid #0047AB;
             }
-            .steps li {
-              counter-increment: step-counter;
-              margin: 18px 0;
-              padding-left: 50px;
-              position: relative;
+            
+            .footer a {
+              color: #0047AB;
+              text-decoration: none;
+            }
+            
+            .footer p {
+              margin: 8px 0;
+            }
+            
+            a {
+              color: #0047AB;
+            }
+            
+            h3 {
+              color: #0047AB;
+              margin-top: 30px;
+              font-size: 20px;
+            }
+            
+            p {
+              margin: 15px 0;
               font-size: 15px;
-              min-height: 32px;
-              line-height: 1.5;
             }
-            .steps li:before {
-              content: counter(step-counter);
-              background: #0047AB;
-              color: white;
-              width: 32px;
-              height: 32px;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              position: absolute;
-              left: 0;
-              top: 0;
-              font-weight: bold;
-              font-size: 16px;
-              flex-shrink: 0;
-            }
+            
+            /* Mobile styles */
             @media only screen and (max-width: 600px) {
+              .email-container {
+                width: 100% !important;
+              }
               .header {
                 padding: 30px 20px !important;
               }
@@ -790,15 +938,6 @@ async function sendEmailNotifications(
               }
               .content {
                 padding: 30px 20px !important;
-              }
-              .steps li {
-                padding-left: 45px !important;
-                font-size: 14px !important;
-              }
-              .steps li:before {
-                width: 28px !important;
-                height: 28px !important;
-                font-size: 14px !important;
               }
               .info-box {
                 padding: 15px !important;
@@ -816,98 +955,127 @@ async function sendEmailNotifications(
                 padding: 20px !important;
               }
             }
-            .highlight-box {
-              background: #e3f2fd;
-              border: 2px solid #0047AB;
-              padding: 18px;
-              border-radius: 8px;
-              margin: 25px 0;
-              text-align: center;
-            }
-            .highlight-box strong {
-              color: #0047AB;
-              font-size: 18px;
-            }
-            .footer { 
-              background: #f8f9fa;
-              text-align: center; 
-              padding: 30px; 
-              color: #666; 
-              font-size: 13px; 
-              border-top: 3px solid #0047AB;
-            }
-            .footer a {
-              color: #0047AB;
-              text-decoration: none;
-            }
-            .footer p {
-              margin: 8px 0;
-            }
-            a { 
-              color: #0047AB; 
-            }
-            h3 {
-              color: #0047AB;
-              margin-top: 30px;
-              font-size: 20px;
-            }
-            p {
-              margin: 15px 0;
-              font-size: 15px;
-            }
           </style>
         </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <img src="cid:logo" alt="Schauenburg Systems" style="max-width: 180px; height: auto; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto;" />
-              <h1>Thank You</h1>
-              <p>Your supplier onboarding submission has been received</p>
-            </div>
-            <div class="content">
-              <p>Dear ${supplierData.contactPerson},</p>
-              
-              <p>Thank you for submitting your supplier onboarding application for <strong>${supplierData.nameOfBusiness}</strong>. We have successfully received your information and documentation.</p>
-              
-              <div class="info-box">
-                <h3>Submission Summary</h3>
-                <ul>
-                  <li><strong>Supplier Code:</strong> ${supplier.supplierCode}</li>
-                  <li><strong>Company:</strong> ${supplierData.nameOfBusiness}</li>
-                  <li><strong>Contact Email:</strong> ${supplierData.emailAddress}</li>
-                  <li><strong>Documents Submitted:</strong> ${totalFiles} files</li>
-                  <li><strong>Submission Date:</strong> ${new Date().toLocaleString()}</li>
-                </ul>
-              </div>
-              
-              <h3>What Happens Next</h3>
-              <ol class="steps">
-                <li><strong>Review</strong> - Our procurement team will review your submission</li>
-                <li><strong>Verification</strong> - We will verify your documents and credentials</li>
-                <li><strong>Approval</strong> - Once approved, you will be added to our supplier database</li>
-                <li><strong>Notification</strong> - You will receive an email with your approval status</li>
-              </ol>
-              
-              <div class="highlight-box">
-                <strong>Estimated Processing Time: 1-2 business days</strong>
-              </div>
-              
-              <p>If we need any additional information or clarification, we will contact you at the email address or phone number you provided.</p>
-              
-              <p>Should you have any questions in the meantime, please contact us at <a href="mailto:${recipientEmail}">${recipientEmail}</a></p>
-              
-              <p style="margin-top: 40px; margin-bottom: 5px;">Best regards,</p>
-              <p style="margin: 5px 0; color: #0047AB; font-weight: 600; font-size: 16px;">Schauenburg Systems Procurement Team</p>
-            </div>
-            <div class="footer">
-              <p>This is an automated confirmation email.</p>
-              <p>Questions? Reply to this email to contact our procurement team.</p>
-              <p style="margin: 15px 0;">
-                <a href="${smtpConfig.companyWebsite || '#'}" style="font-weight: 600;">Visit our website</a>
-              </p>
-              <p style="margin-top: 15px; color: #999; font-size: 11px;">© ${new Date().getFullYear()} Schauenburg Systems. All rights reserved.</p>
-            </div>
-          </div>
+        <body style="margin: 0; padding: 0; background-color: #f4f4f4;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f4f4f4;">
+            <tr>
+              <td align="center" style="padding: 20px 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" class="email-container" style="background-color: #ffffff;">
+                  <!-- Header -->
+                  <tr>
+                    <td class="header" style="background: #ffffff; color: #0047AB; padding: 50px 30px; text-align: center; border-bottom: 3px solid #0047AB;">
+                      <img src="cid:logo" alt="Schauenburg Systems" style="max-width: 180px; height: auto; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto;" />
+                      <h1 style="margin: 0; font-size: 32px; font-weight: 600; color: #0047AB; line-height: 1.2;">Thank You</h1>
+                      <p style="margin: 15px 0 0 0; font-size: 16px; color: #666;">Your supplier onboarding submission has been received</p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Content -->
+                  <tr>
+                    <td class="content" style="background: white; padding: 40px 30px; color: #333333; line-height: 1.6; font-size: 16px;">
+                      <p style="margin: 15px 0; font-size: 15px;">Dear ${supplierData.contactPerson},</p>
+                      
+                      <p style="margin: 15px 0; font-size: 15px;">Thank you for submitting your supplier onboarding application for <strong>${supplierData.nameOfBusiness}</strong>. We have successfully received your information and documentation.</p>
+                      
+                      <!-- Submission Summary -->
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f8f9fa; border-left: 4px solid #0047AB; margin: 25px 0;">
+                        <tr>
+                          <td style="padding: 20px;">
+                            <h3 style="margin-top: 0; color: #0047AB; font-size: 18px;">Submission Summary</h3>
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                              <tr>
+                                <td style="padding: 8px 0; font-size: 15px;">
+                                  <strong>Supplier Code:</strong> ${supplier.supplierCode}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 8px 0; font-size: 15px;">
+                                  <strong>Company:</strong> ${supplierData.nameOfBusiness}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 8px 0; font-size: 15px;">
+                                  <strong>Contact Email:</strong> ${supplierData.emailAddress}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 8px 0; font-size: 15px;">
+                                  <strong>Documents Submitted:</strong> ${totalFiles} files
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 8px 0; font-size: 15px;">
+                                  <strong>Submission Date:</strong> ${new Date().toLocaleString()}
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                      
+                      <h3 style="color: #0047AB; margin-top: 30px; font-size: 20px;">What Happens Next</h3>
+                      
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 20px 0;">
+                        <tr>
+                          <td style="padding: 18px 0; font-size: 15px; padding-left: 50px; position: relative;">
+                            <span style="background: #0047AB; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-block; text-align: center; line-height: 32px; font-weight: bold; font-size: 16px; position: absolute; left: 0; top: 18px;">1</span>
+                            <strong>Review</strong> - Our procurement team will review your submission
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 18px 0; font-size: 15px; padding-left: 50px; position: relative;">
+                            <span style="background: #0047AB; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-block; text-align: center; line-height: 32px; font-weight: bold; font-size: 16px; position: absolute; left: 0; top: 18px;">2</span>
+                            <strong>Verification</strong> - We will verify your documents and credentials
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 18px 0; font-size: 15px; padding-left: 50px; position: relative;">
+                            <span style="background: #0047AB; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-block; text-align: center; line-height: 32px; font-weight: bold; font-size: 16px; position: absolute; left: 0; top: 18px;">3</span>
+                            <strong>Approval</strong> - Once approved, you will be added to our supplier database
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 18px 0; font-size: 15px; padding-left: 50px; position: relative;">
+                            <span style="background: #0047AB; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-block; text-align: center; line-height: 32px; font-weight: bold; font-size: 16px; position: absolute; left: 0; top: 18px;">4</span>
+                            <strong>Notification</strong> - You will receive an email with your approval status
+                          </td>
+                        </tr>
+                      </table>
+                      
+                      <!-- Highlight Box -->
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #e3f2fd; border: 2px solid #0047AB; margin: 25px 0;">
+                        <tr>
+                          <td style="padding: 18px; text-align: center;">
+                            <strong style="color: #0047AB; font-size: 18px;">Estimated Processing Time: 1-2 business days</strong>
+                          </td>
+                        </tr>
+                      </table>
+                      
+                      <p style="margin: 15px 0; font-size: 15px;">If we need any additional information or clarification, we will contact you at the email address or phone number you provided.</p>
+                      
+                      <p style="margin: 15px 0; font-size: 15px;">Should you have any questions in the meantime, please contact us at <a href="mailto:${recipientEmail}" style="color: #0047AB;">${recipientEmail}</a></p>
+                      
+                      <p style="margin-top: 40px; margin-bottom: 5px; font-size: 15px;">Best regards,</p>
+                      <p style="margin: 5px 0; color: #0047AB; font-weight: 600; font-size: 16px;">Schauenburg Systems Procurement Team</p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Footer -->
+                  <tr>
+                    <td class="footer" style="background: #f8f9fa; text-align: center; padding: 30px; color: #666; font-size: 13px; border-top: 3px solid #0047AB;">
+                      <p style="margin: 8px 0;">This is an automated confirmation email.</p>
+                      <p style="margin: 8px 0;">Questions? Reply to this email to contact our procurement team.</p>
+                      <p style="margin: 15px 0;">
+                        <a href="${smtpConfig.companyWebsite || '#'}" style="color: #0047AB; text-decoration: none; font-weight: 600;">Visit our website</a>
+                      </p>
+                      <p style="margin-top: 15px; color: #999; font-size: 11px;">© ${new Date().getFullYear()} Schauenburg Systems. All rights reserved.</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
         </body>
         </html>
       `

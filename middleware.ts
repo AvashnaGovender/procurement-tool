@@ -1,8 +1,26 @@
-import { type NextRequest } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
 export async function middleware(request: NextRequest) {
-  return await updateSession(request)
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+  
+  // Public paths that don't require authentication
+  const publicPaths = ['/login', '/supplier-onboarding-form']
+  const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path))
+  
+  // Allow public paths without authentication
+  if (isPublicPath) {
+    return NextResponse.next()
+  }
+  
+  // Check if user is authenticated for protected routes
+  if (!token && !request.nextUrl.pathname.startsWith('/api/supplier-form')) {
+    const loginUrl = new URL('/login', request.url)
+    return NextResponse.redirect(loginUrl)
+  }
+  
+  return NextResponse.next()
 }
 
 export const config = {
@@ -13,8 +31,9 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public assets
+     * - api/auth (NextAuth routes)
      */
-    '/((?!_next/static|_next/image|favicon.ico|logo.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|logo.png|api/auth|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
 

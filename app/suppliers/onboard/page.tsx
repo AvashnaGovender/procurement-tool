@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Home, Settings, Plus, List } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -17,9 +16,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import Link from "next/link"
+import { Sidebar } from "@/components/layout/sidebar"
 import { AIOnboardingWorkflow } from "@/components/suppliers/ai-onboarding-workflow"
 import { SMTPConfiguration } from "@/components/settings/smtp-configuration"
-import { EmailTemplateManager } from "@/components/settings/email-template-manager"
 
 export default function SupplierOnboardingPage() {
   const router = useRouter()
@@ -27,6 +26,7 @@ export default function SupplierOnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [workflowStatus, setWorkflowStatus] = useState<"initiate" | "pending" | "review" | "complete">("initiate")
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [waitingOpen, setWaitingOpen] = useState(false)
   
   // Initialize tab state - default to 'new' to match server render
   const [mainTab, setMainTab] = useState<"new" | "review">("new")
@@ -46,20 +46,6 @@ export default function SupplierOnboardingPage() {
     { id: 4, title: "Complete", description: "Database entry & notification" },
   ]
 
-  const getProgressValue = () => {
-    switch (workflowStatus) {
-      case "initiate":
-        return 25
-      case "pending":
-        return 50
-      case "review":
-        return 75
-      case "complete":
-        return 100
-      default:
-        return 25
-    }
-  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -75,200 +61,144 @@ export default function SupplierOnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/dashboard">
-                  <Home className="h-4 w-4 mr-2" />
-                  Dashboard
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/suppliers">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Suppliers
-                </Link>
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">AI-Powered Supplier Onboarding</h1>
-                <p className="text-gray-600">Automated workflow with intelligent document processing</p>
-              </div>
-            </div>
-                <div className="flex items-center gap-2">
-                  <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <Settings className="h-4 w-4 mr-2" />
-                        Settings
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Supplier Onboarding Settings</DialogTitle>
-                        <DialogDescription>
-                          Configure SMTP server settings and customize email templates for all stages of the supplier onboarding workflow
-                        </DialogDescription>
-                      </DialogHeader>
-                      <Tabs defaultValue="smtp" className="py-4">
-                        <TabsList className="grid w-full grid-cols-2">
-                          <TabsTrigger value="smtp">SMTP Configuration</TabsTrigger>
-                          <TabsTrigger value="templates">Email Templates</TabsTrigger>
-                        </TabsList>
-                        
-                        <TabsContent value="smtp" className="mt-6">
-                          <SMTPConfiguration />
-                        </TabsContent>
-                        
-                        <TabsContent value="templates" className="mt-6">
-                          <EmailTemplateManager />
-                        </TabsContent>
-                      </Tabs>
-                    </DialogContent>
-                  </Dialog>
-              <Badge variant="outline" className={`${getStatusColor(workflowStatus)} text-white`}>
-                {workflowStatus.charAt(0).toUpperCase() + workflowStatus.slice(1)}
-              </Badge>
+    <div className="flex h-screen bg-slate-700 overflow-hidden">
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Bar */}
+        <header className="h-16 bg-slate-600 border-b border-slate-500 flex items-center justify-between px-8">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" asChild className="text-slate-300 hover:text-white hover:bg-slate-500">
+              <Link href="/dashboard">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Dashboard
+              </Link>
+            </Button>
+            <div className="border-l border-slate-500 pl-4">
+              <h1 className="text-xl font-bold text-white">Supplier Onboarding</h1>
+              <p className="text-xs text-slate-300">AI-powered workflow with intelligent document processing</p>
             </div>
           </div>
-        </div>
-      </div>
-
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Main Tabs: New Onboarding vs Review Submissions */}
-        <Tabs value={mainTab} onValueChange={(value) => setMainTab(value as typeof mainTab)} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="new" className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Initiate New Onboarding
-            </TabsTrigger>
-            <TabsTrigger value="review" className="flex items-center gap-2">
-              <List className="h-4 w-4" />
-              Review Submissions
-            </TabsTrigger>
-          </TabsList>
-
-          {/* New Onboarding Tab */}
-          <TabsContent value="new">
-            {/* Progress Bar */}
-            <Card className="mb-6">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Onboarding Progress</CardTitle>
-                  <span className="text-sm text-gray-500">{getProgressValue()}% Complete</span>
+          <div className="flex items-center gap-3">
+            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="border-slate-400 text-slate-100 hover:bg-slate-500 hover:text-white bg-slate-600/50">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-slate-600 border-slate-500">
+                <DialogHeader>
+                  <DialogTitle className="text-white">SMTP Configuration</DialogTitle>
+                  <DialogDescription className="text-slate-300">
+                    Configure SMTP server settings for sending supplier onboarding emails
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <SMTPConfiguration />
                 </div>
-                <Progress value={getProgressValue()} className="w-full" />
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  {steps.map((step, index) => (
-                    <div
-                      key={step.id}
-                      className={`p-3 rounded-lg border ${
-                        index + 1 <= currentStep ? "bg-blue-50 border-blue-200" : "bg-gray-50 border-gray-200"
-                      }`}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                            index + 1 <= currentStep ? "bg-blue-500 text-white" : "bg-gray-300 text-gray-600"
-                          }`}
-                        >
-                          {step.id}
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{step.title}</p>
-                          <p className="text-xs text-gray-500">{step.description}</p>
-                        </div>
+              </DialogContent>
+            </Dialog>
+            <Badge className={`${getStatusColor(workflowStatus)} text-white border-0`}>
+              {workflowStatus.charAt(0).toUpperCase() + workflowStatus.slice(1)}
+            </Badge>
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto p-8">
+          {/* Main Tabs: New Onboarding vs Review Submissions */}
+          <Tabs value={mainTab} onValueChange={(value) => setMainTab(value as typeof mainTab)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-8 bg-slate-600 border-slate-500">
+              <TabsTrigger value="new" className="flex items-center gap-2 text-slate-200 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg">
+                <Plus className="h-4 w-4" />
+                Initiate New Onboarding
+              </TabsTrigger>
+              <TabsTrigger value="review" className="flex items-center gap-2 text-slate-200 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg">
+                <List className="h-4 w-4" />
+                Review Submissions
+              </TabsTrigger>
+            </TabsList>
+
+            {/* New Onboarding Tab */}
+            <TabsContent value="new">
+              <AIOnboardingWorkflow
+                step="initiate"
+                onStepComplete={() => {
+                  setWorkflowStatus("pending")
+                  setCurrentStep(2)
+                  setWaitingOpen(true)
+                }}
+              />
+            </TabsContent>
+
+            {/* Review Submissions Tab */}
+            <TabsContent value="review">
+              <div className="space-y-6">
+                {/* Submissions Dashboard */}
+                <Card className="bg-slate-600 border-slate-500 shadow-lg">
+                  <CardHeader className="border-b border-slate-500 pb-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-white text-xl">Supplier Submissions</CardTitle>
+                        <p className="text-slate-300 text-sm mt-1">Review and manage all supplier onboarding submissions</p>
                       </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => router.push('/admin/supplier-submissions')}
+                      >
+                        Open Full Dashboard
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Workflow Tabs */}
-            <Tabs value={workflowStatus} className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="initiate" disabled={workflowStatus !== "initiate"}>
-                  Step 1: Initiate
-                </TabsTrigger>
-                <TabsTrigger value="pending" disabled={workflowStatus !== "pending"}>
-                  Step 2: Pending Response
-                </TabsTrigger>
-                <TabsTrigger value="review" disabled={workflowStatus !== "review"}>
-                  Step 3: Review
-                </TabsTrigger>
-                <TabsTrigger value="complete" disabled={workflowStatus !== "complete"}>
-                  Step 4: Complete
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="initiate" className="mt-6">
-                <AIOnboardingWorkflow
-                  step="initiate"
-                  onStepComplete={(nextStep) => {
-                    setWorkflowStatus(nextStep as any)
-                    setCurrentStep(2)
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="pending" className="mt-6">
-                <AIOnboardingWorkflow
-                  step="pending"
-                  onStepComplete={(nextStep) => {
-                    setWorkflowStatus(nextStep as any)
-                    setCurrentStep(3)
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="review" className="mt-6">
-                <AIOnboardingWorkflow
-                  step="review"
-                  onStepComplete={(nextStep) => {
-                    setWorkflowStatus(nextStep as any)
-                    setCurrentStep(4)
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="complete" className="mt-6">
-                <AIOnboardingWorkflow step="complete" onStepComplete={() => {}} />
-              </TabsContent>
-            </Tabs>
-          </TabsContent>
-
-          {/* Review Submissions Tab */}
-          <TabsContent value="review">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Supplier Submissions</CardTitle>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => router.push('/admin/supplier-submissions')}
-                  >
-                    Open Full Dashboard
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <iframe 
-                  src="/admin/supplier-submissions" 
-                  className="w-full border-0"
-                  style={{ minHeight: "calc(100vh - 400px)", height: "800px" }}
-                  title="Supplier Submissions Dashboard"
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="bg-slate-700/50 rounded-b-lg overflow-hidden">
+                      <iframe 
+                        src="/admin/supplier-submissions" 
+                        className="w-full border-0"
+                        style={{ minHeight: "calc(100vh - 450px)", height: "700px" }}
+                        title="Supplier Submissions Dashboard"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
+      
+      {/* Waiting Dialog after initiation send */}
+      <Dialog open={waitingOpen} onOpenChange={setWaitingOpen}>
+        <DialogContent className="sm:max-w-lg bg-slate-600 border-slate-500">
+          <DialogHeader>
+            <DialogTitle className="text-white">Waiting for Supplier</DialogTitle>
+            <DialogDescription className="text-slate-300">
+              Waiting for supplier to complete next step. You will be notified for review.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="text-center space-y-4 p-4">
+            <div className="flex gap-3 justify-center pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setWaitingOpen(false)}
+                className="border-slate-400 text-slate-100 hover:bg-slate-500 hover:text-white bg-slate-600/50"
+              >
+                Close
+              </Button>
+              <Button 
+                onClick={() => { setWaitingOpen(false); setMainTab('review') }}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Go to Review
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

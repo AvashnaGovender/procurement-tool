@@ -8,15 +8,15 @@ export function SettingsHeader() {
   const router = useRouter()
 
   return (
-    <div className="bg-white shadow">
+    <div className="bg-card border-b border-border shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Settings className="h-8 w-8 text-primary" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-                <p className="text-gray-600">Configure system settings and email preferences</p>
+                <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+                <p className="text-muted-foreground">Configure system settings and email preferences</p>
               </div>
             </div>
             <Button
