@@ -276,15 +276,17 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       {/* Completion Dialog */}
       <Dialog open={showCompletion} onOpenChange={setShowCompletion}>
         <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-center text-2xl font-semibold">Onboarding Successful!</DialogTitle>
+            <DialogDescription className="text-center">
+              The supplier has been successfully added to your database.
+            </DialogDescription>
+          </DialogHeader>
           <div className="text-center space-y-5 p-2">
             <div className="flex justify-center">
               <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
                 <CheckCircle className="h-9 w-9 text-green-600" />
               </div>
-            </div>
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900">Onboarding Successful!</h2>
-              <p className="text-gray-600 mt-1">The supplier has been successfully added to your database.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Card className="bg-green-50 border-green-200">
