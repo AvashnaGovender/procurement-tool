@@ -1,0 +1,30 @@
+# Stage 1: Core dependencies
+fastapi
+uvicorn
+celery
+redis
+pydantic
+psycopg2-binary
+sqlalchemy
+alembic
+python-multipart
+python-dotenv
+requests
+aiofiles
+httpx
+pydantic-settings
+
+# Stage 2: File processing
+pytesseract
+Pillow
+PyPDF2
+python-docx
+openpyxl
+
+# Stage 3: AI/ML dependencies (install separately to avoid conflicts)
+crewai
+langchain
+langchain-ollama
+langchain-community
+
+

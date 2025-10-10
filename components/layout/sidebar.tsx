@@ -42,15 +42,15 @@ export function Sidebar() {
   }
 
   return (
-    <div className="flex flex-col h-screen w-64 bg-sidebar border-r border-sidebar-border original:bg-slate-600 original:border-slate-500">
+    <div className="flex flex-col h-screen w-64 bg-sidebar border-r border-sidebar-border original:bg-slate-200 original:border-slate-300">
       {/* Logo */}
-      <div className="flex items-center h-16 px-6 border-b border-sidebar-border original:border-slate-500">
+      <div className="flex items-center h-16 px-6 border-b border-sidebar-border original:border-slate-300">
         <Image
           src="/logo.png"
           alt="Schauenburg Systems"
           width={200}
           height={60}
-          className="object-contain brightness-0 invert"
+          className="object-contain"
         />
       </div>
 
@@ -67,7 +67,7 @@ export function Sidebar() {
                 className={`
                   flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all w-full text-left
                   text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer opacity-75
-                  original:text-slate-200 original:hover:bg-slate-500 original:hover:text-white
+                  original:text-slate-600 original:hover:bg-slate-300 original:hover:text-slate-800
                 `}
               >
                 <item.icon className="h-5 w-5" />
@@ -84,7 +84,7 @@ export function Sidebar() {
                 flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all
                 ${isActive 
                   ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg shadow-sidebar-primary/20 original:bg-blue-600 original:text-white original:shadow-blue-600/20" 
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground original:text-slate-200 original:hover:bg-slate-500 original:hover:text-white"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground original:text-slate-700 original:hover:bg-slate-300 original:hover:text-slate-900"
                 }
               `}
             >
@@ -96,14 +96,14 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom Section */}
-      <div className="border-t border-sidebar-border original:border-slate-500">
+      <div className="border-t border-sidebar-border original:border-slate-300">
         <Link
           href="/settings"
             className={`
               flex items-center gap-3 px-8 py-4 text-sm font-medium transition-all
               ${pathname === "/settings" 
-                ? "bg-sidebar-accent text-sidebar-accent-foreground original:bg-slate-500 original:text-white" 
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground original:text-slate-200 original:hover:bg-slate-500 original:hover:text-white"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground original:bg-slate-300 original:text-slate-900" 
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground original:text-slate-700 original:hover:bg-slate-300 original:hover:text-slate-900"
               }
             `}
         >
@@ -112,7 +112,7 @@ export function Sidebar() {
         </Link>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-8 py-4 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all w-full original:text-slate-200 original:hover:bg-slate-500 original:hover:text-white"
+          className="flex items-center gap-3 px-8 py-4 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all w-full original:text-slate-700 original:hover:bg-slate-300 original:hover:text-slate-900"
         >
           <LogOut className="h-5 w-5" />
           Logout

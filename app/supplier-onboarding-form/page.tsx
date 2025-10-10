@@ -906,7 +906,9 @@ export default function SupplierOnboardingFormPage() {
           <Card>
             <CardHeader>
               <CardTitle>9. Required Documents</CardTitle>
-              <CardDescription>Please upload all required documents</CardDescription>
+              <CardDescription>
+                Please upload all required documents.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {[

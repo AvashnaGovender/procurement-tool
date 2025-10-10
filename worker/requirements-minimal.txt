@@ -1,0 +1,38 @@
+# Core FastAPI and server dependencies
+fastapi
+uvicorn
+
+# Celery and Redis for background tasks
+celery
+redis
+
+# Database and ORM
+pydantic
+psycopg2-binary
+sqlalchemy
+alembic
+
+# File handling and utilities
+python-multipart
+python-dotenv
+pytesseract
+Pillow
+PyPDF2
+python-docx
+openpyxl
+
+# HTTP and async
+requests
+aiofiles
+httpx
+
+# CrewAI and LangChain - let pip resolve versions
+crewai
+langchain
+langchain-ollama
+langchain-community
+
+# Additional dependencies
+pydantic-settings
+
+

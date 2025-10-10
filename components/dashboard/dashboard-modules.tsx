@@ -142,7 +142,7 @@ export function DashboardModules() {
         {/* Loading Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="bg-card border-border original:bg-slate-600 original:border-slate-500">
+            <Card key={i} className="bg-card border-border original:bg-white original:border-slate-200">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-2">
@@ -168,7 +168,7 @@ export function DashboardModules() {
           <Button 
             onClick={() => window.location.reload()} 
             variant="outline"
-            className="border-border text-foreground hover:bg-accent original:border-slate-500 original:text-slate-300 original:hover:bg-slate-600"
+            className="border-border text-foreground hover:bg-accent original:border-slate-300 original:text-slate-700 original:hover:bg-slate-100"
           >
             Retry
           </Button>
@@ -181,12 +181,12 @@ export function DashboardModules() {
     <div className="space-y-8">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-card border-border hover:bg-accent/50 transition-all original:bg-slate-600 original:border-slate-500 original:hover:bg-slate-550">
+        <Card className="bg-card border-border hover:bg-accent/50 transition-all original:bg-white original:border-slate-200 original:hover:bg-slate-50">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground original:text-slate-300">Total Suppliers</p>
-                <p className="text-3xl font-bold text-foreground mt-2 original:text-white">{stats?.totalSuppliers.value || '0'}</p>
+                <p className="text-sm font-medium text-muted-foreground original:text-slate-600">Total Suppliers</p>
+                <p className="text-3xl font-bold text-foreground mt-2 original:text-slate-900">{stats?.totalSuppliers.value || '0'}</p>
                 <p className={`text-xs mt-1 ${stats?.totalSuppliers.trend === 'up' ? 'text-green-400' : 'text-red-400'}`}>
                   {stats?.totalSuppliers ? formatChangeText(stats.totalSuppliers.change, stats.totalSuppliers.trend) : 'No data'}
                 </p>
@@ -198,12 +198,12 @@ export function DashboardModules() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border hover:bg-accent/50 transition-all original:bg-slate-600 original:border-slate-500 original:hover:bg-slate-550">
+        <Card className="bg-card border-border hover:bg-accent/50 transition-all original:bg-white original:border-slate-200 original:hover:bg-slate-50">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground original:text-slate-300">Active Orders</p>
-                <p className="text-3xl font-bold text-foreground mt-2 original:text-white">{stats?.activeOrders.value || '0'}</p>
+                <p className="text-sm font-medium text-muted-foreground original:text-slate-600">Active Orders</p>
+                <p className="text-3xl font-bold text-foreground mt-2 original:text-slate-900">{stats?.activeOrders.value || '0'}</p>
                 <p className={`text-xs mt-1 ${stats?.activeOrders.trend === 'up' ? 'text-green-400' : 'text-red-400'}`}>
                   {stats?.activeOrders ? formatChangeText(stats.activeOrders.change, stats.activeOrders.trend) : 'No data'}
                 </p>
@@ -215,12 +215,12 @@ export function DashboardModules() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border hover:bg-accent/50 transition-all original:bg-slate-600 original:border-slate-500 original:hover:bg-slate-550">
+        <Card className="bg-card border-border hover:bg-accent/50 transition-all original:bg-white original:border-slate-200 original:hover:bg-slate-50">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground original:text-slate-300">Total Spend</p>
-                <p className="text-3xl font-bold text-foreground mt-2 original:text-white">{stats?.totalSpend.value || 'R0'}</p>
+                <p className="text-sm font-medium text-muted-foreground original:text-slate-600">Total Spend</p>
+                <p className="text-3xl font-bold text-foreground mt-2 original:text-slate-900">{stats?.totalSpend.value || 'R0'}</p>
                 <p className={`text-xs mt-1 ${stats?.totalSpend.trend === 'up' ? 'text-green-400' : 'text-red-400'}`}>
                   {stats?.totalSpend ? formatChangeText(stats.totalSpend.change, stats.totalSpend.trend) : 'No data'}
                 </p>
@@ -232,12 +232,12 @@ export function DashboardModules() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border hover:bg-accent/50 transition-all original:bg-slate-600 original:border-slate-500 original:hover:bg-slate-550">
+        <Card className="bg-card border-border hover:bg-accent/50 transition-all original:bg-white original:border-slate-200 original:hover:bg-slate-50">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground original:text-slate-300">Average Lead Time</p>
-                <p className="text-3xl font-bold text-foreground mt-2 original:text-white">{stats?.averageLeadTime.value || 'N/A'}</p>
+                <p className="text-sm font-medium text-muted-foreground original:text-slate-600">Average Lead Time</p>
+                <p className="text-3xl font-bold text-foreground mt-2 original:text-slate-900">{stats?.averageLeadTime.value || 'N/A'}</p>
                 <p className={`text-xs mt-1 ${stats?.averageLeadTime.trend === 'up' ? 'text-green-400' : 'text-red-400'}`}>
                   {stats?.averageLeadTime ? formatLeadTimeChange(stats.averageLeadTime.change, stats.averageLeadTime.trend) : 'No data'}
                 </p>
@@ -251,10 +251,10 @@ export function DashboardModules() {
       </div>
 
       {/* Modules Grid */}
-      <Card className="bg-card border-border original:bg-slate-600 original:border-slate-500">
+      <Card className="bg-card border-border original:bg-white original:border-slate-200">
         <CardHeader>
-          <CardTitle className="text-foreground original:text-white">Procurement Modules</CardTitle>
-          <CardDescription className="text-muted-foreground original:text-slate-300">Access all procurement management functions</CardDescription>
+          <CardTitle className="text-foreground original:text-slate-900">Procurement Modules</CardTitle>
+          <CardDescription className="text-muted-foreground original:text-slate-600">Access all procurement management functions</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -267,13 +267,13 @@ export function DashboardModules() {
                   <a
                     key={module.title}
                     href={module.href}
-                    className="group p-6 rounded-lg border border-border bg-accent/30 hover:bg-accent hover:border-primary transition-all cursor-pointer original:border-slate-500 original:bg-slate-550 original:hover:bg-slate-500 original:hover:border-blue-500"
+                    className="group p-6 rounded-lg border border-border bg-accent/30 hover:bg-accent hover:border-primary transition-all cursor-pointer original:border-slate-200 original:bg-slate-50 original:hover:bg-slate-100 original:hover:border-blue-500"
                   >
                     <div className={`w-12 h-12 rounded-lg ${module.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                       <Icon className="h-6 w-6 text-white" />
                     </div>
-                    <h3 className="font-semibold text-foreground mb-1 original:text-white">{module.title}</h3>
-                    <p className="text-sm text-muted-foreground original:text-slate-300">Click to access</p>
+                    <h3 className="font-semibold text-foreground mb-1 original:text-slate-900">{module.title}</h3>
+                    <p className="text-sm text-muted-foreground original:text-slate-600">Click to access</p>
                   </a>
                 )
               }
@@ -281,13 +281,13 @@ export function DashboardModules() {
               return (
                 <div
                   key={module.title}
-                  className="p-6 rounded-lg border border-border bg-accent/20 opacity-50 cursor-not-allowed original:border-slate-500 original:bg-slate-550/50"
+                  className="p-6 rounded-lg border border-border bg-accent/20 opacity-50 cursor-not-allowed original:border-slate-200 original:bg-slate-50/50"
                 >
                   <div className={`w-12 h-12 rounded-lg ${module.color} opacity-50 flex items-center justify-center mb-4`}>
                     <Icon className="h-6 w-6 text-white" />
                   </div>
-                  <h3 className="font-semibold text-muted-foreground mb-1 original:text-slate-300">{module.title}</h3>
-                  <p className="text-sm text-muted-foreground/70 original:text-slate-400">{module.comingSoon ? "Coming soon" : "Coming soon"}</p>
+                  <h3 className="font-semibold text-muted-foreground mb-1 original:text-slate-600">{module.title}</h3>
+                  <p className="text-sm text-muted-foreground/70 original:text-slate-500">{module.comingSoon ? "Coming soon" : "Coming soon"}</p>
                 </div>
               )
             })}

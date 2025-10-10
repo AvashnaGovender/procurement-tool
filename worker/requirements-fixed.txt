@@ -1,0 +1,39 @@
+# Core FastAPI and server dependencies
+fastapi==0.104.1
+uvicorn==0.24.0
+
+# Celery and Redis for background tasks
+celery==5.3.4
+redis==5.0.1
+
+# CrewAI and LangChain - compatible versions
+crewai==0.28.8
+crewai-tools==0.1.6
+langchain>=0.1.10,<0.2.0
+langchain-ollama>=0.1.0
+langchain-community>=0.0.10
+
+# Database and ORM
+pydantic>=2.5.0
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.23
+alembic==1.13.1
+
+# File handling and utilities
+python-multipart==0.0.6
+python-dotenv==1.0.0
+pytesseract==0.3.10
+Pillow==10.1.0
+PyPDF2==3.0.1
+python-docx==1.1.0
+openpyxl==3.1.2
+
+# HTTP and async
+requests==2.31.0
+aiofiles==23.2.1
+httpx==0.25.2
+
+# Additional dependencies that might be needed
+pydantic-settings>=2.0.0
+
+

@@ -586,15 +586,15 @@ Schauenburg Systems Procurement Team`
   if (step === "initiate") {
     return (
       <>
-        <Card className="bg-slate-600 border-slate-500 shadow-lg">
-          <CardHeader className="border-b border-slate-500 pb-6">
+        <Card className="bg-white border-slate-200 shadow-lg">
+          <CardHeader className="border-b border-slate-200 pb-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center">
-                <UserPlus className="h-5 w-5 text-blue-400" />
+                <UserPlus className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <CardTitle className="text-white text-xl">AI-Powered Supplier Onboarding</CardTitle>
-                <CardDescription className="text-slate-300">
+                <CardTitle className="text-slate-900 text-xl">AI-Powered Supplier Onboarding</CardTitle>
+                <CardDescription className="text-slate-600">
                   Let our AI help you initiate the supplier onboarding process
                 </CardDescription>
               </div>
@@ -605,24 +605,24 @@ Schauenburg Systems Procurement Team`
               {/* Contact Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="contactName" className="text-slate-200">Contact Person Name</Label>
+                  <Label htmlFor="contactName" className="text-slate-700">Contact Person Name</Label>
                   <Input
                     id="contactName"
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
                     placeholder="Enter contact person's full name"
-                    className="bg-slate-700 border-slate-500 text-white placeholder:text-slate-400"
+                    className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="contactEmail" className="text-slate-200">Email Address</Label>
+                  <Label htmlFor="contactEmail" className="text-slate-700">Email Address</Label>
                   <Input
                     id="contactEmail"
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                     placeholder="Enter email address"
-                    className="bg-slate-700 border-slate-500 text-white placeholder:text-slate-400"
+                    className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
                   />
                 </div>
               </div>
@@ -630,9 +630,9 @@ Schauenburg Systems Procurement Team`
               {/* Business Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="businessType" className="text-slate-200">Business Type</Label>
+                  <Label htmlFor="businessType" className="text-slate-700">Business Type</Label>
                   <Select value={businessType} onValueChange={setBusinessType}>
-                    <SelectTrigger className="bg-slate-700 border-slate-500 text-white">
+                    <SelectTrigger className="bg-white border-slate-300 text-slate-900">
                       <SelectValue placeholder="Select business type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -645,9 +645,9 @@ Schauenburg Systems Procurement Team`
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="sector" className="text-slate-200">Business Sector</Label>
+                  <Label htmlFor="sector" className="text-slate-700">Business Sector</Label>
                   <Select value={sector} onValueChange={setSector}>
-                    <SelectTrigger className="bg-slate-700 border-slate-500 text-white">
+                    <SelectTrigger className="bg-white border-slate-300 text-slate-900">
                       <SelectValue placeholder="Select sector" />
                     </SelectTrigger>
                     <SelectContent>

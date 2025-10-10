@@ -4,7 +4,7 @@ import { compare } from "bcryptjs"
 import { prisma } from "./prisma"
 
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-development",
   session: {
     strategy: "jwt",
   },
@@ -12,6 +12,19 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
   debug: process.env.NODE_ENV === "development",
+  logger: {
+    error: (code, metadata) => {
+      console.error('NextAuth Error:', code, metadata);
+    },
+    warn: (code) => {
+      console.warn('NextAuth Warning:', code);
+    },
+    debug: (code, metadata) => {
+      if (process.env.NODE_ENV === "development") {
+        console.log('NextAuth Debug:', code, metadata);
+      }
+    }
+  },
   providers: [
     CredentialsProvider({
       name: "credentials",

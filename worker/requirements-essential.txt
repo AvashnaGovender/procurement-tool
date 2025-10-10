@@ -1,0 +1,21 @@
+# Essential packages only - no version constraints
+fastapi
+uvicorn
+celery
+redis
+pydantic
+psycopg2-binary
+sqlalchemy
+python-multipart
+python-dotenv
+pytesseract
+Pillow
+PyPDF2
+python-docx
+openpyxl
+requests
+aiofiles
+httpx
+pydantic-settings
+
+

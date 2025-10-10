@@ -61,38 +61,38 @@ export default function SupplierOnboardingPage() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-700 overflow-hidden">
+    <div className="flex h-screen bg-slate-100 overflow-hidden">
       {/* Sidebar */}
       <Sidebar />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="h-16 bg-slate-600 border-b border-slate-500 flex items-center justify-between px-8">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" asChild className="text-slate-300 hover:text-white hover:bg-slate-500">
+            <Button variant="ghost" size="sm" asChild className="text-slate-600 hover:text-slate-900 hover:bg-slate-100">
               <Link href="/dashboard">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Dashboard
               </Link>
             </Button>
-            <div className="border-l border-slate-500 pl-4">
-              <h1 className="text-xl font-bold text-white">Supplier Onboarding</h1>
-              <p className="text-xs text-slate-300">AI-powered workflow with intelligent document processing</p>
+            <div className="border-l border-slate-300 pl-4">
+              <h1 className="text-xl font-bold text-slate-900">Supplier Onboarding</h1>
+              <p className="text-xs text-slate-600">AI-powered workflow with intelligent document processing</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="border-slate-400 text-slate-100 hover:bg-slate-500 hover:text-white bg-slate-600/50">
+                <Button variant="outline" size="sm" className="border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 bg-white">
                   <Settings className="h-4 w-4 mr-2" />
                   Settings
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-slate-600 border-slate-500">
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white border-slate-300">
                 <DialogHeader>
-                  <DialogTitle className="text-white">SMTP Configuration</DialogTitle>
-                  <DialogDescription className="text-slate-300">
+                  <DialogTitle className="text-slate-900">SMTP Configuration</DialogTitle>
+                  <DialogDescription className="text-slate-600">
                     Configure SMTP server settings for sending supplier onboarding emails
                   </DialogDescription>
                 </DialogHeader>
@@ -111,12 +111,12 @@ export default function SupplierOnboardingPage() {
         <main className="flex-1 overflow-y-auto p-8">
           {/* Main Tabs: New Onboarding vs Review Submissions */}
           <Tabs value={mainTab} onValueChange={(value) => setMainTab(value as typeof mainTab)} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8 bg-slate-600 border-slate-500">
-              <TabsTrigger value="new" className="flex items-center gap-2 text-slate-200 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg">
+            <TabsList className="grid w-full grid-cols-2 mb-8 bg-white border-slate-200">
+              <TabsTrigger value="new" className="flex items-center gap-2 text-slate-700 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg">
                 <Plus className="h-4 w-4" />
                 Initiate New Onboarding
               </TabsTrigger>
-              <TabsTrigger value="review" className="flex items-center gap-2 text-slate-200 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg">
+              <TabsTrigger value="review" className="flex items-center gap-2 text-slate-700 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg">
                 <List className="h-4 w-4" />
                 Review Submissions
               </TabsTrigger>
@@ -138,12 +138,12 @@ export default function SupplierOnboardingPage() {
             <TabsContent value="review">
               <div className="space-y-6">
                 {/* Submissions Dashboard */}
-                <Card className="bg-slate-600 border-slate-500 shadow-lg">
-                  <CardHeader className="border-b border-slate-500 pb-4">
+                <Card className="bg-white border-slate-200 shadow-lg">
+                  <CardHeader className="border-b border-slate-200 pb-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle className="text-white text-xl">Supplier Submissions</CardTitle>
-                        <p className="text-slate-300 text-sm mt-1">Review and manage all supplier onboarding submissions</p>
+                        <CardTitle className="text-slate-900 text-xl">Supplier Submissions</CardTitle>
+                        <p className="text-slate-600 text-sm mt-1">Review and manage all supplier onboarding submissions</p>
                       </div>
                       <Button 
                         variant="outline" 
@@ -155,7 +155,7 @@ export default function SupplierOnboardingPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <div className="bg-slate-700/50 rounded-b-lg overflow-hidden">
+                    <div className="bg-slate-50 rounded-b-lg overflow-hidden">
                       <iframe 
                         src="/admin/supplier-submissions" 
                         className="w-full border-0"
@@ -173,10 +173,10 @@ export default function SupplierOnboardingPage() {
       
       {/* Waiting Dialog after initiation send */}
       <Dialog open={waitingOpen} onOpenChange={setWaitingOpen}>
-        <DialogContent className="sm:max-w-lg bg-slate-600 border-slate-500">
+        <DialogContent className="sm:max-w-lg bg-white border-slate-300">
           <DialogHeader>
-            <DialogTitle className="text-white">Waiting for Supplier</DialogTitle>
-            <DialogDescription className="text-slate-300">
+            <DialogTitle className="text-slate-900">Waiting for Supplier</DialogTitle>
+            <DialogDescription className="text-slate-600">
               Waiting for supplier to complete next step. You will be notified for review.
             </DialogDescription>
           </DialogHeader>
@@ -185,7 +185,7 @@ export default function SupplierOnboardingPage() {
               <Button 
                 variant="outline" 
                 onClick={() => setWaitingOpen(false)}
-                className="border-slate-400 text-slate-100 hover:bg-slate-500 hover:text-white bg-slate-600/50"
+                className="border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 bg-white"
               >
                 Close
               </Button>
