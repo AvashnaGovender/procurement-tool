@@ -17,6 +17,8 @@ export async function middleware(request: NextRequest) {
   // Check if user is authenticated for protected routes
   if (!token && !request.nextUrl.pathname.startsWith('/api/supplier-form')) {
     const loginUrl = new URL('/login', request.url)
+    // Preserve the original URL as callback for redirect after login
+    loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname)
     return NextResponse.redirect(loginUrl)
   }
   

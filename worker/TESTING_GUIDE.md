@@ -179,3 +179,7 @@ docker-compose up -d
 3. Verify port 8001 is accessible: `netstat -ano | findstr :8001`
 
 
+
+
+
+

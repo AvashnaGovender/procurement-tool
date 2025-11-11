@@ -37,7 +37,10 @@ except ImportError:
 from typing import Dict, List, Any, Optional
 from pydantic import BaseModel
 import json
+import logging
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 # Initialize Ollama LLM
 llm = None
@@ -71,7 +74,8 @@ def analyze_document_with_ollama(
     document_text: str, 
     document_type: str, 
     supplier_name: str,
-    form_data: Optional[Dict[str, Any]] = None
+    form_data: Optional[Dict[str, Any]] = None,
+    filename: str = ""
 ) -> Dict[str, Any]:
     """Analyze document using Ollama with specific validation checks."""
     if not llm:
@@ -83,6 +87,100 @@ def analyze_document_with_ollama(
         }
     
     try:
+        # STEP 0: Check if we have actual content or just a placeholder
+        has_actual_content = len(document_text.strip()) > 50 and not document_text.startswith("PDF document uploaded") and not document_text.startswith("Document content extracted from") and not document_text.startswith("Document uploaded")
+        
+        # STEP 1: First detect what type of document this actually is by analyzing content
+        # If we don't have actual content, use filename as a hint
+        content_preview = document_text[:2000] if has_actual_content else "Content extraction failed - using filename analysis"
+        filename_hint = f"\nFILENAME: {filename}" if filename else ""
+        
+        detection_prompt = f"""You are a document type classifier. Analyze the following information to determine what type of document this is.
+{filename_hint}
+DOCUMENT CONTENT (first 2000 characters):
+{content_preview}
+
+Based on the content and filename, identify the document type. Look for:
+- Bank statements, bank letters, or bank confirmation letters (look for bank names, account numbers, transactions, "bank statement", "confirmation letter")
+- Company registration documents (look for "CIPC", "Companies and Intellectual Property Commission", "CM1", "CK1", "CK2", registration numbers)
+- Tax clearance certificates (look for "SARS", "South African Revenue Service", "Tax Clearance", "Good Standing")
+- BBBEE certificates (look for "B-BBEE", "Broad-Based Black Economic Empowerment", "Department: Trade, Industry and Competition")
+- Other document types
+
+Respond with ONLY the document type in this format:
+ACTUAL_DOCUMENT_TYPE: [type]
+
+Examples:
+ACTUAL_DOCUMENT_TYPE: bank_statement
+ACTUAL_DOCUMENT_TYPE: bank_confirmation_letter
+ACTUAL_DOCUMENT_TYPE: company_registration
+ACTUAL_DOCUMENT_TYPE: tax_clearance
+ACTUAL_DOCUMENT_TYPE: bbbee_certificate
+ACTUAL_DOCUMENT_TYPE: unknown
+
+If you cannot determine the type, respond with: ACTUAL_DOCUMENT_TYPE: unknown"""
+
+        # Always try filename fallback first if we don't have content, before calling LLM
+        actual_document_type = "unknown"
+        if not has_actual_content and filename:
+            # Try to infer from common filename patterns FIRST (faster than LLM)
+            filename_lower = filename.lower()
+            if "bank" in filename_lower or "confirmation" in filename_lower:
+                actual_document_type = "bank_confirmation_letter"
+                print(f"🔍 [FILENAME FALLBACK] Detected document type from filename: {actual_document_type} (filename: {filename})")
+            elif "registration" in filename_lower or "cipc" in filename_lower or "cm1" in filename_lower or "ck1" in filename_lower:
+                actual_document_type = "company_registration"
+                print(f"🔍 [FILENAME FALLBACK] Detected document type from filename: {actual_document_type} (filename: {filename})")
+            elif "tax" in filename_lower or "sars" in filename_lower or "good_standing" in filename_lower:
+                actual_document_type = "tax_clearance"
+                print(f"🔍 [FILENAME FALLBACK] Detected document type from filename: {actual_document_type} (filename: {filename})")
+            elif "bbbee" in filename_lower or "bee" in filename_lower:
+                actual_document_type = "bbbee_certificate"
+                print(f"🔍 [FILENAME FALLBACK] Detected document type from filename: {actual_document_type} (filename: {filename})")
+        
+        # If we still don't have a type and have content, try LLM detection
+        if actual_document_type == "unknown" and has_actual_content:
+            detection_result = llm.invoke(detection_prompt)
+            detection_text = detection_result.content if hasattr(detection_result, 'content') else str(detection_result)
+            
+            # Extract the detected document type
+            if "ACTUAL_DOCUMENT_TYPE:" in detection_text:
+                actual_document_type = detection_text.split("ACTUAL_DOCUMENT_TYPE:")[1].strip().split("\n")[0].strip().lower()
+                print(f"🔍 [LLM DETECTION] Detected document type: {actual_document_type}")
+        
+        print(f"🔍 [FINAL] Document type detection: expected='{document_type}', detected='{actual_document_type}', has_content={has_actual_content}, filename='{filename}'")
+        
+        # Normalize document type names for comparison
+        def normalize_type(doc_type: str) -> str:
+            doc_type = doc_type.lower().replace(" ", "_").replace("-", "_")
+            if "bank" in doc_type and ("statement" in doc_type or "confirmation" in doc_type or "letter" in doc_type):
+                return "bank_confirmation"
+            elif "company" in doc_type and ("registration" in doc_type or "cipc" in doc_type):
+                return "company_registration"
+            elif "tax" in doc_type or "good_standing" in doc_type or "sars" in doc_type:
+                return "tax_clearance"
+            elif "bbbee" in doc_type or "bee" in doc_type:
+                return "bbbee_accreditation"
+            return doc_type
+        
+        normalized_expected = normalize_type(document_type)
+        normalized_actual = normalize_type(actual_document_type)
+        
+        # Check for mismatch
+        type_mismatch = False
+        mismatch_warning = ""
+        print(f"🔍 Comparing types: normalized_expected='{normalized_expected}', normalized_actual='{normalized_actual}'")
+        if normalized_actual != "unknown" and normalized_expected != normalized_actual:
+            type_mismatch = True
+            mismatch_warning = f"\n⚠️ DOCUMENT TYPE MISMATCH DETECTED:\n"
+            mismatch_warning += f"   Expected: {document_type}\n"
+            mismatch_warning += f"   Actual: {actual_document_type}\n"
+            mismatch_warning += f"   This document appears to be a {actual_document_type} but was uploaded as {document_type}.\n"
+            mismatch_warning += f"   Please verify the correct document was uploaded.\n"
+            print(f"⚠️ MISMATCH DETECTED! Expected: {document_type}, Actual: {actual_document_type}")
+        else:
+            print(f"✅ Document type matches or could not be determined")
+        
         # Get form data for validation
         company_name = form_data.get('companyName', supplier_name) if form_data else supplier_name
         registration_number = form_data.get('registrationNumber', '') if form_data else ''
@@ -391,6 +489,12 @@ Provide a structured analysis."""
         analysis_result = llm.invoke(analysis_prompt)
         analysis_text = analysis_result.content if hasattr(analysis_result, 'content') else str(analysis_result)
         
+        # Prepend mismatch warning if detected - make it VERY prominent
+        if type_mismatch:
+            # Put mismatch warning at the very top, with clear markers
+            analysis_text = "=" * 80 + "\n" + mismatch_warning + "\n" + "=" * 80 + "\n\n" + analysis_text
+            print(f"✅ Mismatch warning prepended to analysis results (length: {len(analysis_text)})")
+        
         # Create compliance check prompt
         compliance_prompt = f"""Based on this document analysis:
 
@@ -428,16 +532,31 @@ Provide risk assessment."""
             "analysis_results": analysis_text,
             "compliance_results": compliance_text,
             "risk_assessment": risk_text,
-            "mode": "ollama_direct"
+            "mode": "ollama_direct",
+            "document_type_detected": actual_document_type,
+            "document_type_mismatch": type_mismatch
         }
     except Exception as e:
         print(f"Error in Ollama analysis: {e}")
-        return {
+        # Still return mismatch info even if analysis fails
+        # The mismatch detection happens before the LLM call, so it's still valid
+        error_result = {
             "analysis_results": f"Analysis attempted but encountered error: {str(e)}",
             "compliance_results": "Manual review required",
             "risk_assessment": "To be determined",
             "mode": "error"
         }
+        
+        # Include mismatch info if it was detected before the error
+        if 'type_mismatch' in locals() and type_mismatch:
+            error_result["document_type_mismatch"] = type_mismatch
+            error_result["document_type_detected"] = actual_document_type if 'actual_document_type' in locals() else "unknown"
+            # Prepend mismatch warning to error message
+            if 'mismatch_warning' in locals():
+                error_result["analysis_results"] = "=" * 80 + "\n" + mismatch_warning + "\n" + "=" * 80 + "\n\n" + error_result["analysis_results"]
+                print(f"✅ Mismatch info preserved despite analysis error")
+        
+        return error_result
 
 
 class DocumentAnalysisTool(BaseTool):

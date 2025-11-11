@@ -9,7 +9,9 @@ import {
   LogOut,
   Users,
   FileText,
-  BarChart3
+  BarChart3,
+  ClipboardList,
+  CheckCircle
 } from "lucide-react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -21,6 +23,8 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, comingSoon: false },
   { name: "Analytics", href: "/analytics", icon: TrendingUp, comingSoon: true },
   { name: "Suppliers", href: "/suppliers", icon: Users, comingSoon: false },
+  { name: "Supplier Initiations", href: "/admin/supplier-initiations", icon: ClipboardList, comingSoon: false },
+  { name: "Approvals", href: "/admin/approvals", icon: CheckCircle, comingSoon: false },
   { name: "Reports", href: "/reports", icon: BarChart3, comingSoon: true },
 ]
 

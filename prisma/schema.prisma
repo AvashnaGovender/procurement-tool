@@ -36,19 +36,79 @@ model User {
   contractApprovals         ContractApproval[]    @relation("ContractApprover")
   initiatedOnboardings      SupplierOnboarding[]  @relation("OnboardingInitiator")
   reviewedOnboardings       SupplierOnboarding[]  @relation("OnboardingReviewer")
+  initiatedSupplierInitiations SupplierInitiation[] @relation("InitiationInitiator")
+  managerApprovals          ManagerApproval[]      @relation("ManagerApprover")
+  procurementApprovals      ProcurementApproval[]  @relation("ProcurementApprover")
   auditLogs                 AuditLog[]            @relation("AuditUser")
   emailsSent                EmailLog[]            @relation("EmailSender")
   notifications             Notification[]        @relation("NotificationUser")
   sessionResumptions        SessionResumption[]   @relation("SessionUser")
   purchaseOrders            PurchaseOrder[]       @relation("PurchaseOrderCreator")
+  delegationsGiven          UserDelegation[]      @relation("DelegationDelegator")
+  delegationsReceived       UserDelegation[]      @relation("DelegationDelegate")
+  
+  // Manager relationship
+  managerId         String?
+  manager           User?    @relation("UserManager", fields: [managerId], references: [id], onDelete: SetNull)
+  directReports     User[]   @relation("UserManager")
 
   @@index([email])
   @@index([role])
+  @@index([managerId])
   @@map("users")
+}
+
+// ============================================================================
+// USER DELEGATIONS - Approval authority delegation during absence
+// ============================================================================
+
+model UserDelegation {
+  id                  String              @id @default(cuid())
+  
+  // Who is delegating (the person on leave)
+  delegatorId         String
+  delegator           User                @relation("DelegationDelegator", fields: [delegatorId], references: [id], onDelete: Cascade)
+  
+  // Who receives the authority (the substitute)
+  delegateId          String
+  delegate            User                @relation("DelegationDelegate", fields: [delegateId], references: [id], onDelete: Cascade)
+  
+  // Delegation scope
+  delegationType      DelegationType      @default(ALL_APPROVALS)
+  
+  // Time period
+  startDate           DateTime
+  endDate             DateTime
+  
+  // Status
+  isActive            Boolean             @default(true)
+  
+  // Additional info
+  reason              String?             @db.Text
+  notes               String?             @db.Text
+  
+  // Audit
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  createdBy           String?             // User ID who created the delegation
+
+  @@index([delegatorId, isActive])
+  @@index([delegateId, isActive])
+  @@index([startDate, endDate])
+  @@map("user_delegations")
+}
+
+enum DelegationType {
+  ALL_APPROVALS           // All approval types
+  MANAGER_APPROVALS       // Only manager approvals for supplier initiations
+  PROCUREMENT_APPROVALS   // Only procurement manager approvals
+  REQUISITION_APPROVALS   // Only requisition approvals
+  CONTRACT_APPROVALS      // Only contract approvals
 }
 
 enum UserRole {
   ADMIN
+  MANAGER
   PROCUREMENT_MANAGER
   PROCUREMENT_SPECIALIST
   APPROVER
@@ -192,6 +252,7 @@ model Supplier {
   deliveries            Delivery[]
   invoices              Invoice[]
   reviews               SupplierReview[]
+  aiAnalysisJobs        AIAnalysisJob[]
 
   @@index([supplierCode])
   @@index([status])
@@ -220,13 +281,128 @@ enum SupplierStatus {
 }
 
 // ============================================================================
+// SUPPLIER INITIATION - Pre-onboarding checklist and approval
+// ============================================================================
+
+model SupplierInitiation {
+  id                        String                    @id @default(cuid())
+  
+  // Business Unit Selection
+  businessUnit              BusinessUnit
+  
+  // Checklist Items
+  processReadUnderstood     Boolean                   @default(false)
+  dueDiligenceCompleted     Boolean                   @default(false)
+  
+  // Supplier Information
+  supplierName              String
+  supplierEmail             String           @default("")
+  supplierContactPerson     String           @default("")
+  productServiceCategory    String
+  requesterName             String
+  relationshipDeclaration   String
+  
+  // Purchase Information
+  regularPurchase           Boolean                   @default(false)
+  annualPurchaseValue        Float?
+  creditApplication          Boolean                   @default(false)
+  creditApplicationReason   String?
+  onceOffPurchase           Boolean                   @default(false)
+  onboardingReason          String                    @db.Text
+  
+  // Status and Workflow
+  status                    InitiationStatus          @default(SUBMITTED)
+  submittedAt               DateTime                  @default(now())
+  
+  // Approvals
+  managerApproval           ManagerApproval?
+  procurementApproval       ProcurementApproval?
+  
+  // Email sending
+  emailSent                 Boolean                   @default(false)
+  emailSentAt               DateTime?
+  
+  // Created by
+  initiatedById             String
+  initiatedBy               User                      @relation("InitiationInitiator", fields: [initiatedById], references: [id])
+  
+  // Timestamps
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+
+  // Relations
+  onboarding                SupplierOnboarding?
+
+  @@index([status])
+  @@index([initiatedById])
+  @@map("supplier_initiations")
+}
+
+enum BusinessUnit {
+  SCHAUENBURG_SYSTEMS_200
+  SCHAUENBURG_PTY_LTD_300
+}
+
+enum InitiationStatus {
+  SUBMITTED
+  MANAGER_APPROVED
+  PROCUREMENT_APPROVED
+  APPROVED
+  REJECTED
+  EMAIL_SENT
+  SUPPLIER_EMAILED
+}
+
+model ManagerApproval {
+  id                        String                    @id @default(cuid())
+  initiationId              String                    @unique
+  initiation                SupplierInitiation        @relation(fields: [initiationId], references: [id], onDelete: Cascade)
+  
+  approverId                String
+  approver                  User                      @relation("ManagerApprover", fields: [approverId], references: [id])
+  
+  status                    ApprovalStatus            @default(PENDING)
+  comments                  String?                   @db.Text
+  approvedAt                DateTime?
+  
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+
+  @@index([initiationId])
+  @@map("manager_approvals")
+}
+
+model ProcurementApproval {
+  id                        String                    @id @default(cuid())
+  initiationId              String                    @unique
+  initiation                SupplierInitiation        @relation(fields: [initiationId], references: [id], onDelete: Cascade)
+  
+  approverId                String
+  approver                  User                      @relation("ProcurementApprover", fields: [approverId], references: [id])
+  
+  status                    ApprovalStatus            @default(PENDING)
+  comments                  String?                   @db.Text
+  approvedAt                DateTime?
+  
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+
+  @@index([initiationId])
+  @@map("procurement_approvals")
+}
+
+// ============================================================================
 // SUPPLIER ONBOARDING - Full workflow tracking
 // ============================================================================
 
 model SupplierOnboarding {
   id                        String                    @id @default(cuid())
-  supplierId                String                    @unique
-  supplier                  Supplier                  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierId                String?                   @unique
+  supplier                  Supplier?                 @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  // Link to initiation
+  initiationId              String?                   @unique
+  initiation                SupplierInitiation?       @relation(fields: [initiationId], references: [id], onDelete: Cascade)
   
   // Workflow Status
   currentStep               OnboardingStep            @default(INITIATE)
@@ -414,6 +590,108 @@ model SupplierDocument {
   @@index([onboardingId])
   @@index([documentType])
   @@map("supplier_documents")
+}
+
+// ============================================================================
+// DOCUMENT VERIFICATION - Track verification status for supplier documents
+// ============================================================================
+
+model DocumentVerification {
+  id                  String        @id @default(cuid())
+  supplierId          String
+  version             Int           // Document version number
+  category            String        // Document category (e.g., "companyRegistration", "nda")
+  fileName            String        // File name
+  
+  isVerified          Boolean       @default(false)
+  verifiedAt          DateTime?
+  verifiedBy          String?       // User ID who verified
+  verificationNotes   String?       @db.Text
+  
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@unique([supplierId, version, category, fileName])
+  @@index([supplierId])
+  @@index([isVerified])
+  @@map("document_verifications")
+}
+
+// ============================================================================
+// REMINDER SYSTEM - Automated reminders for pending actions
+// ============================================================================
+
+model ReminderConfiguration {
+  id                            String   @id @default(cuid())
+  
+  // Reminder type
+  reminderType                  ReminderConfigType @unique
+  
+  // Timing configuration (in hours)
+  firstReminderAfterHours       Int      @default(3)
+  secondReminderAfterHours      Int      @default(7)
+  finalReminderAfterHours       Int      @default(14)
+  
+  // Enable/disable
+  isEnabled                     Boolean  @default(true)
+  
+  // Email template overrides
+  emailSubjectTemplate          String?  @db.Text
+  emailBodyTemplate             String?  @db.Text
+  
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+
+  @@map("reminder_configurations")
+}
+
+enum ReminderConfigType {
+  SUPPLIER_DOCUMENT_SUBMISSION    // Supplier hasn't uploaded documents
+  MANAGER_APPROVAL_PENDING        // Manager hasn't approved initiation
+  PROCUREMENT_APPROVAL_PENDING    // Procurement manager hasn't approved
+  BUYER_REVIEW_PENDING            // Buyer hasn't reviewed submitted documents
+  SUPPLIER_REVISION_PENDING       // Supplier hasn't resubmitted after revision request
+}
+
+model ReminderLog {
+  id                  String              @id @default(cuid())
+  
+  // What reminder is for
+  reminderType        ReminderConfigType
+  referenceId         String              // ID of the thing being reminded about
+  referenceType       String              // e.g., "SupplierOnboarding", "SupplierInitiation"
+  
+  // Who to remind
+  recipientEmail      String
+  recipientName       String?
+  
+  // Reminder details
+  reminderCount       Int                 @default(1) // 1st, 2nd, 3rd reminder
+  subject             String
+  content             String              @db.Text
+  
+  // Status
+  status              ReminderStatus      @default(PENDING)
+  sentAt              DateTime?
+  errorMessage        String?             @db.Text
+  
+  // Metadata
+  metadata            Json?               // Additional context
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([reminderType, referenceId])
+  @@index([status])
+  @@index([recipientEmail])
+  @@map("reminder_logs")
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
 }
 
 // ============================================================================
@@ -1175,6 +1453,55 @@ model AuditLog {
   @@index([userId, timestamp])
   @@index([action])
   @@map("audit_logs")
+}
+
+// ============================================================================
+// AI ANALYSIS JOBS - Background processing for supplier document analysis
+// ============================================================================
+
+model AIAnalysisJob {
+  id                  String              @id @default(cuid())
+  supplierId          String
+  supplier            Supplier            @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  // Job Status
+  status              AIAnalysisStatus    @default(PENDING)
+  progress            Int                 @default(0) // 0-100
+  currentStep         String?             // e.g., "Processing companyRegistration documents"
+  
+  // Results
+  results             Json?               // Complete analysis results
+  logs                String[]            // Array of log messages
+  summary             Json?               // Summary of analysis
+  
+  // Error handling
+  errorMessage        String?             @db.Text
+  failedAt            DateTime?
+  
+  // Timing
+  startedAt           DateTime?
+  completedAt         DateTime?
+  
+  // Metadata
+  initiatedById       String?             // User who started the analysis
+  aiMode              String?             // e.g., "ollama", "fallback"
+  totalDocuments      Int                 @default(0)
+  processedDocuments  Int                 @default(0)
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([supplierId, status])
+  @@index([status, createdAt])
+  @@map("ai_analysis_jobs")
+}
+
+enum AIAnalysisStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
 }
 
 // ============================================================================

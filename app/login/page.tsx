@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Lock, Mail, AlertCircle, X } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { signIn } from "next-auth/react"
 
@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [showForgotPassword, setShowForgotPassword] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,7 +41,13 @@ export default function LoginPage() {
       }
 
       if (result?.ok) {
-        router.push("/dashboard")
+        // Check for callback URL from query params
+        const callbackUrl = searchParams.get("callbackUrl")
+        if (callbackUrl) {
+          router.push(callbackUrl)
+        } else {
+          router.push("/dashboard")
+        }
         router.refresh()
       }
     } catch (error) {

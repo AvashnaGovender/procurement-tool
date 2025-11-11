@@ -18,6 +18,8 @@ import {
 import Link from "next/link"
 import { Sidebar } from "@/components/layout/sidebar"
 import { AIOnboardingWorkflow } from "@/components/suppliers/ai-onboarding-workflow"
+import { SupplierInitiationForm } from "@/components/suppliers/supplier-initiation-form"
+import { SupplierInitiationStatus } from "@/components/suppliers/supplier-initiation-status"
 import { SMTPConfiguration } from "@/components/settings/smtp-configuration"
 
 export default function SupplierOnboardingPage() {
@@ -27,6 +29,8 @@ export default function SupplierOnboardingPage() {
   const [workflowStatus, setWorkflowStatus] = useState<"initiate" | "pending" | "review" | "complete">("initiate")
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [waitingOpen, setWaitingOpen] = useState(false)
+  const [initiationId, setInitiationId] = useState<string | null>(null)
+  const [showInitiationForm, setShowInitiationForm] = useState(true)
   
   // Initialize tab state - default to 'new' to match server render
   const [mainTab, setMainTab] = useState<"new" | "review">("new")
@@ -40,7 +44,7 @@ export default function SupplierOnboardingPage() {
   }, [searchParams])
 
   const steps = [
-    { id: 1, title: "Initiate", description: "Contact details & business type" },
+    { id: 1, title: "Initiation", description: "Checklist & approval workflow" },
     { id: 2, title: "Supplier Response", description: "Form completion & document upload" },
     { id: 3, title: "Review", description: "Procurement specialist approval" },
     { id: 4, title: "Complete", description: "Database entry & notification" },
@@ -70,11 +74,23 @@ export default function SupplierOnboardingPage() {
         {/* Top Bar */}
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" asChild className="text-slate-600 hover:text-slate-900 hover:bg-slate-100">
-              <Link href="/dashboard">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Link>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              onClick={() => router.push('/dashboard')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              onClick={() => router.push('/suppliers')}
+            >
+              <Home className="h-4 w-4 mr-2" />
+              Suppliers
             </Button>
             <div className="border-l border-slate-300 pl-4">
               <h1 className="text-xl font-bold text-slate-900">Supplier Onboarding</h1>
@@ -107,6 +123,27 @@ export default function SupplierOnboardingPage() {
           </div>
         </header>
 
+        {/* Breadcrumb Navigation */}
+        <div className="bg-slate-50 border-b border-slate-200 px-8 py-3">
+          <nav className="flex items-center space-x-2 text-sm">
+            <button 
+              onClick={() => router.push('/dashboard')}
+              className="text-slate-600 hover:text-slate-900 hover:underline"
+            >
+              Dashboard
+            </button>
+            <span className="text-slate-400">/</span>
+            <button 
+              onClick={() => router.push('/suppliers')}
+              className="text-slate-600 hover:text-slate-900 hover:underline"
+            >
+              Suppliers
+            </button>
+            <span className="text-slate-400">/</span>
+            <span className="text-slate-900 font-medium">Onboarding</span>
+          </nav>
+        </div>
+
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-8">
           {/* Main Tabs: New Onboarding vs Review Submissions */}
@@ -124,14 +161,68 @@ export default function SupplierOnboardingPage() {
 
             {/* New Onboarding Tab */}
             <TabsContent value="new">
-              <AIOnboardingWorkflow
-                step="initiate"
-                onStepComplete={() => {
-                  setWorkflowStatus("pending")
-                  setCurrentStep(2)
-                  setWaitingOpen(true)
-                }}
-              />
+              {showInitiationForm ? (
+                <div className="space-y-6">
+                  <Card className="bg-blue-50 border-blue-200">
+                    <CardHeader>
+                      <CardTitle className="text-blue-900">Step 1: Supplier Onboarding Initiation</CardTitle>
+                      <p className="text-blue-700">
+                        Complete the checklist and submit for approval before proceeding with supplier onboarding.
+                      </p>
+                    </CardHeader>
+                  </Card>
+                  
+                  <SupplierInitiationForm
+                    onSubmissionComplete={(id) => {
+                      setInitiationId(id)
+                      setShowInitiationForm(false)
+                    }}
+                  />
+                </div>
+              ) : initiationId ? (
+                <div className="space-y-6">
+                  <Card className="bg-green-50 border-green-200">
+                    <CardHeader>
+                      <CardTitle className="text-green-900">Initiation Submitted Successfully</CardTitle>
+                      <p className="text-green-700">
+                        Your supplier initiation has been submitted and is awaiting approval.
+                      </p>
+                    </CardHeader>
+                  </Card>
+                  
+                  <SupplierInitiationStatus initiationId={initiationId} />
+                  
+                  <div className="flex gap-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setShowInitiationForm(true)
+                        setInitiationId(null)
+                      }}
+                    >
+                      Start New Initiation
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        setWorkflowStatus("pending")
+                        setCurrentStep(2)
+                        setWaitingOpen(true)
+                      }}
+                    >
+                      Continue to Supplier Onboarding
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <AIOnboardingWorkflow
+                  step="initiate"
+                  onStepComplete={() => {
+                    setWorkflowStatus("pending")
+                    setCurrentStep(2)
+                    setWaitingOpen(true)
+                  }}
+                />
+              )}
             </TabsContent>
 
             {/* Review Submissions Tab */}

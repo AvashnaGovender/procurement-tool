@@ -4,10 +4,10 @@ const WORKER_API_URL = process.env.WORKER_API_URL || 'http://localhost:8001';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const documentId = params.id;
+    const { id: documentId } = await params;
     
     // Forward the request to the worker service
     const response = await fetch(`${WORKER_API_URL}/results/${documentId}`, {
@@ -36,5 +36,9 @@ export async function GET(
     );
   }
 }
+
+
+
+
 
 

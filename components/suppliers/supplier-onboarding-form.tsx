@@ -211,7 +211,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">Company Registration Documents (CM1/CK1/CK2) *</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" required />
+              <Input type="file" accept=".pdf,application/pdf" required />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -221,7 +221,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">Copy of CM29 - List of Directors *</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" required />
+              <Input type="file" accept=".pdf,application/pdf" required />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -231,7 +231,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">Shareholder Certificates and Proof of Shareholding *</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" required />
+              <Input type="file" accept=".pdf,application/pdf" required />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -241,7 +241,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">BBBEE Accreditation / Letter from your Auditor *</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" required />
+              <Input type="file" accept=".pdf,application/pdf" required />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -251,7 +251,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">BBBEE Scorecard Report from an Accredited Agency (If no affidavit)</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" />
+              <Input type="file" accept=".pdf,application/pdf" />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -261,7 +261,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">Tax Clearance Certificate (Not older than 3 months) *</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" required />
+              <Input type="file" accept=".pdf,application/pdf" required />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -271,7 +271,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">VAT Registration Certificate (If VAT registered)</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" />
+              <Input type="file" accept=".pdf,application/pdf" />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -281,7 +281,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">Bank Confirmation Letter (Not older than 3 months) *</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" required />
+              <Input type="file" accept=".pdf,application/pdf" required />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -291,7 +291,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">Non-Disclosure Agreement (NDA) (Initial all pages) *</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" required />
+              <Input type="file" accept=".pdf,application/pdf" required />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -301,7 +301,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">Health and Safety Policy *</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" required />
+              <Input type="file" accept=".pdf,application/pdf" required />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -311,7 +311,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">Credit Application Form (If applicable)</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" />
+              <Input type="file" accept=".pdf,application/pdf" />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -321,7 +321,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">Quality Certification (If available)</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" />
+              <Input type="file" accept=".pdf,application/pdf" />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -331,7 +331,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">Letter of Good Standing (If available)</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" />
+              <Input type="file" accept=".pdf,application/pdf" />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -341,7 +341,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">Sector Registrations (where applicable)</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" />
+              <Input type="file" accept=".pdf,application/pdf" />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -351,7 +351,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">Updated Company Organogram *</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" required />
+              <Input type="file" accept=".pdf,application/pdf" required />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
@@ -361,7 +361,7 @@ export function SupplierOnboardingForm() {
           <div>
             <Label className="font-medium">Company Profile *</Label>
             <div className="mt-1 flex items-center space-x-2">
-              <Input type="file" accept=".pdf,.doc,.docx" required />
+              <Input type="file" accept=".pdf,application/pdf" required />
               <Button type="button" variant="outline" size="sm">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload

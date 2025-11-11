@@ -57,8 +57,11 @@ async def startup_event():
             logger.warning(f"Database initialization skipped: {e}")
     
     # Log AI configuration
-    from crew_agents import is_ollama_available
-    logger.info(f"AI Mode: {'Ollama' if is_ollama_available() else 'Fallback'}")
+    try:
+        from crew_agents import is_ollama_available
+        logger.info(f"AI Mode: {'Ollama' if is_ollama_available() else 'Fallback'}")
+    except ImportError:
+        logger.warning("Could not import is_ollama_available from crew_agents - using fallback mode")
     logger.info("Worker service started successfully - Redis/Celery not required for AI processing")
 
 
@@ -148,16 +151,84 @@ async def upload_document(file: UploadFile = File(...)):
             content = await file.read()
             buffer.write(content)
         
-        # Extract text content (simplified - you might want to use OCR here)
+        # Extract text content using OCR extractor
         try:
-            if file.filename.lower().endswith('.txt'):
+            from ocr_extractor import OCRExtractor
+            extractor = OCRExtractor()
+            
+            file_extension = os.path.splitext(file.filename)[1].lower()
+            
+            if file_extension == '.txt':
                 with open(file_path, 'r', encoding='utf-8') as f:
                     extracted_content = f.read()
+            elif file_extension == '.pdf':
+                # First try to extract text from PDF using PyPDF2
+                pdf_result = extractor.extract_from_pdf(file_path)
+                extracted_content = pdf_result.get("text", "")
+                
+                # If text extraction failed or returned very little, use OCR
+                if not extracted_content or len(extracted_content.strip()) < 50:
+                    logger.info(f"PDF text extraction returned minimal content ({len(extracted_content)} chars), using OCR for {file.filename}")
+                    try:
+                        # Convert PDF pages to images and use OCR
+                        from pdf2image import convert_from_path
+                        import tempfile
+                        
+                        # Convert PDF to images
+                        images = convert_from_path(file_path, dpi=300)
+                        ocr_text = ""
+                        
+                        for i, image in enumerate(images):
+                            # Save image temporarily
+                            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+                                image_path = tmp_file.name
+                                image.save(image_path, 'PNG')
+                                
+                                # Extract text using OCR
+                                page_text = extractor.extract_from_image(image_path)
+                                if page_text:
+                                    ocr_text += f"\n--- Page {i+1} ---\n{page_text}\n"
+                                
+                                # Clean up temp file
+                                os.unlink(image_path)
+                        
+                        if ocr_text and len(ocr_text.strip()) > 50:
+                            extracted_content = ocr_text
+                            logger.info(f"Successfully extracted {len(extracted_content)} characters using OCR")
+                        else:
+                            extracted_content = f"PDF document uploaded: {file.filename} (OCR extraction returned minimal text)"
+                    except ImportError:
+                        logger.warning("pdf2image not available, cannot use OCR for PDF. Install with: pip install pdf2image")
+                        if not extracted_content:
+                            extracted_content = f"PDF document uploaded: {file.filename} (text extraction failed, OCR not available)"
+                    except Exception as e:
+                        logger.error(f"Error during OCR extraction: {e}")
+                        if not extracted_content:
+                            extracted_content = f"PDF document uploaded: {file.filename} (OCR extraction failed: {str(e)})"
+            elif file_extension in ['.docx']:
+                extracted_content = extractor.extract_from_docx(file_path)
+            elif file_extension in ['.png', '.jpg', '.jpeg', '.tiff', '.bmp']:
+                extracted_content = extractor.extract_from_image(file_path)
             else:
-                # For other file types, you'd use OCR or other extraction methods
-                extracted_content = f"Document content extracted from {file.filename}"
+                extracted_content = f"Document uploaded: {file.filename} (content extraction not supported for this file type)"
+                
+            # Ensure we have some content
+            if not extracted_content or len(extracted_content.strip()) < 10:
+                extracted_content = f"Document uploaded: {file.filename} (content extraction returned minimal text)"
+                
+        except ImportError:
+            logger.warning("OCR extractor not available, using basic extraction")
+            try:
+                if file.filename.lower().endswith('.txt'):
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        extracted_content = f.read()
+                else:
+                    extracted_content = f"Document content extracted from {file.filename}"
+            except Exception as e:
+                extracted_content = f"Could not extract content: {str(e)}"
         except Exception as e:
-            extracted_content = f"Could not extract content: {str(e)}"
+            logger.error(f"Error extracting content from {file.filename}: {e}")
+            extracted_content = f"Error extracting content: {str(e)}"
         
         logger.info(f"Document uploaded: {document_id}, filename: {file.filename}")
         
@@ -182,6 +253,7 @@ async def process_document(request: dict):
         document_id = request.get("document_id")
         content = request.get("content", "")
         document_type = request.get("document_type", "unknown")
+        filename = request.get("filename", "")
         
         if not document_id:
             raise HTTPException(status_code=400, detail="document_id is required")
@@ -195,50 +267,26 @@ async def process_document(request: dict):
         form_data = request.get("form_data", {})
         logger.info(f"Form data provided: {bool(form_data)}")
         
+        # Initialize document type mismatch variables
+        document_type_mismatch = False
+        document_type_detected = "unknown"
+        
         try:
-            from crew_agents import is_ollama_available, analyze_document_with_ollama, CREWAI_AVAILABLE, create_processing_crew
+            from crew_agents import is_ollama_available, analyze_document_with_ollama
             
             if is_ollama_available():
-                logger.info("Using Ollama for AI analysis")
-                
-                # Use CrewAI if available, otherwise direct Ollama
-                if CREWAI_AVAILABLE:
-                    logger.info("Using CrewAI agents with Ollama")
-                    # Prepare document data for AI processing
-                    document_data = {
-                        "id": document_id,
-                        "type": document_type,
-                        "content": content,
-                        "filename": f"document_{document_id}",
-                        "size": len(content)
-                    }
-                    
-                    # Create and run AI processing crew
-                    crew = create_processing_crew(document_id, [document_data])
-                    result = crew.kickoff()
-                    
-                    # Extract results from AI processing
-                    if isinstance(result, dict) and "error" not in result:
-                        analysis_results = result.get("analysis_results", "AI analysis completed")
-                        compliance_results = result.get("compliance_results", "Compliance check completed")
-                        risk_assessment = result.get("risk_assessment", "Risk assessment completed")
-                        decision_summary = result.get("decision_summary", "Decision summary generated")
-                    else:
-                        # Use direct Ollama if crew fails - pass form_data for validation
-                        ai_results = analyze_document_with_ollama(content, document_type, supplier_name, form_data)
-                        analysis_results = ai_results["analysis_results"]
-                        compliance_results = ai_results["compliance_results"]
-                        risk_assessment = ai_results["risk_assessment"]
-                        decision_summary = "Analysis completed using Ollama"
-                else:
-                    logger.info("Using direct Ollama (CrewAI not available)")
-                    # Use Ollama directly without CrewAI - pass form_data for validation
-                    ai_results = analyze_document_with_ollama(content, document_type, supplier_name, form_data)
-                    analysis_results = ai_results["analysis_results"]
-                    compliance_results = ai_results["compliance_results"]
-                    risk_assessment = ai_results["risk_assessment"]
-                    decision_summary = "Analysis completed using Ollama"
-                    logger.info(f"Ollama analysis completed with mode: {ai_results.get('mode')}")
+                logger.info("Using direct Ollama for AI analysis (skipping CrewAI to avoid OpenAI issues)")
+                # Use Ollama directly - pass form_data for validation
+                # Skip CrewAI as it may try to use OpenAI instead of Ollama
+                # Pass filename as part of document_type context for fallback detection
+                ai_results = analyze_document_with_ollama(content, document_type, supplier_name, form_data, filename=filename)
+                analysis_results = ai_results["analysis_results"]
+                compliance_results = ai_results["compliance_results"]
+                risk_assessment = ai_results["risk_assessment"]
+                decision_summary = "Analysis completed using Ollama"
+                document_type_mismatch = ai_results.get("document_type_mismatch", False)
+                document_type_detected = ai_results.get("document_type_detected", "unknown")
+                logger.info(f"Ollama analysis completed with mode: {ai_results.get('mode')}, mismatch: {document_type_mismatch}")
             else:
                 # Fallback to simplified processing
                 logger.warning("Ollama not available, using fallback")
@@ -266,7 +314,8 @@ async def process_document(request: dict):
         
         logger.info(f"AI Processing Mode: {ai_mode}")
         
-        return {
+        # Build response with all fields
+        response = {
             "document_id": document_id,
             "analysis_results": analysis_results,
             "compliance_results": compliance_results,
@@ -276,6 +325,13 @@ async def process_document(request: dict):
             "ai_processing": ai_mode,
             "email_sent": bool(supplier_email)
         }
+        
+        # Include document type mismatch info if available (from Ollama analysis)
+        if document_type_mismatch or document_type_detected != "unknown":
+            response["document_type_mismatch"] = document_type_mismatch
+            response["document_type_detected"] = document_type_detected
+        
+        return response
         
     except Exception as e:
         logger.error(f"Processing error: {e}")

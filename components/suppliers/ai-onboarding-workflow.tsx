@@ -589,8 +589,8 @@ Schauenburg Systems Procurement Team`
         <Card className="bg-white border-slate-200 shadow-lg">
           <CardHeader className="border-b border-slate-200 pb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center">
-                <UserPlus className="h-5 w-5 text-blue-600" />
+              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                <UserPlus className="h-5 w-5 text-blue-500" />
               </div>
               <div>
                 <CardTitle className="text-slate-900 text-xl">AI-Powered Supplier Onboarding</CardTitle>
@@ -667,7 +667,6 @@ Schauenburg Systems Procurement Team`
                 <Button
                   onClick={handleInitiateAndSend}
                   disabled={!contactName || !contactEmail || !businessType || !sector || isProcessing}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   {isProcessing ? (
                     <>

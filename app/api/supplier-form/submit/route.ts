@@ -150,6 +150,20 @@ export async function POST(request: NextRequest) {
       
       while (file) {
         if (file instanceof File) {
+          // Validate file type - only accept PDF files
+          const fileExtension = file.name.toLowerCase().split('.').pop()
+          const mimeType = file.type.toLowerCase()
+          
+          if (fileExtension !== 'pdf' && mimeType !== 'application/pdf') {
+            return NextResponse.json(
+              { 
+                success: false, 
+                error: `Invalid file type for ${category}. Only PDF files are accepted. File "${file.name}" is not a PDF.` 
+              },
+              { status: 400 }
+            )
+          }
+
           // Create category directory if it doesn't exist
           if (!existsSync(categoryDir)) {
             await mkdir(categoryDir, { recursive: true })

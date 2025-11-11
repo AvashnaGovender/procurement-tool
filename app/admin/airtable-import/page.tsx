@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Download, CheckCircle, AlertCircle, RefreshCw } from "lucide-react"
+import { Loader2, Download, CheckCircle, AlertCircle, RefreshCw, Home } from "lucide-react"
+import Link from "next/link"
 
 export default function AirtableImportPage() {
   const [config, setConfig] = useState({
@@ -47,8 +48,17 @@ export default function AirtableImportPage() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Import from Airtable</h1>
-          <p className="text-gray-600 mt-2">Import supplier onboarding data from Airtable to Supabase</p>
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/dashboard">
+                <Home className="h-4 w-4" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Import from Airtable</h1>
+              <p className="text-gray-600 mt-2">Import supplier onboarding data from Airtable to Supabase</p>
+            </div>
+          </div>
         </div>
 
         <Card>

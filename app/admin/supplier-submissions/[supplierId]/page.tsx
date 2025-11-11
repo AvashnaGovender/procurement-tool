@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import { 
   Loader2, 
   ArrowLeft,
@@ -94,16 +95,115 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [successMessage, setSuccessMessage] = useState("")
   const [errorDialogOpen, setErrorDialogOpen] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
+  const [isEditing, setIsEditing] = useState(false)
+  const [editData, setEditData] = useState<Partial<Supplier>>({})
+  const [saving, setSaving] = useState(false)
 
   // AI Insights state
   const [aiProcessing, setAiProcessing] = useState(false)
   const [aiLogs, setAiLogs] = useState<string[]>([])
   const [aiSummary, setAiSummary] = useState<any>(null)
   const [aiMode, setAiMode] = useState<string>('unknown')
+  const [aiJobId, setAiJobId] = useState<string | null>(null)
+  const [aiProgress, setAiProgress] = useState(0)
+  const [aiCurrentStep, setAiCurrentStep] = useState<string | null>(null)
+
+  // Document verification state
+  const [documentVerifications, setDocumentVerifications] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     fetchSupplier()
   }, [])
+
+  useEffect(() => {
+    if (supplier?.id) {
+      fetchDocumentVerifications()
+      checkExistingAnalysisJob()
+    }
+  }, [supplier?.id])
+
+  // Poll for analysis job status
+  useEffect(() => {
+    if (!aiJobId || !supplier?.id) return
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/suppliers/${supplier.id}/ai-analysis/status`)
+        const data = await response.json()
+        
+        if (data.success && data.job) {
+          const job = data.job
+          
+          // Update logs
+          if (job.logs && Array.isArray(job.logs)) {
+            setAiLogs(job.logs)
+          }
+          
+          // Update progress
+          setAiProgress(job.progress || 0)
+          setAiCurrentStep(job.currentStep || null)
+          
+          // Update AI mode
+          if (job.aiMode) {
+            setAiMode(job.aiMode)
+          }
+          
+          // Check if job is complete
+          if (job.status === 'COMPLETED') {
+            setAiProcessing(false)
+            setAiSummary(job.results || job.summary)
+            clearInterval(pollInterval)
+          } else if (job.status === 'FAILED') {
+            setAiProcessing(false)
+            setErrorMessage(job.errorMessage || 'AI analysis failed')
+            setErrorDialogOpen(true)
+            clearInterval(pollInterval)
+          } else if (job.status === 'IN_PROGRESS' || job.status === 'PENDING') {
+            setAiProcessing(true)
+          }
+        }
+      } catch (error) {
+        console.error('Error polling analysis status:', error)
+      }
+    }, 2000) // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval)
+  }, [aiJobId, supplier?.id])
+
+  const checkExistingAnalysisJob = async () => {
+    if (!supplier?.id) return
+    
+    try {
+      const response = await fetch(`/api/suppliers/${supplier.id}/ai-analysis/status`)
+      const data = await response.json()
+      
+      if (data.success && data.job) {
+        const job = data.job
+        
+        // If there's an in-progress job, resume monitoring
+        if (job.status === 'IN_PROGRESS' || job.status === 'PENDING') {
+          setAiJobId(job.id)
+          setAiProcessing(true)
+          setAiLogs(job.logs || [])
+          setAiProgress(job.progress || 0)
+          setAiCurrentStep(job.currentStep || null)
+          if (job.aiMode) {
+            setAiMode(job.aiMode)
+          }
+        } else if (job.status === 'COMPLETED') {
+          // Load completed results
+          setAiSummary(job.results || job.summary)
+          setAiLogs(job.logs || [])
+          setAiProgress(100)
+          if (job.aiMode) {
+            setAiMode(job.aiMode)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking existing analysis job:', error)
+    }
+  }
 
   const fetchSupplier = async () => {
     setLoading(true)
@@ -118,6 +218,55 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       console.error('Error fetching supplier:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchDocumentVerifications = async () => {
+    if (!supplier?.id) return
+    
+    try {
+      const response = await fetch(`/api/suppliers/documents/verify?supplierId=${supplier.id}`)
+      const data = await response.json()
+      
+      if (data.success) {
+        setDocumentVerifications(data.verifications)
+      }
+    } catch (error) {
+      console.error('Error fetching document verifications:', error)
+    }
+  }
+
+  const handleVerificationToggle = async (version: number, category: string, fileName: string, currentState: boolean) => {
+    try {
+      const response = await fetch('/api/suppliers/documents/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierId: supplier?.id,
+          version,
+          category,
+          fileName,
+          isVerified: !currentState
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        // Update local state
+        const key = `${version}-${category}-${fileName}`
+        setDocumentVerifications(prev => ({
+          ...prev,
+          [key]: !currentState
+        }))
+      } else {
+        setErrorMessage('Failed to update verification status')
+        setErrorDialogOpen(true)
+      }
+    } catch (error) {
+      console.error('Error updating verification:', error)
+      setErrorMessage('Failed to update verification status')
+      setErrorDialogOpen(true)
     }
   }
 
@@ -199,9 +348,76 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     }
   }
 
-  const handleRevisionClick = () => {
+  const handleEditClick = () => {
+    if (supplier) {
+      setEditData({ ...supplier })
+      setIsEditing(true)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+    setEditData({})
+  }
+
+  const handleSaveEdit = async () => {
+    if (!supplier) return
+    
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/suppliers/${supplier.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editData)
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        setSupplier(data.supplier)
+        setIsEditing(false)
+        setEditData({})
+        setSuccessMessage('Supplier information updated successfully!')
+        setSuccessDialogOpen(true)
+      } else {
+        setErrorMessage(`Failed to update supplier: ${data.error}`)
+        setErrorDialogOpen(true)
+      }
+    } catch (error) {
+      console.error('Error updating supplier:', error)
+      setErrorMessage('Failed to update supplier. Please try again.')
+      setErrorDialogOpen(true)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleRevisionClick = (missingDocsList?: Array<{ name: string, icon: string }>) => {
     setRevisionDialogOpen(true)
-    setRevisionNotes("")
+    
+    // If missing documents are provided, pre-fill the revision notes
+    if (missingDocsList && missingDocsList.length > 0) {
+      const preFilledNotes = `Dear ${supplier?.contactPerson || 'Supplier'},
+
+We have reviewed your submission and found that the following compulsory documents are missing:
+
+${missingDocsList.map((doc, idx) => `${idx + 1}. ${doc.name}`).join('\n')}
+
+Please upload these mandatory documents to complete your supplier onboarding application. All documents should be:
+- Clear and legible
+- Current and valid (not expired)
+- In PDF format where possible
+
+You can upload the documents by logging into the supplier portal using the link provided in your original onboarding email.
+
+If you have any questions or need clarification, please don't hesitate to contact us.
+
+Best regards,
+Procurement Team`
+      setRevisionNotes(preFilledNotes)
+    } else {
+      setRevisionNotes("")
+    }
   }
 
   const confirmRevision = async () => {
@@ -288,409 +504,29 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       return
     }
 
-    setAiProcessing(true)
-    setAiLogs([])
-    setAiSummary(null)
-
-    const addLog = (message: string) => {
-      setAiLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`])
-    }
-
     try {
-      addLog('🚀 Starting AI document analysis...')
-      addLog('🔍 Checking AI backend status...')
-      
-      // Check worker service health
-      try {
-        const healthResponse = await fetch('/api/worker/health')
-        const healthData = await healthResponse.json()
-        if (healthData.success) {
-          const mode = healthData.data?.ai_mode || 'unknown'
-          setAiMode(mode)
-          if (mode === 'ollama') {
-            addLog('✅ Using Ollama (Local LLM) - Full AI analysis enabled')
-            addLog(`   Model: ${healthData.data?.ollama_model || 'llama3.1'}`)
-          } else {
-            addLog('⚠️  Using fallback mode - Limited analysis (Ollama unavailable)')
-          }
-        }
-      } catch (e) {
-        addLog('⚠️  Could not check worker status, proceeding with analysis...')
-      }
-      
-      addLog(`📁 Found ${supplier.airtableData.allVersions.length} version(s) of documents`)
-
-      // Get the latest version
-      const latestVersion = supplier.airtableData.allVersions[supplier.airtableData.allVersions.length - 1]
-      addLog(`📄 Analyzing latest version (v${latestVersion.version})...`)
-
-      const allFiles = Object.entries(latestVersion.uploadedFiles || {})
-      const totalFiles = allFiles.reduce((acc, [_, files]: [string, any]) => {
-        return acc + (Array.isArray(files) ? files.length : 0)
-      }, 0)
-      addLog(`📊 Total documents to process: ${totalFiles}`)
-
-      const analysisResults: any = {
-        documentAnalysis: {},
-        complianceCheck: {},
-        riskAssessment: {},
-        overallScore: 0
-      }
-
-      let processedCount = 0
-
-      // Process each document category
-      for (const [category, filesData] of allFiles) {
-        const files = filesData as string[]
-        if (!files || !Array.isArray(files) || files.length === 0) continue
-
-        addLog(`\n📂 Processing category: ${category.replace(/([A-Z])/g, ' $1').trim()}`)
-        
-        const categoryResults = []
-        
-        for (const fileName of files) {
-          try {
-            addLog(`  ⏳ Analyzing: ${fileName}...`)
-            
-            // Fetch the actual document file
-            const fileUrl = `/api/suppliers/documents/${supplier.supplierCode}/v${latestVersion.version}/${category}/${fileName}`
-            addLog(`  📥 Fetching document from storage...`)
-            
-            const fileResponse = await fetch(fileUrl)
-            if (!fileResponse.ok) {
-              throw new Error(`Failed to fetch document: ${fileResponse.statusText}`)
-            }
-            
-            const fileBlob = await fileResponse.blob()
-            const file = new File([fileBlob], fileName, { type: fileBlob.type })
-            
-            addLog(`  🤖 Running AI analysis...`)
-            
-            // Prepare form data for validation
-            const formData = {
-              companyName: supplier.companyName,
-              registrationNumber: supplier.registrationNumber,
-              physicalAddress: supplier.physicalAddress,
-              contactEmail: supplier.contactEmail,
-              contactPerson: supplier.contactPerson,
-              bbbeeLevel: supplier.bbbeeLevel,
-              // Banking information for validation
-              bankName: supplier.bankName,
-              branchName: supplier.branchName,
-              branchNumber: supplier.branchNumber,
-              accountNumber: supplier.accountNumber,
-              typeOfAccount: supplier.typeOfAccount,
-              bankAccountName: supplier.bankAccountName,
-            }
-            
-            // Use actual worker client for AI processing with form data
-            const aiResult = await workerClient.processDocumentWorkflow(
-              file,
-              supplier.contactEmail,
-              supplier.companyName,
-              formData
-            )
-            
-            if (aiResult.success) {
-              // Check which AI mode was used
-              const usedOllama = aiResult.aiMode === 'ollama'
-              
-              const result = {
-                fileName: fileName,
-                status: 'analyzed',
-                confidence: 85 + Math.random() * 15, // 85-100%
-                findings: aiResult.results?.analysis_results || 'Document analyzed successfully',
-                complianceStatus: aiResult.results?.compliance_results || 'Compliant',
-                riskLevel: aiResult.results?.risk_assessment || 'Low Risk',
-                extractedData: aiResult.results?.extracted_data || {},
-                aiMode: aiResult.aiMode
-              }
-              
-              categoryResults.push(result)
-              const modeIndicator = usedOllama ? '🤖 [Ollama]' : '⚙️  [Fallback]'
-              addLog(`  ✅ ${modeIndicator} Completed: ${fileName} - Confidence: ${result.confidence.toFixed(1)}% (${processedCount + 1}/${totalFiles})`)
-            } else {
-              // Fallback if AI processing fails
-              addLog(`  ⚠️  AI processing unavailable, using basic analysis...`)
-              const result = {
-                fileName: fileName,
-                status: 'basic_check',
-                confidence: 75,
-                findings: 'Document received and validated (AI analysis unavailable)',
-                complianceStatus: 'Pending manual review',
-                riskLevel: 'To be determined'
-              }
-              categoryResults.push(result)
-              addLog(`  ✅ Basic check completed: ${fileName} (${processedCount + 1}/${totalFiles})`)
-            }
-            
-            processedCount++
-          } catch (error) {
-            addLog(`  ❌ Error processing ${fileName}: ${error}`)
-            // Add failed result to track the error
-            categoryResults.push({
-              fileName: fileName,
-              status: 'error',
-              confidence: 0,
-              findings: `Processing failed: ${error}`,
-              complianceStatus: 'Error',
-              riskLevel: 'Unknown'
-            })
-          }
-        }
-
-        analysisResults.documentAnalysis[category] = categoryResults
-      }
-
-      addLog('\n🔍 Performing compliance verification...')
-      
-      // Define mandatory documents - all 5 are required
-      // Note: For tax clearance, either 'taxClearance' OR 'goodStanding' is acceptable
-      const requiredDocs = ['companyRegistration', 'bbbeeAccreditation', 'taxClearance', 'bankConfirmation', 'nda']
-      const missingDocs = requiredDocs.filter(doc => {
-        if (doc === 'taxClearance') {
-          // Accept either tax clearance OR good standing
-          const hasTaxClearance = latestVersion.uploadedFiles?.taxClearance && latestVersion.uploadedFiles.taxClearance.length > 0
-          const hasGoodStanding = latestVersion.uploadedFiles?.goodStanding && latestVersion.uploadedFiles.goodStanding.length > 0
-          return !hasTaxClearance && !hasGoodStanding
-        }
-        return !latestVersion.uploadedFiles?.[doc] || latestVersion.uploadedFiles[doc].length === 0
+      // Start background analysis job
+      const response = await fetch(`/api/suppliers/${supplier.id}/ai-analysis/start`, {
+        method: 'POST',
       })
       
-      // Check for claimed certifications that are missing
-      const claimedButMissing: Array<{ doc: string, certName: string }> = []
-      if (supplier.qualityManagementCert && (!latestVersion.uploadedFiles?.qualityCert || latestVersion.uploadedFiles.qualityCert.length === 0)) {
-        claimedButMissing.push({ doc: 'qualityCert', certName: 'Quality Management Certification' })
-      }
-      if (supplier.sheCertification && (!latestVersion.uploadedFiles?.healthSafety || latestVersion.uploadedFiles.healthSafety.length === 0)) {
-        claimedButMissing.push({ doc: 'healthSafety', certName: 'Safety, Health and Environment (SHE) Certification' })
-      }
+      const data = await response.json()
       
-      // Track optional documents
-      const optionalDocs = ['companyProfile', 'organogram', 'qualityCert', 'healthSafety', 'cm29Directors', 'shareholderCerts', 'proofOfShareholding', 'bbbeeScorecard', 'vatCertificate', 'creditApplication', 'goodStanding', 'sectorRegistrations']
-      const providedOptionalDocs = optionalDocs.filter(doc => latestVersion.uploadedFiles?.[doc] && latestVersion.uploadedFiles[doc].length > 0)
-      
-      addLog(`📋 Mandatory documents: ${requiredDocs.length} required`)
-      
-      // Log tax clearance status specifically
-      const hasTaxClearance = latestVersion.uploadedFiles?.taxClearance && latestVersion.uploadedFiles.taxClearance.length > 0
-      const hasGoodStanding = latestVersion.uploadedFiles?.goodStanding && latestVersion.uploadedFiles.goodStanding.length > 0
-      if (hasTaxClearance || hasGoodStanding) {
-        const docType = hasTaxClearance ? 'Tax Clearance Certificate' : 'Letter of Good Standing'
-        addLog(`✅ Tax requirement satisfied with: ${docType}`)
-      }
-      
-      addLog(`📋 Optional documents provided: ${providedOptionalDocs.length}/${optionalDocs.length}`)
-      
-      // Detailed missing document analysis
-      if (missingDocs.length > 0) {
-        addLog(`\n⚠️  MISSING MANDATORY DOCUMENTS (${missingDocs.length}/${requiredDocs.length}):`)
-        missingDocs.forEach(doc => {
-          let docDetails = ''
-          switch(doc) {
-            case 'companyRegistration':
-              docDetails = 'CIPC Registration Documents - Required to validate: Company name, Registration number, Physical address'
-              break
-            case 'bbbeeAccreditation':
-              docDetails = `B-BBEE Certificate - Required to validate: Status Level (${supplier.bbbeeLevel || 'Not specified'}), Black ownership %, Expiry date`
-              break
-            case 'taxClearance':
-              docDetails = 'Tax Clearance Certificate OR Letter of Good Standing - Required to validate: Taxpayer name, Purpose "Good Standing", Age < 3 months (Either one is acceptable)'
-              break
-            case 'bankConfirmation':
-              docDetails = `Bank Confirmation Letter - Required to validate: Bank (${supplier.bankName || 'Not specified'}), Account # (${supplier.accountNumber || 'Not specified'}), Branch (${supplier.branchName || 'Not specified'})`
-              break
-            case 'nda':
-              docDetails = 'Non-Disclosure Agreement (NDA) - Must be signed and initialed on all pages'
-              break
-          }
-          addLog(`   ❌ ${docDetails}`)
-        })
-      }
-      
-      // Report claimed certifications that are missing
-      if (claimedButMissing.length > 0) {
-        addLog(`\n⚠️  CLAIMED CERTIFICATIONS NOT UPLOADED (${claimedButMissing.length}):`)
-        claimedButMissing.forEach(item => {
-          addLog(`   ❌ ${item.certName} - Supplier indicated they have this but did not upload certificate`)
-        })
-      }
-      
-      // Calculate document quality scores from AI results
-      let totalConfidence = 0
-      let documentCount = 0
-      
-      Object.values(analysisResults.documentAnalysis).forEach((categoryResults: any) => {
-        categoryResults.forEach((result: any) => {
-          if (result.status === 'analyzed' && result.confidence) {
-            totalConfidence += result.confidence
-            documentCount++
-          }
-        })
-      })
-      
-      const avgDocumentQuality = documentCount > 0 ? totalConfidence / documentCount : 0
-      const baseComplianceScore = ((requiredDocs.length - missingDocs.length) / requiredDocs.length) * 100
-      
-      // Adjust compliance score based on document quality
-      const qualityAdjustment = (avgDocumentQuality - 80) * 0.1 // +/- up to 2 points based on quality
-      const adjustedComplianceScore = Math.max(0, Math.min(100, baseComplianceScore + qualityAdjustment))
-      
-      analysisResults.complianceCheck = {
-        requiredDocuments: requiredDocs.length,
-        providedDocuments: requiredDocs.length - missingDocs.length,
-        missingDocuments: missingDocs,
-        claimedButMissing: claimedButMissing,
-        complianceScore: adjustedComplianceScore,
-        averageDocumentQuality: avgDocumentQuality,
-        totalDocumentsAnalyzed: documentCount,
-        optionalDocuments: providedOptionalDocs,
-        optionalDocsCount: providedOptionalDocs.length
-      }
-
-      if (missingDocs.length > 0) {
-        addLog(`⚠️  Missing required documents: ${missingDocs.join(', ')}`)
+      if (data.success) {
+        setAiJobId(data.jobId)
+        setAiProcessing(true)
+        setAiLogs(['🚀 Starting AI analysis in background...'])
+        setAiSummary(null)
+        setAiProgress(0)
+        setAiCurrentStep('Initializing...')
       } else {
-        addLog('✅ All required documents provided')
+        setErrorMessage(data.error || 'Failed to start AI analysis')
+        setErrorDialogOpen(true)
       }
-      
-      addLog(`📊 Average document quality: ${avgDocumentQuality.toFixed(1)}%`)
-
-      addLog('\n⚡ Calculating risk assessment...')
-      
-      // Aggregate risk indicators from AI analysis
-      const highRiskFindings: string[] = []
-      const mediumRiskFindings: string[] = []
-      
-      Object.entries(analysisResults.documentAnalysis).forEach(([category, categoryResults]: [string, any]) => {
-        categoryResults.forEach((result: any) => {
-          if (result.riskLevel && result.riskLevel.toLowerCase().includes('high')) {
-            highRiskFindings.push(`${category}: ${result.findings}`)
-          } else if (result.riskLevel && result.riskLevel.toLowerCase().includes('medium')) {
-            mediumRiskFindings.push(`${category}: ${result.findings}`)
-          }
-        })
-      })
-      
-      // Determine overall document completeness risk
-      const totalMissing = missingDocs.length + claimedButMissing.length
-      let documentCompletenessRisk = 'LOW'
-      if (missingDocs.length >= 3 || highRiskFindings.length > 0) {
-        documentCompletenessRisk = 'HIGH'
-      } else if (totalMissing > 0 || mediumRiskFindings.length > 0) {
-        documentCompletenessRisk = 'MEDIUM'
-      }
-      
-      // Determine document quality risk based on AI confidence scores
-      let documentQualityRisk = 'LOW'
-      if (avgDocumentQuality < 75) {
-        documentQualityRisk = 'HIGH'
-      } else if (avgDocumentQuality < 85) {
-        documentQualityRisk = 'MEDIUM'
-      }
-      
-      const riskFactors = {
-        documentCompleteness: documentCompletenessRisk,
-        documentQuality: documentQualityRisk,
-        companyVerification: supplier.registrationNumber ? 'VERIFIED' : 'PENDING',
-        financialStability: supplier.bankAccountName && supplier.bankName ? 'ACCEPTABLE' : 'REVIEW_REQUIRED',
-        complianceHistory: highRiskFindings.length > 0 ? 'ISSUES_FOUND' : 'NO_ISSUES'
-      }
-
-      analysisResults.riskAssessment = riskFactors
-      analysisResults.riskFindings = {
-        high: highRiskFindings,
-        medium: mediumRiskFindings
-      }
-      
-      addLog(`🎯 Document Completeness Risk: ${riskFactors.documentCompleteness}`)
-      if (claimedButMissing.length > 0) {
-        addLog(`   ⚠️  ${claimedButMissing.length} claimed certification(s) not uploaded`)
-      }
-      addLog(`🎯 Document Quality Risk: ${riskFactors.documentQuality}`)
-      
-      if (highRiskFindings.length > 0) {
-        addLog(`⚠️  ${highRiskFindings.length} high-risk finding(s) detected`)
-      }
-      if (mediumRiskFindings.length > 0) {
-        addLog(`⚠️  ${mediumRiskFindings.length} medium-risk finding(s) detected`)
-      }
-
-      // Calculate overall score with weighted factors
-      const baseScore = analysisResults.complianceCheck.complianceScore
-      
-      // Apply risk penalties
-      let riskPenalty = 0
-      riskPenalty += riskFactors.documentCompleteness === 'HIGH' ? 15 : riskFactors.documentCompleteness === 'MEDIUM' ? 8 : 0
-      riskPenalty += riskFactors.documentQuality === 'HIGH' ? 10 : riskFactors.documentQuality === 'MEDIUM' ? 5 : 0
-      riskPenalty += riskFactors.companyVerification === 'PENDING' ? 5 : 0
-      riskPenalty += riskFactors.financialStability === 'REVIEW_REQUIRED' ? 5 : 0
-      riskPenalty += riskFactors.complianceHistory === 'ISSUES_FOUND' ? 10 : 0
-      
-      // Penalty for claimed but missing certifications (-2 points each)
-      const claimedMissingPenalty = claimedButMissing.length * 2
-      
-      analysisResults.overallScore = Math.max(0, Math.min(100, baseScore - riskPenalty - claimedMissingPenalty))
-
-      addLog(`\n📈 Base Score: ${baseScore.toFixed(1)}/100`)
-      addLog(`📉 Risk Penalty: -${riskPenalty.toFixed(1)} points`)
-      if (claimedMissingPenalty > 0) {
-        addLog(`📉 Claimed Missing Penalty: -${claimedMissingPenalty.toFixed(1)} points`)
-      }
-      addLog(`📈 Overall Supplier Score: ${analysisResults.overallScore.toFixed(1)}/100`)
-      addLog('✨ Analysis complete!')
-      
-      // Generate actionable insights
-      const insights = []
-      
-      // Check if NDA is uploaded
-      const hasNDA = latestVersion.uploadedFiles?.nda && latestVersion.uploadedFiles.nda.length > 0
-      
-      if (analysisResults.overallScore >= 80) {
-        insights.push('✅ Supplier demonstrates strong compliance and documentation quality')
-        insights.push('✅ All critical requirements met')
-        if (hasNDA) {
-          insights.push('🔍 MANUAL CHECK REQUIRED: Verify NDA is signed and initialed on all pages')
-        }
-        insights.push('✅ Recommended for approval after NDA verification')
-      } else if (analysisResults.overallScore >= 60) {
-        insights.push('⚠️ Supplier meets basic requirements with some concerns')
-        if (missingDocs.length > 0) {
-          insights.push(`⚠️ Request missing documents: ${missingDocs.join(', ')}`)
-        }
-        if (avgDocumentQuality < 85) {
-          insights.push('⚠️ Consider requesting higher quality document scans')
-        }
-        if (hasNDA) {
-          insights.push('🔍 MANUAL CHECK REQUIRED: Verify NDA is signed and initialed on all pages')
-        }
-        insights.push('⚠️ Recommend revision before approval')
-      } else {
-        insights.push('❌ Significant compliance gaps identified')
-        insights.push('❌ Multiple required documents missing or inadequate')
-        if (hasNDA) {
-          insights.push('🔍 MANUAL CHECK REQUIRED: Verify NDA is signed and initialed on all pages')
-        }
-        insights.push('❌ Not recommended for approval - revision required')
-      }
-      
-      // Always add NDA reminder at the end if NDA is present
-      if (hasNDA) {
-        insights.push('📝 Remember: AI cannot verify handwritten signatures - manual review essential for NDA')
-      }
-      
-      analysisResults.insights = insights
-      addLog('\n💡 Key Insights:')
-      insights.forEach(insight => addLog(`   ${insight}`))
-
-      setAiSummary(analysisResults)
-
     } catch (error) {
-      addLog(`\n❌ Fatal error: ${error}`)
-      setErrorMessage('Failed to complete AI analysis. Please try again.')
+      console.error('Error starting AI analysis:', error)
+      setErrorMessage('Failed to start AI analysis. Please try again.')
       setErrorDialogOpen(true)
-    } finally {
-      setAiProcessing(false)
     }
   }
 
@@ -783,14 +619,52 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
-              <div>
+              <div className="flex-1">
                 <h1 className="text-2xl font-bold text-gray-900">{supplier.companyName}</h1>
                 <p className="text-sm text-gray-600">Supplier Code: {supplier.supplierCode}</p>
               </div>
             </div>
+            <div className="flex items-center gap-3">
+              {!isEditing ? (
+                <Button
+                  variant="outline"
+                  onClick={handleEditClick}
+                  disabled={supplier.status === 'REJECTED'}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Supplier
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveEdit}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
             <Badge className={`${getStatusColor(supplier.status)} text-white px-4 py-2`}>
               {supplier.status.replace('_', ' ')}
             </Badge>
+            </div>
           </div>
         </div>
       </div>
@@ -821,23 +695,63 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Supplier Name</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.supplierName || ''}
+                        onChange={(e) => setEditData({ ...editData, supplierName: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.supplierName || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Contact Person</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.contactPerson || ''}
+                        onChange={(e) => setEditData({ ...editData, contactPerson: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.contactPerson || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Name of Business</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.companyName || ''}
+                        onChange={(e) => setEditData({ ...editData, companyName: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.companyName || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Trading Name</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.tradingName || ''}
+                        onChange={(e) => setEditData({ ...editData, tradingName: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.tradingName || 'N/A'}</p>
+                    )}
                   </div>
                   <div className="md:col-span-2">
                     <label className="text-xs text-gray-500 uppercase">Company Registration No.</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.registrationNumber || ''}
+                        onChange={(e) => setEditData({ ...editData, registrationNumber: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.registrationNumber || 'N/A'}</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -855,19 +769,54 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <label className="text-xs text-gray-500 uppercase">Physical Address</label>
+                    {isEditing ? (
+                      <Textarea
+                        value={editData.physicalAddress || ''}
+                        onChange={(e) => setEditData({ ...editData, physicalAddress: e.target.value })}
+                        className="mt-1"
+                        rows={3}
+                      />
+                    ) : (
                     <p className="text-sm font-medium whitespace-pre-wrap">{supplier.physicalAddress || 'N/A'}</p>
+                    )}
                   </div>
                   <div className="md:col-span-2">
                     <label className="text-xs text-gray-500 uppercase">Postal Address</label>
+                    {isEditing ? (
+                      <Textarea
+                        value={editData.postalAddress || ''}
+                        onChange={(e) => setEditData({ ...editData, postalAddress: e.target.value })}
+                        className="mt-1"
+                        rows={3}
+                      />
+                    ) : (
                     <p className="text-sm font-medium whitespace-pre-wrap">{supplier.postalAddress || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Contact Number</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.contactPhone || ''}
+                        onChange={(e) => setEditData({ ...editData, contactPhone: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.contactPhone || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">E-mail Address</label>
+                    {isEditing ? (
+                      <Input
+                        type="email"
+                        value={editData.contactEmail || ''}
+                        onChange={(e) => setEditData({ ...editData, contactEmail: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.contactEmail || 'N/A'}</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -885,27 +834,77 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Nature of Business</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.natureOfBusiness || ''}
+                        onChange={(e) => setEditData({ ...editData, natureOfBusiness: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.natureOfBusiness || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Associated Company</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.associatedCompany || ''}
+                        onChange={(e) => setEditData({ ...editData, associatedCompany: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.associatedCompany || 'N/A'}</p>
+                    )}
                   </div>
                   <div className="md:col-span-2">
                     <label className="text-xs text-gray-500 uppercase">Products and/or Services</label>
+                    {isEditing ? (
+                      <Textarea
+                        value={editData.productsAndServices || ''}
+                        onChange={(e) => setEditData({ ...editData, productsAndServices: e.target.value })}
+                        className="mt-1"
+                        rows={3}
+                      />
+                    ) : (
                     <p className="text-sm font-medium whitespace-pre-wrap">{supplier.productsAndServices || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Associated Company Registration No.</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.associatedCompanyRegNo || ''}
+                        onChange={(e) => setEditData({ ...editData, associatedCompanyRegNo: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.associatedCompanyRegNo || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Associated Company Branch Name</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.associatedCompanyBranchName || ''}
+                        onChange={(e) => setEditData({ ...editData, associatedCompanyBranchName: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.associatedCompanyBranchName || 'N/A'}</p>
+                    )}
                   </div>
                   <div className="md:col-span-2">
                     <label className="text-xs text-gray-500 uppercase">Branches Contact Numbers</label>
+                    {isEditing ? (
+                      <Textarea
+                        value={editData.branchesContactNumbers || ''}
+                        onChange={(e) => setEditData({ ...editData, branchesContactNumbers: e.target.value })}
+                        className="mt-1"
+                        rows={3}
+                      />
+                    ) : (
                     <p className="text-sm font-medium whitespace-pre-wrap">{supplier.branchesContactNumbers || 'N/A'}</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -923,27 +922,75 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Bank Account Name</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.bankAccountName || ''}
+                        onChange={(e) => setEditData({ ...editData, bankAccountName: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.bankAccountName || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Bank Name</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.bankName || ''}
+                        onChange={(e) => setEditData({ ...editData, bankName: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.bankName || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Branch Name</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.branchName || ''}
+                        onChange={(e) => setEditData({ ...editData, branchName: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.branchName || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Branch Number</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.branchNumber || ''}
+                        onChange={(e) => setEditData({ ...editData, branchNumber: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.branchNumber || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Account Number</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.accountNumber || ''}
+                        onChange={(e) => setEditData({ ...editData, accountNumber: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.accountNumber || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Type of Account</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.typeOfAccount || ''}
+                        onChange={(e) => setEditData({ ...editData, typeOfAccount: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.typeOfAccount || 'N/A'}</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -964,15 +1011,40 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-4">
                     <div>
                       <label className="text-xs text-gray-500 uppercase">Name</label>
+                      {isEditing ? (
+                        <Input
+                          value={editData.rpBanking || ''}
+                          onChange={(e) => setEditData({ ...editData, rpBanking: e.target.value })}
+                          className="mt-1"
+                        />
+                      ) : (
                       <p className="text-sm font-medium">{supplier.rpBanking || 'N/A'}</p>
+                      )}
                     </div>
                     <div>
                       <label className="text-xs text-gray-500 uppercase">Telephone</label>
+                      {isEditing ? (
+                        <Input
+                          value={editData.rpBankingPhone || ''}
+                          onChange={(e) => setEditData({ ...editData, rpBankingPhone: e.target.value })}
+                          className="mt-1"
+                        />
+                      ) : (
                       <p className="text-sm font-medium">{supplier.rpBankingPhone || 'N/A'}</p>
+                      )}
                     </div>
                     <div>
                       <label className="text-xs text-gray-500 uppercase">Email</label>
+                      {isEditing ? (
+                        <Input
+                          type="email"
+                          value={editData.rpBankingEmail || ''}
+                          onChange={(e) => setEditData({ ...editData, rpBankingEmail: e.target.value })}
+                          className="mt-1"
+                        />
+                      ) : (
                       <p className="text-sm font-medium">{supplier.rpBankingEmail || 'N/A'}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -983,15 +1055,40 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-4">
                     <div>
                       <label className="text-xs text-gray-500 uppercase">Name</label>
+                      {isEditing ? (
+                        <Input
+                          value={editData.rpQuality || ''}
+                          onChange={(e) => setEditData({ ...editData, rpQuality: e.target.value })}
+                          className="mt-1"
+                        />
+                      ) : (
                       <p className="text-sm font-medium">{supplier.rpQuality || 'N/A'}</p>
+                      )}
                     </div>
                     <div>
                       <label className="text-xs text-gray-500 uppercase">Telephone</label>
+                      {isEditing ? (
+                        <Input
+                          value={editData.rpQualityPhone || ''}
+                          onChange={(e) => setEditData({ ...editData, rpQualityPhone: e.target.value })}
+                          className="mt-1"
+                        />
+                      ) : (
                       <p className="text-sm font-medium">{supplier.rpQualityPhone || 'N/A'}</p>
+                      )}
                     </div>
                     <div>
                       <label className="text-xs text-gray-500 uppercase">Email</label>
+                      {isEditing ? (
+                        <Input
+                          type="email"
+                          value={editData.rpQualityEmail || ''}
+                          onChange={(e) => setEditData({ ...editData, rpQualityEmail: e.target.value })}
+                          className="mt-1"
+                        />
+                      ) : (
                       <p className="text-sm font-medium">{supplier.rpQualityEmail || 'N/A'}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1002,15 +1099,40 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-4">
                     <div>
                       <label className="text-xs text-gray-500 uppercase">Name</label>
+                      {isEditing ? (
+                        <Input
+                          value={editData.rpSHE || ''}
+                          onChange={(e) => setEditData({ ...editData, rpSHE: e.target.value })}
+                          className="mt-1"
+                        />
+                      ) : (
                       <p className="text-sm font-medium">{supplier.rpSHE || 'N/A'}</p>
+                      )}
                     </div>
                     <div>
                       <label className="text-xs text-gray-500 uppercase">Telephone</label>
+                      {isEditing ? (
+                        <Input
+                          value={editData.rpSHEPhone || ''}
+                          onChange={(e) => setEditData({ ...editData, rpSHEPhone: e.target.value })}
+                          className="mt-1"
+                        />
+                      ) : (
                       <p className="text-sm font-medium">{supplier.rpSHEPhone || 'N/A'}</p>
+                      )}
                     </div>
                     <div>
                       <label className="text-xs text-gray-500 uppercase">Email</label>
+                      {isEditing ? (
+                        <Input
+                          type="email"
+                          value={editData.rpSHEEmail || ''}
+                          onChange={(e) => setEditData({ ...editData, rpSHEEmail: e.target.value })}
+                          className="mt-1"
+                        />
+                      ) : (
                       <p className="text-sm font-medium">{supplier.rpSHEEmail || 'N/A'}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1021,15 +1143,40 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-4">
                     <div>
                       <label className="text-xs text-gray-500 uppercase">Name</label>
+                      {isEditing ? (
+                        <Input
+                          value={editData.rpBBBEE || ''}
+                          onChange={(e) => setEditData({ ...editData, rpBBBEE: e.target.value })}
+                          className="mt-1"
+                        />
+                      ) : (
                       <p className="text-sm font-medium">{supplier.rpBBBEE || 'N/A'}</p>
+                      )}
                     </div>
                     <div>
                       <label className="text-xs text-gray-500 uppercase">Telephone</label>
+                      {isEditing ? (
+                        <Input
+                          value={editData.rpBBBEEPhone || ''}
+                          onChange={(e) => setEditData({ ...editData, rpBBBEEPhone: e.target.value })}
+                          className="mt-1"
+                        />
+                      ) : (
                       <p className="text-sm font-medium">{supplier.rpBBBEEPhone || 'N/A'}</p>
+                      )}
                     </div>
                     <div>
                       <label className="text-xs text-gray-500 uppercase">Email</label>
+                      {isEditing ? (
+                        <Input
+                          type="email"
+                          value={editData.rpBBBEEEmail || ''}
+                          onChange={(e) => setEditData({ ...editData, rpBBBEEEmail: e.target.value })}
+                          className="mt-1"
+                        />
+                      ) : (
                       <p className="text-sm font-medium">{supplier.rpBBBEEEmail || 'N/A'}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1048,11 +1195,28 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs text-gray-500 uppercase">BBBEE Status</label>
+                    {isEditing ? (
+                      <Input
+                        value={editData.bbbeeLevel || ''}
+                        onChange={(e) => setEditData({ ...editData, bbbeeLevel: e.target.value })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.bbbeeLevel || 'N/A'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Number of Employees</label>
+                    {isEditing ? (
+                      <Input
+                        type="number"
+                        value={editData.numberOfEmployees || ''}
+                        onChange={(e) => setEditData({ ...editData, numberOfEmployees: e.target.value ? parseInt(e.target.value) : null })}
+                        className="mt-1"
+                      />
+                    ) : (
                     <p className="text-sm font-medium">{supplier.numberOfEmployees || 'N/A'}</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -1069,21 +1233,42 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
+                    {isEditing ? (
+                      <Checkbox
+                        checked={editData.qualityManagementCert || false}
+                        onCheckedChange={(checked) => setEditData({ ...editData, qualityManagementCert: checked as boolean })}
+                      />
+                    ) : (
                     <div className={`w-4 h-4 rounded flex items-center justify-center ${supplier.qualityManagementCert ? 'bg-green-500' : 'bg-gray-300'}`}>
                       {supplier.qualityManagementCert && <CheckCircle className="h-3 w-3 text-white" />}
                     </div>
+                    )}
                     <span className="text-sm">Quality Management Certification</span>
                   </div>
                   <div className="flex items-center gap-2">
+                    {isEditing ? (
+                      <Checkbox
+                        checked={editData.sheCertification || false}
+                        onCheckedChange={(checked) => setEditData({ ...editData, sheCertification: checked as boolean })}
+                      />
+                    ) : (
                     <div className={`w-4 h-4 rounded flex items-center justify-center ${supplier.sheCertification ? 'bg-green-500' : 'bg-gray-300'}`}>
                       {supplier.sheCertification && <CheckCircle className="h-3 w-3 text-white" />}
                     </div>
+                    )}
                     <span className="text-sm">Safety, Health and Environment (SHE) Certification</span>
                   </div>
                   <div className="flex items-center gap-2">
+                    {isEditing ? (
+                      <Checkbox
+                        checked={editData.authorizationAgreement || false}
+                        onCheckedChange={(checked) => setEditData({ ...editData, authorizationAgreement: checked as boolean })}
+                      />
+                    ) : (
                     <div className={`w-4 h-4 rounded flex items-center justify-center ${supplier.authorizationAgreement ? 'bg-green-500' : 'bg-gray-300'}`}>
                       {supplier.authorizationAgreement && <CheckCircle className="h-3 w-3 text-white" />}
                     </div>
+                    )}
                     <span className="text-sm">Authorization Agreement Signed</span>
                   </div>
                 </div>
@@ -1094,6 +1279,102 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
           <TabsContent value="documents">
             {supplier.airtableData?.allVersions ? (
               <div className="space-y-6">
+                {/* Check for missing mandatory documents across all versions */}
+                {(() => {
+                  // Combine uploaded files from all versions
+                  const allUploadedFiles: Record<string, string[]> = {}
+                  supplier.airtableData.allVersions.forEach((version: any) => {
+                    const versionFiles = version.uploadedFiles || {}
+                    Object.entries(versionFiles).forEach(([category, files]) => {
+                      if (!allUploadedFiles[category]) {
+                        allUploadedFiles[category] = []
+                      }
+                      // Add files from this version if not already present
+                      const fileArray = files as string[]
+                      fileArray.forEach(file => {
+                        if (!allUploadedFiles[category].includes(file)) {
+                          allUploadedFiles[category].push(file)
+                        }
+                      })
+                    })
+                  })
+                  
+                  // Define mandatory documents
+                  const mandatoryDocs = [
+                    { key: 'nda', name: 'Non-Disclosure Agreement (NDA)', icon: '📝' },
+                    { key: 'companyRegistration', name: 'Company Registration (CIPC Documents)', icon: '📋' },
+                    { 
+                      key: 'taxOrGoodStanding', 
+                      name: 'Tax Clearance Certificate OR Letter of Good Standing', 
+                      icon: '💼',
+                      checkKeys: ['taxClearance', 'goodStanding'] 
+                    },
+                    { key: 'bankConfirmation', name: 'Bank Confirmation Letter', icon: '🏦' },
+                    { key: 'bbbeeAccreditation', name: 'B-BBEE Certificate', icon: '⭐' }
+                  ]
+                  
+                  const missingDocs = mandatoryDocs.filter(doc => {
+                    if (doc.checkKeys) {
+                      // For tax/good standing, check if either exists across all versions
+                      return !doc.checkKeys.some(key => allUploadedFiles[key] && allUploadedFiles[key].length > 0)
+                    }
+                    return !allUploadedFiles[doc.key] || allUploadedFiles[doc.key].length === 0
+                  })
+                  
+                  if (missingDocs.length > 0) {
+                    return (
+                      <div className="space-y-4 mb-6">
+                        <Alert className="bg-red-50 border-red-300">
+                          <AlertCircle className="h-5 w-5 text-red-600" />
+                          <AlertDescription>
+                            <div className="space-y-3">
+                              <div>
+                                <strong className="text-red-900 text-base block mb-2">
+                                  ⚠️ Missing Compulsory Documents ({missingDocs.length} of {mandatoryDocs.length})
+                                </strong>
+                                <p className="text-sm text-red-800 mb-3">
+                                  The following mandatory documents have not been uploaded by the supplier. Please request these documents before approving.
+                                </p>
+                              </div>
+                              <div className="space-y-2">
+                                {missingDocs.map((doc, idx) => (
+                                  <div key={idx} className="bg-white border border-red-200 rounded p-3">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xl">{doc.icon}</span>
+                                      <span className="font-semibold text-red-900">{doc.name}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </AlertDescription>
+                        </Alert>
+                        <Button
+                          variant="outline"
+                          onClick={() => handleRevisionClick(missingDocs)}
+                          disabled={supplier.status === 'APPROVED' || supplier.status === 'REJECTED'}
+                          className="w-full sm:w-auto border-orange-500 text-orange-700 hover:bg-orange-50"
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Request Revision - Missing Documents
+                        </Button>
+                      </div>
+                    )
+                  } else {
+                    return (
+                      <Alert className="bg-green-50 border-green-300 mb-6">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <AlertDescription>
+                          <strong className="text-green-900">✅ All Compulsory Documents Uploaded</strong>
+                          <p className="text-sm text-green-800 mt-1">
+                            All {mandatoryDocs.length} mandatory documents have been provided. Review each document for accuracy and completeness.
+                          </p>
+                        </AlertDescription>
+                      </Alert>
+                    )
+                  }
+                })()}
+                
                 {/* Show all versions */}
                 {supplier.airtableData.allVersions.map((versionData: any, versionIndex: number) => (
                   <Card key={versionIndex} className={versionIndex === supplier.airtableData.allVersions.length - 1 ? 'border-blue-500 border-2' : ''}>
@@ -1120,10 +1401,12 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                                 const isPdf = fileExt === 'pdf'
                                 const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(fileExt || '')
                                 const fileUrl = `/api/suppliers/documents/${supplier.supplierCode}/v${versionData.version}/${category}/${file}`
+                                const verificationKey = `${versionData.version}-${category}-${file}`
+                                const isVerified = documentVerifications[verificationKey] || false
                           
                           return (
                             <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded hover:bg-gray-100 transition-colors">
-                              <div className="flex items-center gap-2 flex-1">
+                              <div className="flex items-center gap-3 flex-1">
                                 <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
                                 <span className="text-sm truncate">{file}</span>
                                 {isPdf && (
@@ -1132,8 +1415,24 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                                 {isImage && (
                                   <Badge variant="outline" className="ml-2">Image</Badge>
                                 )}
+                                {isVerified && (
+                                  <Badge className="ml-2 bg-green-500 text-white">Verified</Badge>
+                                )}
                               </div>
-                              <div className="flex gap-2">
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`verify-${verificationKey}`}
+                                    checked={isVerified}
+                                    onCheckedChange={() => handleVerificationToggle(versionData.version, category, file, isVerified)}
+                                  />
+                                  <label
+                                    htmlFor={`verify-${verificationKey}`}
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                  >
+                                    Verified
+                                  </label>
+                                </div>
                                 {(isPdf || isImage) && (
                                   <Button 
                                     variant="ghost" 
@@ -1199,7 +1498,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                     Use AI to automatically analyze supplier documents, verify compliance, and assess risk
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   <Button 
                     onClick={handleAIAnalysis}
                     disabled={aiProcessing}
@@ -1208,7 +1507,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                     {aiProcessing ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Processing...
+                        Processing in Background...
                       </>
                     ) : (
                       <>
@@ -1217,6 +1516,27 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                       </>
                     )}
                   </Button>
+                  
+                  {aiProcessing && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Progress</span>
+                        <span className="font-medium">{aiProgress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${aiProgress}%` }}
+                        />
+                      </div>
+                      {aiCurrentStep && (
+                        <p className="text-sm text-gray-600">{aiCurrentStep}</p>
+                      )}
+                      <p className="text-xs text-gray-500">
+                        💡 You can navigate away - the analysis will continue in the background
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -1262,16 +1582,17 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                       <div className="text-center">
                         <div className="text-sm text-gray-600 mb-2">Overall Supplier Score</div>
                         <div className={`text-5xl font-bold ${
-                          aiSummary.overallScore >= 80 ? 'text-green-600' : 
-                          aiSummary.overallScore >= 60 ? 'text-yellow-600' : 'text-red-600'
+                          (aiSummary.overallScore ?? 0) >= 80 ? 'text-green-600' : 
+                          (aiSummary.overallScore ?? 0) >= 60 ? 'text-yellow-600' : 'text-red-600'
                         }`}>
-                          {aiSummary.overallScore.toFixed(1)}
+                          {(aiSummary.overallScore ?? 0).toFixed(1)}
                         </div>
                         <div className="text-sm text-gray-500 mt-1">out of 100</div>
                       </div>
                     </div>
 
                     {/* Compliance Check */}
+                    {aiSummary.complianceCheck && (
                     <div>
                       <h4 className="font-semibold text-blue-600 mb-3 flex items-center gap-2">
                         <CheckCircle className="h-4 w-4" />
@@ -1281,7 +1602,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                         <Card className="bg-blue-50 border-blue-200">
                           <CardContent className="pt-6 text-center">
                             <div className="text-2xl font-bold text-blue-900">
-                              {aiSummary.complianceCheck.providedDocuments}/{aiSummary.complianceCheck.requiredDocuments}
+                              {aiSummary.complianceCheck.providedDocuments ?? 0}/{aiSummary.complianceCheck.requiredDocuments ?? 0}
                             </div>
                             <div className="text-sm text-blue-700">Required Documents</div>
                           </CardContent>
@@ -1289,26 +1610,26 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                         <Card className="bg-green-50 border-green-200">
                           <CardContent className="pt-6 text-center">
                             <div className="text-2xl font-bold text-green-900">
-                              {aiSummary.complianceCheck.complianceScore.toFixed(0)}%
+                              {(aiSummary.complianceCheck.complianceScore ?? 0).toFixed(0)}%
                             </div>
                             <div className="text-sm text-green-700">Compliance Score</div>
                           </CardContent>
                         </Card>
                         <Card className={`${
-                          aiSummary.complianceCheck.missingDocuments.length === 0 
+                          (aiSummary.complianceCheck.missingDocuments?.length ?? 0) === 0 
                             ? 'bg-green-50 border-green-200' 
                             : 'bg-orange-50 border-orange-200'
                         }`}>
                           <CardContent className="pt-6 text-center">
                             <div className={`text-2xl font-bold ${
-                              aiSummary.complianceCheck.missingDocuments.length === 0 
+                              (aiSummary.complianceCheck.missingDocuments?.length ?? 0) === 0 
                                 ? 'text-green-900' 
                                 : 'text-orange-900'
                             }`}>
-                              {aiSummary.complianceCheck.missingDocuments.length}
+                              {aiSummary.complianceCheck.missingDocuments?.length ?? 0}
                             </div>
                             <div className={`text-sm ${
-                              aiSummary.complianceCheck.missingDocuments.length === 0 
+                              (aiSummary.complianceCheck.missingDocuments?.length ?? 0) === 0 
                                 ? 'text-green-700' 
                                 : 'text-orange-700'
                             }`}>
@@ -1317,7 +1638,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                           </CardContent>
                         </Card>
                       </div>
-                      {aiSummary.complianceCheck.missingDocuments.length > 0 && (
+                      {aiSummary.complianceCheck.missingDocuments && aiSummary.complianceCheck.missingDocuments.length > 0 && (
                         <Alert className="mt-4 bg-red-50 border-red-400">
                           <AlertDescription>
                             <div className="space-y-3">
@@ -1423,8 +1744,64 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                         </Alert>
                       )}
                     </div>
+                    )}
+
+                    {/* Document Type Mismatches */}
+                    {aiSummary.documentAnalysis && (() => {
+                      const mismatches: Array<{category: string, fileName: string, expected: string, actual: string, findings: string}> = []
+                      
+                      Object.entries(aiSummary.documentAnalysis).forEach(([category, categoryResults]: [string, any]) => {
+                        if (Array.isArray(categoryResults)) {
+                          categoryResults.forEach((result: any) => {
+                            if (result.findings && result.findings.includes('DOCUMENT TYPE MISMATCH DETECTED')) {
+                              // Extract mismatch info from findings
+                              const expectedMatch = result.findings.match(/Expected:\s*([^\n]+)/)
+                              const actualMatch = result.findings.match(/Actual:\s*([^\n]+)/)
+                              if (expectedMatch && actualMatch) {
+                                mismatches.push({
+                                  category,
+                                  fileName: result.fileName || 'Unknown',
+                                  expected: expectedMatch[1].trim(),
+                                  actual: actualMatch[1].trim(),
+                                  findings: result.findings
+                                })
+                              }
+                            }
+                          })
+                        }
+                      })
+                      
+                      return mismatches.length > 0 && (
+                        <Alert className="mb-4 bg-red-50 border-red-400 border-2">
+                          <AlertCircle className="h-5 w-5 text-red-600" />
+                          <AlertDescription>
+                            <div className="space-y-3">
+                              <strong className="text-red-900 text-base">⚠️ DOCUMENT TYPE MISMATCHES DETECTED ({mismatches.length}):</strong>
+                              <div className="text-sm text-red-800 mb-2">
+                                The following documents were uploaded to incorrect categories. Please verify the correct documents were uploaded.
+                              </div>
+                              <div className="space-y-3 mt-3">
+                                {mismatches.map((mismatch, idx) => (
+                                  <div key={idx} className="bg-white border border-red-300 rounded p-4">
+                                    <div className="font-semibold text-red-900 mb-2">{mismatch.fileName}</div>
+                                    <div className="text-sm space-y-1">
+                                      <div><strong>Uploaded as:</strong> <span className="text-red-700">{mismatch.expected}</span></div>
+                                      <div><strong>Actually is:</strong> <span className="text-red-700">{mismatch.actual}</span></div>
+                                      <div className="mt-2 text-xs text-red-600 italic">
+                                        Category: {mismatch.category.replace(/([A-Z])/g, ' $1').trim()}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </AlertDescription>
+                        </Alert>
+                      )
+                    })()}
 
                     {/* Risk Assessment */}
+                    {aiSummary.riskAssessment && (
                     <div>
                       <h4 className="font-semibold text-blue-600 mb-3 flex items-center gap-2">
                         <XCircle className="h-4 w-4" />
@@ -1449,26 +1826,41 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                         ))}
                       </div>
                     </div>
+                    )}
 
                     {/* Recommendation */}
                     <Alert className={`${
-                      aiSummary.overallScore >= 80 ? 'bg-green-50 border-green-300' : 
-                      aiSummary.overallScore >= 60 ? 'bg-yellow-50 border-yellow-300' : 
+                      (aiSummary.overallScore ?? 0) >= 80 ? 'bg-green-50 border-green-300' : 
+                      (aiSummary.overallScore ?? 0) >= 60 ? 'bg-yellow-50 border-yellow-300' : 
                       'bg-red-50 border-red-300'
                     }`}>
                       <AlertDescription>
                         <strong>AI Recommendation:</strong>
                         <p className="mt-2">
-                          {aiSummary.overallScore >= 80 
+                          {(aiSummary.overallScore ?? 0) >= 80 
                             ? '✅ This supplier meets all requirements and is recommended for approval.' 
-                            : aiSummary.overallScore >= 60 
+                            : (aiSummary.overallScore ?? 0) >= 60 
                             ? '⚠️ This supplier has minor issues. Review and request clarifications before approval.'
                             : '❌ This supplier has significant compliance gaps. Additional documentation is required.'}
                         </p>
                         {(() => {
-                          // Check if NDA is uploaded in the latest version
-                          const latestVersionData = supplier?.airtableData?.allVersions?.[supplier.airtableData.allVersions.length - 1]
-                          const hasNDA = latestVersionData?.uploadedFiles?.nda && latestVersionData.uploadedFiles.nda.length > 0
+                          // Check if NDA is uploaded in any version
+                          const allVersionFiles: Record<string, string[]> = {}
+                          supplier?.airtableData?.allVersions?.forEach((version: any) => {
+                            const versionFiles = version.uploadedFiles || {}
+                            Object.entries(versionFiles).forEach(([category, files]) => {
+                              if (!allVersionFiles[category]) {
+                                allVersionFiles[category] = []
+                              }
+                              const fileArray = files as string[]
+                              fileArray.forEach((file: string) => {
+                                if (!allVersionFiles[category].includes(file)) {
+                                  allVersionFiles[category].push(file)
+                                }
+                              })
+                            })
+                          })
+                          const hasNDA = allVersionFiles?.nda && allVersionFiles.nda.length > 0
                           
                           return hasNDA && (
                             <div className="mt-3 pt-3 border-t border-current/20">
@@ -1524,7 +1916,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={handleRevisionClick}
+                    onClick={() => handleRevisionClick()}
                     disabled={supplier.status === 'APPROVED' || supplier.status === 'REJECTED'}
                   >
                     <Edit className="h-4 w-4 mr-2" />
@@ -1671,15 +2063,15 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
 
       {/* Revision Request Dialog */}
       <Dialog open={revisionDialogOpen} onOpenChange={setRevisionDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-orange-600">Request Revision</DialogTitle>
             <DialogDescription>
               Please specify what needs to be updated or corrected. This feedback will be sent to the supplier.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <h4 className="font-medium text-orange-900 mb-2">Supplier Information:</h4>
               <div className="text-sm text-orange-800 space-y-1">
@@ -1693,17 +2085,19 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
               <label className="text-sm font-medium">
                 Revision Notes:
               </label>
+              <p className="text-xs text-gray-600 mb-2">
+                The notes below have been pre-filled with missing document information. You can edit them as needed.
+              </p>
               <Textarea
                 placeholder="Please specify what needs to be updated or corrected..."
                 value={revisionNotes}
                 onChange={(e) => setRevisionNotes(e.target.value)}
-                className="border-orange-300 focus:border-orange-500"
-                rows={4}
+                className="border-orange-300 focus:border-orange-500 min-h-[300px]"
               />
             </div>
           </div>
 
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end space-x-2 flex-shrink-0 pt-4 border-t">
             <Button variant="outline" onClick={() => setRevisionDialogOpen(false)}>
               Cancel
             </Button>

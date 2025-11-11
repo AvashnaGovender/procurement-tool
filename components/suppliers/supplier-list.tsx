@@ -1,138 +1,319 @@
+"use client"
+
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Star, MapPin, Phone, Mail, MoreHorizontal, Eye, Edit, Trash2 } from "lucide-react"
+import { Star, MapPin, Phone, Mail, MoreHorizontal, Eye, Edit, Trash2, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 
-const suppliers = [
-  {
-    id: 1,
-    name: "TechCorp Solutions",
-    category: "IT Equipment",
-    rating: 4.8,
-    status: "active",
-    location: "New York, NY",
-    phone: "+1 (555) 123-4567",
-    email: "contact@techcorp.com",
-    orders: 45,
-    totalSpend: "R450,000",
-    onTimeDelivery: 95,
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: 2,
-    name: "Office Plus Ltd",
-    category: "Office Supplies",
-    rating: 4.6,
-    status: "active",
-    location: "Chicago, IL",
-    phone: "+1 (555) 234-5678",
-    email: "orders@officeplus.com",
-    orders: 32,
-    totalSpend: "R180,000",
-    onTimeDelivery: 88,
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: 3,
-    name: "Industrial Supply Co",
-    category: "Maintenance",
-    rating: 4.2,
-    status: "active",
-    location: "Houston, TX",
-    phone: "+1 (555) 345-6789",
-    email: "sales@industrialsupply.com",
-    orders: 28,
-    totalSpend: "R320,000",
-    onTimeDelivery: 82,
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: 4,
-    name: "Global Services Inc",
-    category: "Services",
-    rating: 3.9,
-    status: "under-review",
-    location: "Los Angeles, CA",
-    phone: "+1 (555) 456-7890",
-    email: "info@globalservices.com",
-    orders: 19,
-    totalSpend: "R150,000",
-    onTimeDelivery: 75,
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: 5,
-    name: "Premium Materials",
-    category: "Other",
-    rating: 4.5,
-    status: "pending",
-    location: "Miami, FL",
-    phone: "+1 (555) 567-8901",
-    email: "contact@premiummaterials.com",
-    orders: 0,
-    totalSpend: "R0",
-    onTimeDelivery: 0,
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-]
+interface Supplier {
+  id: string
+  supplierCode: string
+  companyName: string | null
+  contactPerson: string
+  contactEmail: string
+  contactPhone: string | null
+  status: string
+  createdAt: string
+  natureOfBusiness: string | null
+  sector: string
+  bbbeeLevel: string | null
+  numberOfEmployees: number | null
+  airtableData: any
+  onboarding?: {
+    id: string
+    revisionCount: number
+    revisionRequested: boolean
+    emailSent: boolean
+    supplierFormSubmitted: boolean
+    currentStep: string
+    overallStatus: string
+  }
+}
 
-export function SupplierList() {
+interface FilterState {
+  status: string[]
+  category: string
+  rating: string
+  location: string
+}
+
+interface SupplierListProps {
+  searchQuery?: string
+  filters?: FilterState
+  onProductsServicesChange?: (productsServices: string[]) => void
+}
+
+export function SupplierList({ searchQuery = "", filters, onProductsServicesChange }: SupplierListProps) {
+  const router = useRouter()
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [filteredSuppliers, setFilteredSuppliers] = useState<Supplier[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch('/api/suppliers/list')
+        const data = await response.json()
+        
+        if (data.success) {
+          setSuppliers(data.suppliers)
+          
+          // Extract unique products/services from natureOfBusiness field
+          const uniqueProductsServices = Array.from(
+            new Set(
+              data.suppliers
+                .map(supplier => supplier.natureOfBusiness)
+                .filter(Boolean) // Remove null/undefined values
+            )
+          ).sort()
+          
+          onProductsServicesChange?.(uniqueProductsServices)
+        } else {
+          setError(data.error || 'Failed to fetch suppliers')
+        }
+      } catch (err) {
+        setError('Failed to fetch suppliers')
+        console.error('Error fetching suppliers:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSuppliers()
+  }, [])
+
+  // Filter suppliers based on search query and filters
+  useEffect(() => {
+    let filtered = suppliers
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const searchLower = searchQuery.toLowerCase()
+      filtered = filtered.filter(supplier => {
+        const companyName = supplier.companyName?.toLowerCase() || ''
+        const contactPerson = supplier.contactPerson?.toLowerCase() || ''
+        const contactEmail = supplier.contactEmail?.toLowerCase() || ''
+        const supplierCode = supplier.supplierCode?.toLowerCase() || ''
+        const natureOfBusiness = supplier.natureOfBusiness?.toLowerCase() || ''
+
+        return (
+          companyName.includes(searchLower) ||
+          contactPerson.includes(searchLower) ||
+          contactEmail.includes(searchLower) ||
+          supplierCode.includes(searchLower) ||
+          natureOfBusiness.includes(searchLower)
+        )
+      })
+    }
+
+    // Apply filters
+    if (filters) {
+      // Status filter
+      if (filters.status.length > 0) {
+        filtered = filtered.filter(supplier => 
+          filters.status.includes(supplier.status.toLowerCase())
+        )
+      }
+
+      // Products/Services filter
+      if (filters.category && filters.category !== 'all') {
+        filtered = filtered.filter(supplier => 
+          supplier.natureOfBusiness === filters.category
+        )
+      }
+
+      // Rating filter (mock implementation - would need real evaluation data)
+      if (filters.rating && filters.rating !== 'any') {
+        const minRating = parseFloat(filters.rating)
+        filtered = filtered.filter(supplier => {
+          const rating = getSupplierRating(supplier)
+          return rating >= minRating
+        })
+      }
+
+      // Location filter (mock implementation)
+      if (filters.location && filters.location !== 'all') {
+        filtered = filtered.filter(supplier => {
+          const location = getSupplierLocation(supplier).toLowerCase()
+          if (filters.location === 'local') {
+            return location.includes('south africa') || location.includes('cape town') || location.includes('johannesburg')
+          } else if (filters.location === 'national') {
+            return location.includes('south africa') && !location.includes('cape town') && !location.includes('johannesburg')
+          } else if (filters.location === 'international') {
+            return !location.includes('south africa')
+          }
+          return true
+        })
+      }
+    }
+
+    setFilteredSuppliers(filtered)
+  }, [suppliers, searchQuery, filters])
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return 'default'
+      case 'pending':
+        return 'secondary'
+      case 'under_review':
+        return 'outline'
+      default:
+        return 'outline'
+    }
+  }
+
+  const formatStatus = (status: string) => {
+    return status.toLowerCase().replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+  }
+
+  const getSupplierDisplayName = (supplier: Supplier) => {
+    return supplier.companyName || supplier.contactPerson || 'Unknown Supplier'
+  }
+
+  const getSupplierCategory = (supplier: Supplier) => {
+    return supplier.natureOfBusiness || 'Other'
+  }
+
+  const getSupplierLocation = (supplier: Supplier) => {
+    // Try to extract location from airtable data or use default
+    if (supplier.airtableData?.physicalAddress) {
+      return supplier.airtableData.physicalAddress
+    }
+    return 'South Africa' // Default location
+  }
+
+  const getSupplierRating = (supplier: Supplier) => {
+    // Mock rating - in real implementation, this would come from evaluations
+    return 4.5 // Default rating
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">Suppliers</h2>
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm" disabled>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Loading...
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Card key={i} className="bg-card border-border">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-4">
+                    <div className="h-12 w-12 rounded-full bg-muted animate-pulse"></div>
+                    <div className="flex-1">
+                      <div className="h-6 bg-muted rounded animate-pulse w-48 mb-2"></div>
+                      <div className="h-4 bg-muted rounded animate-pulse w-32 mb-2"></div>
+                      <div className="h-4 bg-muted rounded animate-pulse w-64"></div>
+                    </div>
+                  </div>
+                  <div className="h-8 w-8 bg-muted rounded animate-pulse"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">Suppliers</h2>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-red-400 mb-2">Failed to load suppliers</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">Suppliers ({suppliers.length})</h2>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm">
-            Sort by Rating
-          </Button>
-        </div>
+        <h2 className="text-lg font-semibold text-foreground">
+          Suppliers ({filteredSuppliers.length}{searchQuery && ` of ${suppliers.length}`})
+        </h2>
       </div>
 
-      <div className="space-y-4">
-        {suppliers.map((supplier) => (
-          <Card key={supplier.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
+      {filteredSuppliers.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+            <Mail className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground mb-2">
+            {searchQuery ? 'No suppliers match your search' : 'No suppliers found'}
+          </h3>
+          <p className="text-muted-foreground mb-4">
+            {searchQuery ? 'Try adjusting your search criteria' : 'Get started by adding your first supplier'}
+          </p>
+          <Button asChild>
+            <Link href="/suppliers/onboard">
+              Add Supplier
+            </Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredSuppliers.map((supplier) => {
+            const displayName = getSupplierDisplayName(supplier)
+            const initials = displayName
+              .split(" ")
+              .map((n) => n[0])
+              .join("")
+              .toUpperCase()
+              .slice(0, 2)
+            
+            return (
+              <Card key={supplier.id} className="bg-card border-border hover:bg-accent/50 transition-all cursor-pointer">
+                <CardContent className="p-6" onClick={() => router.push(`/admin/supplier-submissions/${supplier.id}`)}>
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-4">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={supplier.avatar || "/placeholder.svg"} />
-                    <AvatarFallback>
-                      {supplier.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
+                        <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                          {initials}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
-                      <h3 className="text-lg font-semibold text-gray-900">{supplier.name}</h3>
-                      <Badge
-                        variant={
-                          supplier.status === "active"
-                            ? "default"
-                            : supplier.status === "pending"
-                              ? "secondary"
-                              : "outline"
-                        }
-                      >
-                        {supplier.status}
+                          <h3 className="text-lg font-semibold text-foreground">{displayName}</h3>
+                          <Badge variant={getStatusBadgeVariant(supplier.status)}>
+                            {formatStatus(supplier.status)}
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">{supplier.category}</p>
-                    <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {getSupplierCategory(supplier)} • {supplier.supplierCode}
+                        </p>
+                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                       <div className="flex items-center space-x-1">
                         <MapPin className="h-4 w-4" />
-                        <span>{supplier.location}</span>
+                            <span>{getSupplierLocation(supplier)}</span>
                       </div>
+                          {supplier.contactPhone && (
                       <div className="flex items-center space-x-1">
                         <Phone className="h-4 w-4" />
-                        <span>{supplier.phone}</span>
+                              <span>{supplier.contactPhone}</span>
                       </div>
+                          )}
                       <div className="flex items-center space-x-1">
                         <Mail className="h-4 w-4" />
-                        <span>{supplier.email}</span>
+                            <span>{supplier.contactEmail}</span>
                       </div>
                     </div>
                   </div>
@@ -140,18 +321,26 @@ export function SupplierList() {
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
+                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/admin/supplier-submissions/${supplier.id}`}>
                       <Eye className="h-4 w-4 mr-2" />
                       View Details
+                          </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Supplier
+                    <DropdownMenuItem asChild>
+                      <Link href={`/admin/supplier-submissions/${supplier.id}`}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit Supplier
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem className="text-red-600">
                       <Trash2 className="h-4 w-4 mr-2" />
@@ -161,31 +350,41 @@ export function SupplierList() {
                 </DropdownMenu>
               </div>
 
-              <div className="mt-4 grid grid-cols-4 gap-4 pt-4 border-t">
+                  <div className="mt-4 grid grid-cols-4 gap-4 pt-4 border-t border-border">
                 <div>
                   <div className="flex items-center space-x-1 mb-1">
                     <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    <span className="text-sm font-medium">{supplier.rating}</span>
+                        <span className="text-sm font-medium text-foreground">
+                          {getSupplierRating(supplier).toFixed(1)}
+                        </span>
                   </div>
-                  <p className="text-xs text-gray-500">Rating</p>
+                      <p className="text-xs text-muted-foreground">Rating</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{supplier.orders}</p>
-                  <p className="text-xs text-gray-500">Orders</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {supplier.onboarding?.revisionCount || 0}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Revisions</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{supplier.totalSpend}</p>
-                  <p className="text-xs text-gray-500">Total Spend</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {supplier.bbbeeLevel || 'N/A'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">BBBEE Level</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{supplier.onTimeDelivery}%</p>
-                  <p className="text-xs text-gray-500">On-time Delivery</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {supplier.numberOfEmployees || 'N/A'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Employees</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-        ))}
+            )
+          })}
       </div>
+      )}
     </div>
   )
 }

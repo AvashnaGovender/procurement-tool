@@ -39,8 +39,21 @@ export interface StatusResponse {
 export class WorkerClient {
   private baseUrl: string;
 
-  constructor(baseUrl: string = '/api/worker') {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl?: string) {
+    // If baseUrl is provided, use it. Otherwise, determine based on environment
+    if (baseUrl) {
+      this.baseUrl = baseUrl;
+    } else {
+      // Server-side: use absolute URL, client-side: use relative URL
+      if (typeof window === 'undefined') {
+        // Server-side: use environment variable or default to localhost
+        const apiBase = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+        this.baseUrl = `${apiBase}/api/worker`;
+      } else {
+        // Client-side: use relative URL
+        this.baseUrl = '/api/worker';
+      }
+    }
   }
 
   /**
@@ -55,6 +68,25 @@ export class WorkerClient {
         method: 'POST',
         body: formData,
       });
+
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        const text = await response.text()
+        console.error('Non-JSON response from upload:', text.substring(0, 200))
+        return {
+          success: false,
+          error: `Server returned non-JSON response (${response.status}): ${text.substring(0, 100)}`,
+        }
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+        return {
+          success: false,
+          error: errorData.error || `Upload failed with status ${response.status}`,
+        }
+      }
 
       const result = await response.json();
       return result;
@@ -90,6 +122,25 @@ export class WorkerClient {
           form_data: formData || {},
         }),
       });
+
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        const text = await response.text()
+        console.error('Non-JSON response from process:', text.substring(0, 200))
+        return {
+          success: false,
+          error: `Server returned non-JSON response (${response.status}): ${text.substring(0, 100)}`,
+        }
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+        return {
+          success: false,
+          error: errorData.error || errorData.details || `Processing failed with status ${response.status}`,
+        }
+      }
 
       const result = await response.json();
       

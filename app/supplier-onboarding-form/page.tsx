@@ -146,10 +146,24 @@ export default function SupplierOnboardingFormPage() {
   const handleFileChange = (category: string, fileList: FileList | null) => {
     if (fileList) {
       const newFiles = Array.from(fileList)
+      
+      // Validate that all files are PDFs
+      const invalidFiles = newFiles.filter(file => {
+        const fileExtension = file.name.toLowerCase().split('.').pop()
+        const mimeType = file.type.toLowerCase()
+        return fileExtension !== 'pdf' && mimeType !== 'application/pdf'
+      })
+      
+      if (invalidFiles.length > 0) {
+        setError(`Only PDF files are accepted. The following files are not PDFs: ${invalidFiles.map(f => f.name).join(', ')}`)
+        return
+      }
+      
       setFiles(prev => ({
         ...prev,
         [category]: [...(prev[category] || []), ...newFiles]
       }))
+      setError("") // Clear any previous errors
     }
   }
 
@@ -962,7 +976,7 @@ export default function SupplierOnboardingFormPage() {
                     <Input
                       type="file"
                       multiple
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      accept=".pdf,application/pdf"
                       onChange={(e) => handleFileChange(key, e.target.files)}
                       className="cursor-pointer"
                     />

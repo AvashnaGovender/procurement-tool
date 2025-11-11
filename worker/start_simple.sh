@@ -32,3 +32,7 @@ echo "Starting FastAPI server (simplified)..."
 python main_simple.py
 
 
+
+
+
+

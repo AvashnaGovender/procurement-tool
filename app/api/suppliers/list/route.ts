@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
         status: true,
         createdAt: true,
         natureOfBusiness: true,
+        sector: true,
         bbbeeLevel: true,
         numberOfEmployees: true,
         airtableData: true,

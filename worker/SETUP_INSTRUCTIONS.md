@@ -76,3 +76,7 @@ docker-compose logs
 3. Check logs: `docker-compose logs [service-name]`
 
 
+
+
+
+

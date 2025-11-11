@@ -110,3 +110,7 @@ docker-compose exec postgres psql -U postgres -d procurement_db -c "\dt"
 Your procurement system now has full AI-powered document processing capabilities! 🎉
 
 
+
+
+
+

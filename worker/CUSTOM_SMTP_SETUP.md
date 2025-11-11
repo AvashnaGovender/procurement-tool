@@ -89,3 +89,7 @@ environment:
 4. Check logs: `docker-compose logs worker`
 
 
+
+
+
+

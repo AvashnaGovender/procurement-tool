@@ -3,9 +3,16 @@ import fs from 'fs'
 import path from 'path'
 
 export async function POST(request: NextRequest) {
+  console.log('🚀 /api/send-email POST endpoint called!')
   try {
     const body = await request.json()
+    console.log('📧 Email request received:', { to: body.to, subject: body.subject })
     const { to, subject, content, supplierName, businessType, simulate, onboardingToken } = body
+
+    // Determine if this is an approval email (manager/procurement approval)
+    const emailSubject = subject || 'Supplier Onboarding'
+    const isApprovalEmail = emailSubject.toLowerCase().includes('approval required') || 
+                            emailSubject.toLowerCase().includes('approval pending')
 
     // Validate required fields
     if (!to || !supplierName || !businessType) {
@@ -63,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Use provided content (already templated from frontend)
-    const emailSubject = subject || 'Supplier Onboarding - Welcome'
+    // emailSubject already defined above
     
     // Replace form link with onboarding-specific link if token is provided
     let emailContent = content
@@ -150,6 +157,10 @@ async function sendEmailViaService({
   businessType: string
   config: any
 }) {
+  // Determine if this is an approval email (manager/procurement approval)
+  const isApprovalEmail = subject.toLowerCase().includes('approval required') || 
+                          subject.toLowerCase().includes('approval pending')
+  
   // Send email using Nodemailer
   const nodemailer = require('nodemailer')
   
@@ -304,7 +315,7 @@ async function sendEmailViaService({
           <tr>
             <td class="header" style="background-color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 3px solid #1e40af;">
               <img src="cid:logo" alt="Schauenburg Systems" class="logo" style="max-width: 150px; height: auto; margin-bottom: 20px; display: block;" />
-              <p class="header-text" style="color: #1e40af; font-size: 24px; font-weight: bold; margin: 0; line-height: 1.2;">Welcome to Schauenburg Systems</p>
+              <p class="header-text" style="color: #1e40af; font-size: 24px; font-weight: bold; margin: 0; line-height: 1.2;">${isApprovalEmail ? 'Onboarding Supplier Approval Required' : 'Welcome to Schauenburg Systems'}</p>
             </td>
           </tr>
           

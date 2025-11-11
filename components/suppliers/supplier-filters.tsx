@@ -1,25 +1,89 @@
+"use client"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { useState } from "react"
 
-export function SupplierFilters() {
+interface SupplierFiltersProps {
+  onFiltersChange?: (filters: FilterState) => void
+  availableProductsServices?: string[]
+}
+
+interface FilterState {
+  status: string[]
+  category: string
+  rating: string
+  location: string
+}
+
+export function SupplierFilters({ onFiltersChange, availableProductsServices = [] }: SupplierFiltersProps) {
+  const [filters, setFilters] = useState<FilterState>({
+    status: [],
+    category: "all",
+    rating: "any",
+    location: "all"
+  })
+  const handleStatusChange = (status: string, checked: boolean) => {
+    const newStatus = checked 
+      ? [...filters.status, status]
+      : filters.status.filter(s => s !== status)
+    
+    const newFilters = { ...filters, status: newStatus }
+    setFilters(newFilters)
+    onFiltersChange?.(newFilters)
+  }
+
+  const handleCategoryChange = (category: string) => {
+    const newFilters = { ...filters, category }
+    setFilters(newFilters)
+    onFiltersChange?.(newFilters)
+  }
+
+  const handleRatingChange = (rating: string) => {
+    const newFilters = { ...filters, rating }
+    setFilters(newFilters)
+    onFiltersChange?.(newFilters)
+  }
+
+  const handleLocationChange = (location: string) => {
+    const newFilters = { ...filters, location }
+    setFilters(newFilters)
+    onFiltersChange?.(newFilters)
+  }
+
+  const clearFilters = () => {
+    const newFilters = {
+      status: [],
+      category: "all",
+      rating: "any",
+      location: "all"
+    }
+    setFilters(newFilters)
+    onFiltersChange?.(newFilters)
+  }
+
   return (
-    <Card>
+    <Card className="bg-card border-border">
       <CardHeader>
-        <CardTitle className="text-lg">Filters</CardTitle>
+        <CardTitle className="text-lg text-foreground">Filters</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
           <Label className="text-sm font-medium">Status</Label>
           <div className="mt-2 space-y-2">
-            {["Active", "Pending", "Under Review", "Inactive"].map((status) => (
+            {["approved", "pending", "under_review", "inactive"].map((status) => (
               <div key={status} className="flex items-center space-x-2">
-                <Checkbox id={status.toLowerCase()} />
-                <Label htmlFor={status.toLowerCase()} className="text-sm">
-                  {status}
+                <Checkbox 
+                  id={status} 
+                  checked={filters.status.includes(status)}
+                  onCheckedChange={(checked) => handleStatusChange(status, checked as boolean)}
+                />
+                <Label htmlFor={status} className="text-sm">
+                  {status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                 </Label>
               </div>
             ))}
@@ -29,28 +93,30 @@ export function SupplierFilters() {
         <Separator />
 
         <div>
-          <Label className="text-sm font-medium">Category</Label>
-          <Select>
+          <Label className="text-sm font-medium">Products/Services</Label>
+          <Select value={filters.category} onValueChange={handleCategoryChange}>
             <SelectTrigger className="mt-2">
-              <SelectValue placeholder="Select category" />
+              <SelectValue placeholder="Select products/services" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="it">IT Equipment</SelectItem>
-              <SelectItem value="office">Office Supplies</SelectItem>
-              <SelectItem value="services">Services</SelectItem>
-              <SelectItem value="maintenance">Maintenance</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
+              <SelectItem value="all">All Products/Services</SelectItem>
+              {availableProductsServices.map((productService) => (
+                <SelectItem key={productService} value={productService}>
+                  {productService}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
         <div>
           <Label className="text-sm font-medium">Rating</Label>
-          <Select>
+          <Select value={filters.rating} onValueChange={handleRatingChange}>
             <SelectTrigger className="mt-2">
               <SelectValue placeholder="Minimum rating" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="any">Any Rating</SelectItem>
               <SelectItem value="5">5 Stars</SelectItem>
               <SelectItem value="4">4+ Stars</SelectItem>
               <SelectItem value="3">3+ Stars</SelectItem>
@@ -62,11 +128,12 @@ export function SupplierFilters() {
 
         <div>
           <Label className="text-sm font-medium">Location</Label>
-          <Select>
+          <Select value={filters.location} onValueChange={handleLocationChange}>
             <SelectTrigger className="mt-2">
               <SelectValue placeholder="Select location" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
               <SelectItem value="local">Local</SelectItem>
               <SelectItem value="national">National</SelectItem>
               <SelectItem value="international">International</SelectItem>
@@ -77,10 +144,9 @@ export function SupplierFilters() {
         <Separator />
 
         <div className="space-y-2">
-          <Button variant="outline" className="w-full bg-transparent">
+          <Button variant="outline" className="w-full bg-transparent" onClick={clearFilters}>
             Clear Filters
           </Button>
-          <Button className="w-full">Apply Filters</Button>
         </div>
       </CardContent>
     </Card>
