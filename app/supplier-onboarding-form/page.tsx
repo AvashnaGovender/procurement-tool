@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Upload, CheckCircle, AlertCircle, FileIcon, X } from "lucide-react"
 import Image from "next/image"
 
-export default function SupplierOnboardingFormPage() {
+function SupplierOnboardingForm() {
   const searchParams = useSearchParams()
   const onboardingToken = searchParams.get('token')
   
@@ -1057,3 +1057,17 @@ export default function SupplierOnboardingFormPage() {
   )
 }
 
+export default function SupplierOnboardingFormPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
+          <p className="text-slate-600">Loading supplier onboarding form...</p>
+        </div>
+      </div>
+    }>
+      <SupplierOnboardingForm />
+    </Suspense>
+  )
+}

@@ -1,0 +1,186 @@
+Subject: Windows Server Prerequisites Installation Request - Worker Service
+
+Hi [Admin Name],
+
+I need your help to install some prerequisites on our Windows Server [server hostname/IP] for deploying the AI Document Analysis Worker Service.
+
+=============================================================================
+WHAT I NEED INSTALLED (with Administrator privileges):
+=============================================================================
+
+1. DOCKER DESKTOP FOR WINDOWS (Most Important!)
+   Download: https://docs.docker.com/desktop/install/windows-install/
+   - Install Docker Desktop Installer.exe
+   - Choose "Use WSL 2" option during install
+   - Verify: docker --version && docker compose version
+
+2. OLLAMA (AI/LLM Engine) 
+   Download: https://ollama.ai/download/windows
+   - Install OllamaSetup.exe
+   - After install, open PowerShell and run:
+     ollama pull llama3.1:latest
+   - This downloads 4.7GB AI model (~10-15 minutes)
+   - Verify: ollama list (should show llama3.1:latest)
+
+3. TESSERACT OCR (Document text recognition)
+   Download: https://github.com/UB-Mannheim/tesseract/wiki
+   - Install tesseract-ocr-w64-setup-5.3.x.exe (latest version)
+   - Install to: C:\Program Files\Tesseract-OCR
+   - ✅ IMPORTANT: Check "Add to PATH" during installation
+   - Verify: tesseract --version
+
+4. POPPLER UTILS (PDF processing)
+   Download: https://github.com/oschwartz10612/poppler-windows/releases/latest
+   - Download Release-xx.xx.x-0.zip
+   - Extract to: C:\Program Files\poppler
+   - Add to System PATH:
+     PowerShell (as Admin):
+     [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Program Files\poppler\Library\bin", [System.EnvironmentVariableTarget]::Machine)
+   - Verify: pdfinfo -v (restart PowerShell first)
+
+5. POSTGRESQL CLIENT (Optional but recommended)
+   Download: https://www.postgresql.org/download/windows/
+   - Install PostgreSQL (or just command line tools component)
+   - This may already be installed if PostgreSQL is on the server
+
+=============================================================================
+WINDOWS FIREWALL CONFIGURATION:
+=============================================================================
+
+Please open these ports using PowerShell (as Administrator):
+
+# Port 8001 - Worker API
+New-NetFirewallRule -DisplayName "Worker API" -Direction Inbound -LocalPort 8001 -Protocol TCP -Action Allow
+
+# Port 11434 - Ollama
+New-NetFirewallRule -DisplayName "Ollama AI" -Direction Inbound -LocalPort 11434 -Protocol TCP -Action Allow
+
+# Port 5434 - PostgreSQL (if needed)
+New-NetFirewallRule -DisplayName "PostgreSQL" -Direction Inbound -LocalPort 5434 -Protocol TCP -Action Allow
+
+=============================================================================
+SYSTEM REQUIREMENTS CHECK:
+=============================================================================
+
+Please verify the server has:
+- Windows Server 2019 or later
+- CPU: 4+ cores
+- RAM: 8GB+ (16GB recommended)
+- Disk: 15GB+ free space (SSD preferred)
+- Internet access for downloads (~5GB total)
+
+=============================================================================
+VERIFICATION SCRIPT:
+=============================================================================
+
+After installation, please run these PowerShell commands (as Administrator):
+
+docker --version
+docker compose version
+docker run hello-world
+ollama --version
+ollama list
+tesseract --version
+pdfinfo -v
+Invoke-WebRequest -Uri http://localhost:11434/api/version
+
+Expected results:
+✅ Docker shows version 20.10+
+✅ Docker Compose shows version 2.0+
+✅ hello-world container runs successfully
+✅ Ollama shows version
+✅ ollama list shows "llama3.1:latest"
+✅ Tesseract shows version 4.0+
+✅ pdfinfo shows version
+✅ Ollama API returns JSON response
+
+I've attached a complete verification script (verify_install.ps1) that checks everything automatically.
+
+=============================================================================
+INSTALLATION TIME ESTIMATE:
+=============================================================================
+
+- Docker Desktop: ~10 minutes (includes WSL 2)
+- Ollama Software: ~3 minutes
+- Ollama Model Download: ~15 minutes (4.7GB)
+- Tesseract OCR: ~3 minutes
+- Poppler Utils: ~5 minutes (manual extraction)
+- PostgreSQL: ~5 minutes (optional)
+- Firewall Configuration: ~2 minutes
+
+TOTAL: ~45 minutes (mostly download/install time)
+
+=============================================================================
+ATTACHED DOCUMENTATION:
+=============================================================================
+
+I've attached detailed documentation for your reference:
+1. ADMIN_INSTALL_WINDOWS.md - Complete step-by-step guide for Windows Server
+2. ADMIN_PREREQUISITES.md - General guide with all OS options
+3. verify_install.ps1 - PowerShell verification script
+
+The ADMIN_INSTALL_WINDOWS.md file has all commands, download links, and troubleshooting steps specific to Windows Server.
+
+=============================================================================
+SPECIAL NOTES FOR WINDOWS:
+=============================================================================
+
+1. WSL 2 Requirement:
+   - Docker Desktop requires WSL 2 (Windows Subsystem for Linux 2)
+   - The Docker installer will set this up automatically
+   - If issues occur, run: wsl --install && wsl --set-default-version 2
+
+2. PATH Environment Variable:
+   - Tesseract and Poppler must be added to System PATH
+   - This allows the worker service to find these tools
+   - After adding to PATH, restart PowerShell/Command Prompt
+
+3. Administrator Privileges:
+   - All installations require "Run as Administrator"
+   - Firewall rules require Administrator PowerShell
+
+4. Antivirus/Security:
+   - May need to allow Docker, Ollama through Windows Defender
+   - May need to whitelist the worker service ports
+
+=============================================================================
+AFTER INSTALLATION:
+=============================================================================
+
+Please let me know:
+1. ✅ All installations completed successfully
+2. ✅ Verification script passes all checks
+3. ✅ Any error messages or issues encountered
+4. ✅ Output of the verification commands
+
+Once this is complete, I can proceed with deploying the worker service (which won't require your assistance).
+
+=============================================================================
+SUPPORT:
+=============================================================================
+
+If you encounter any issues:
+1. Check ADMIN_INSTALL_WINDOWS.md troubleshooting section
+2. Run the verify_install.ps1 script and send me the output
+3. Contact me with any error messages
+
+Common issues and solutions are documented in the attached guides.
+
+=============================================================================
+
+Thank you for your help with this installation!
+
+Best regards,
+[Your Name]
+
+---
+
+P.S. Why each component is needed:
+- Docker: Runs the service in an isolated container
+- Ollama: Local AI engine for document analysis (no cloud/external dependencies)
+- Tesseract: Extracts text from scanned documents and images
+- Poppler: Converts PDFs to images for OCR processing
+- PostgreSQL: Connects to existing database (likely already installed)
+
+
+

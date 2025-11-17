@@ -434,6 +434,9 @@ async function sendEmailNotifications(
     const isRevision = onboarding?.revisionCount > 0
     const revisionNotes = onboarding?.revisionNotes || null
 
+    // Get base URL for email links
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+
     // 1. Send notification to admin (logged-in user who will process this)
     const adminNotification = {
       from: smtpConfig.fromEmail,
@@ -753,7 +756,7 @@ async function sendEmailNotifications(
                       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0;">
                         <tr>
                           <td align="center">
-                            <a href="http://localhost:3000/suppliers/onboard?tab=review" style="display: inline-block; background: #0047AB; color: white; padding: 14px 40px; text-decoration: none; font-weight: 600; font-size: 16px;">
+                            <a href="${baseUrl}/suppliers/onboard?tab=review" style="display: inline-block; background: #0047AB; color: white; padding: 14px 40px; text-decoration: none; font-weight: 600; font-size: 16px;">
                               Review Submission in Dashboard
                             </a>
                           </td>

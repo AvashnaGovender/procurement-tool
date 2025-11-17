@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Home, Settings, Plus, List } from "lucide-react"
@@ -22,7 +22,7 @@ import { SupplierInitiationForm } from "@/components/suppliers/supplier-initiati
 import { SupplierInitiationStatus } from "@/components/suppliers/supplier-initiation-status"
 import { SMTPConfiguration } from "@/components/settings/smtp-configuration"
 
-export default function SupplierOnboardingPage() {
+function SupplierOnboardingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(1)
@@ -291,5 +291,23 @@ export default function SupplierOnboardingPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export default function SupplierOnboardingPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen overflow-hidden bg-slate-100">
+        <Sidebar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
+            <p className="text-slate-600">Loading supplier onboarding...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <SupplierOnboardingContent />
+    </Suspense>
   )
 }

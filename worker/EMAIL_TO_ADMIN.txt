@@ -1,0 +1,138 @@
+Subject: Server Prerequisites Installation Request - Worker Service
+
+Hi [Admin Name],
+
+I need your help to install some prerequisites on [server hostname/IP] for deploying our AI Document Analysis Worker Service.
+
+=============================================================================
+WHAT I NEED INSTALLED (with sudo/admin access):
+=============================================================================
+
+1. DOCKER & DOCKER COMPOSE (Most Important!)
+   - Docker Engine 20.10+
+   - Docker Compose 2.0+
+   - Installation: https://docs.docker.com/engine/install/
+   
+   Ubuntu/Debian quick install:
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sudo sh get-docker.sh
+   sudo apt-get install -y docker-compose-plugin
+
+2. OLLAMA (AI/LLM Engine)
+   - Installation: curl -fsSL https://ollama.ai/install.sh | sh
+   - Start service: sudo systemctl start ollama && sudo systemctl enable ollama
+   - Download model: ollama pull llama3.1:latest
+   - Note: This downloads 4.7GB, takes ~10 minutes
+
+3. TESSERACT OCR (Document text recognition)
+   - Ubuntu/Debian: sudo apt-get install tesseract-ocr tesseract-ocr-eng
+   - CentOS/RHEL: sudo yum install tesseract tesseract-langpack-eng
+
+4. POPPLER UTILS (PDF processing)
+   - Ubuntu/Debian: sudo apt-get install poppler-utils
+   - CentOS/RHEL: sudo yum install poppler-utils
+
+5. POSTGRESQL CLIENT LIBRARIES (Database connectivity)
+   - Ubuntu/Debian: sudo apt-get install libpq-dev
+   - CentOS/RHEL: sudo yum install postgresql-devel
+
+=============================================================================
+FIREWALL CONFIGURATION:
+=============================================================================
+
+Please open these ports:
+- Port 8001 (Worker API - internal access only)
+- Port 11434 (Ollama - localhost only)
+- Port 5434 (PostgreSQL - if on same server)
+
+Ubuntu/Debian:
+sudo ufw allow 8001/tcp
+sudo ufw allow 11434/tcp
+sudo ufw allow 5434/tcp
+sudo ufw reload
+
+CentOS/RHEL:
+sudo firewall-cmd --permanent --add-port=8001/tcp
+sudo firewall-cmd --permanent --add-port=11434/tcp
+sudo firewall-cmd --permanent --add-port=5434/tcp
+sudo firewall-cmd --reload
+
+=============================================================================
+USER PERMISSIONS:
+=============================================================================
+
+Please add my user account to the docker group:
+sudo usermod -aG docker [my-username]
+
+(I'll need to logout/login after this)
+
+=============================================================================
+SYSTEM REQUIREMENTS:
+=============================================================================
+
+Please verify the server has:
+- CPU: 4+ cores
+- RAM: 8GB+ (16GB recommended)
+- Disk: 15GB+ free space (SSD preferred)
+
+=============================================================================
+VERIFICATION:
+=============================================================================
+
+After installation, please run these commands to verify:
+
+docker --version
+docker compose version
+ollama --version
+tesseract --version
+pdfinfo -v
+curl http://localhost:11434/api/version
+ollama list
+
+Expected to see llama3.1:latest in the models list.
+
+=============================================================================
+INSTALLATION TIME ESTIMATE:
+=============================================================================
+
+- Docker: ~5 minutes
+- Ollama + Model: ~15 minutes (includes 4.7GB download)
+- Other tools: ~5 minutes
+- Configuration: ~5 minutes
+TOTAL: ~30 minutes
+
+=============================================================================
+ATTACHED DOCUMENTATION:
+=============================================================================
+
+I've attached two files for your reference:
+1. ADMIN_PREREQUISITES.md - Complete installation guide with detailed commands
+2. ADMIN_INSTALL_QUICK.md - Quick reference with all commands
+
+For Ubuntu/Debian, there's an all-in-one install script in ADMIN_INSTALL_QUICK.md that automates everything.
+
+=============================================================================
+
+Please let me know:
+1. When you've completed the installation
+2. If you encounter any issues
+3. The output of the verification commands
+
+Once this is complete, I can proceed with deploying the worker service (which won't require your assistance).
+
+Thank you for your help!
+
+Best regards,
+[Your Name]
+
+---
+
+P.S. If you have any questions about why each component is needed:
+- Docker: Containerization platform (runs the service isolated)
+- Ollama: Local AI engine for document analysis (no cloud dependencies)
+- Tesseract: Extracts text from scanned documents/images
+- Poppler: Converts PDFs to images for OCR processing
+- PostgreSQL libs: Connects to existing database
+
+
+

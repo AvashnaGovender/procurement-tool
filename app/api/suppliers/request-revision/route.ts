@@ -107,9 +107,10 @@ async function sendRevisionRequestEmail(supplier: any, revisionNotes: string, on
     })
 
     // Create form URL with token if available
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
     const formUrl = onboardingToken 
-      ? `http://localhost:3000/supplier-onboarding-form?token=${onboardingToken}`
-      : 'http://localhost:3000/supplier-onboarding-form'
+      ? `${baseUrl}/supplier-onboarding-form?token=${onboardingToken}`
+      : `${baseUrl}/supplier-onboarding-form`
 
     // Create revision request email content
     const emailSubject = 'Action Required: Supplier Registration Revisions - Schauenburg Systems'
