@@ -11,10 +11,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Admins can see all suppliers, others only see their own
-    const whereClause = session.user.role === 'ADMIN' 
-      ? {} 
-      : { createdById: session.user.id }
+    console.log(`📋 Fetching suppliers for user: ${session.user.email}, role: ${session.user.role}`)
+
+    // Define where clause based on user role:
+    // - ADMIN, MANAGER, PROCUREMENT_MANAGER: See all suppliers
+    // - Regular users: Only see approved suppliers OR suppliers they created
+    let whereClause: any = {}
+
+    if (['ADMIN', 'MANAGER', 'PROCUREMENT_MANAGER'].includes(session.user.role)) {
+      // Managers and admins see all suppliers
+      whereClause = {}
+    } else {
+      // Regular users only see:
+      // 1. Suppliers they created (to track their initiation), OR
+      // 2. Approved suppliers (public supplier directory)
+      whereClause = {
+        OR: [
+          { createdById: session.user.id },
+          { status: 'APPROVED' }
+        ]
+      }
+    }
+
+    console.log(`   Where clause:`, JSON.stringify(whereClause))
 
     const suppliers = await prisma.supplier.findMany({
       where: whereClause,
@@ -49,6 +68,8 @@ export async function GET(request: NextRequest) {
         }
       }
     })
+
+    console.log(`   ✅ Returning ${suppliers.length} suppliers`)
 
     return NextResponse.json({
       success: true,

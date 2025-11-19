@@ -92,6 +92,7 @@ export async function GET(request: NextRequest) {
         },
         initiatedBy: {
           select: {
+            id: true,
             name: true,
             email: true
           }
@@ -129,6 +130,8 @@ export async function GET(request: NextRequest) {
         submittedAt: 'desc'
       }
     })
+
+    console.log(`📊 Found ${initiations.length} initiations for user ${session.user.email} (role: ${session.user.role})`)
 
     const formattedInitiations = initiations.map(initiation => {
       // Check if this initiation is visible to the user via delegation
@@ -173,6 +176,10 @@ export async function GET(request: NextRequest) {
         processReadUnderstood: initiation.processReadUnderstood,
         dueDiligenceCompleted: initiation.dueDiligenceCompleted,
         initiatedById: initiation.initiatedById, // Include initiator ID for frontend filtering
+        initiatedBy: {
+          name: initiation.initiatedBy?.name || 'Unknown',
+          email: initiation.initiatedBy?.email || 'Unknown'
+        },
         managerApproval: initiation.managerApproval ? {
           status: initiation.managerApproval.status,
           approver: initiation.managerApproval.approver.name,

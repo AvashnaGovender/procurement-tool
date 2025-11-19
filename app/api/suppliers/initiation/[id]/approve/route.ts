@@ -149,8 +149,9 @@ export async function POST(
               supplierName: initiationDetails.supplierName,
               contactEmail: initiationDetails.supplierEmail,
               companyName: initiationDetails.supplierName,
-              contactPerson: 'To be provided by supplier',
+              contactPerson: initiationDetails.supplierContactPerson,
               businessType: 'OTHER', // Default, will be updated when supplier submits
+              sector: initiationDetails.productServiceCategory, // Store the category from initiation
               status: 'PENDING',
               createdById: initiationDetails.initiatedById
             }
@@ -161,7 +162,7 @@ export async function POST(
             data: {
               supplierId: supplier.id,
               initiationId: initiationId,
-              contactName: initiationDetails.supplierName,
+              contactName: initiationDetails.supplierContactPerson,
               contactEmail: initiationDetails.supplierEmail,
               businessType: 'OTHER',
               sector: initiationDetails.productServiceCategory,
@@ -187,7 +188,7 @@ export async function POST(
             // Prepare email content
             const emailSubject = 'Supplier Onboarding - Approval Granted'
             const emailContent = `
-Dear ${initiationDetails.supplierName},
+Dear ${initiationDetails.supplierContactPerson},
 
 Welcome to Schauenburg Systems! We are pleased to inform you that your supplier onboarding request has been approved.
 

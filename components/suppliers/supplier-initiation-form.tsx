@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -40,6 +40,16 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
     onceOffPurchase: false,
     onboardingReason: ""
   })
+
+  // Auto-fill requester name from session when it loads
+  useEffect(() => {
+    if (session?.user?.name) {
+      setFormData(prev => ({
+        ...prev,
+        requesterName: session.user.name || ""
+      }))
+    }
+  }, [session?.user?.name])
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -275,13 +285,10 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
             <Input
               id="requesterName"
               value={formData.requesterName}
-              onChange={(e) => handleInputChange('requesterName', e.target.value)}
-              placeholder="Enter requester name"
-              className={!formData.requesterName ? "border-red-300" : ""}
+              disabled
+              className="bg-gray-50 cursor-not-allowed"
             />
-            {!formData.requesterName && (
-              <p className="text-sm text-red-600">Please enter requester name</p>
-            )}
+            <p className="text-xs text-gray-500">Auto-filled from your account</p>
           </div>
 
           <div className="space-y-2">

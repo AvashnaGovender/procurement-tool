@@ -141,10 +141,13 @@ export function SupplierList({ searchQuery = "", filters }: SupplierListProps) {
 
       // Products/Services filter
       if (filters.category && filters.category !== 'all') {
-        filtered = filtered.filter(supplier => 
-          supplier.sector === filters.category || 
-          supplier.natureOfBusiness === filters.category
-        )
+        console.log('🔍 Filtering by category:', filters.category)
+        filtered = filtered.filter(supplier => {
+          const matches = supplier.sector === filters.category || 
+                         supplier.natureOfBusiness === filters.category
+          console.log(`  Supplier: ${supplier.companyName}, sector: ${supplier.sector}, natureOfBusiness: ${supplier.natureOfBusiness}, matches: ${matches}`)
+          return matches
+        })
       }
 
       // Rating filter (mock implementation - would need real evaluation data)
