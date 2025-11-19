@@ -172,19 +172,16 @@ export default function ApprovalsPage() {
     // Manager approval must be PENDING
     if (managerStatus !== 'PENDING') return false
     
-    // Only the assigned approver can approve (check by approverId)
-    // Admins and Approvers can also approve if they're assigned
-    if (userRole === 'ADMIN' || userRole === 'APPROVER') {
-      // Admin/Approver can approve if they're the assigned approver
-      return managerApproverId === userId
-    }
+    // Check if user is directly assigned as manager approver
+    const isDirectlyAssigned = managerApproverId === userId
     
-    // Regular managers can only approve if they're the assigned approver
-    if (userRole === 'MANAGER') {
-      return managerApproverId === userId
-    }
+    // Check if user has delegated manager authority
+    const hasDelegatedAuthority = initiation.isDelegated && 
+                                   (initiation.delegationType === 'MANAGER' || 
+                                    initiation.delegationType === 'BOTH')
     
-    return false
+    // User can approve if they're directly assigned OR have delegated authority
+    return isDirectlyAssigned || hasDelegatedAuthority
   }
 
   const canApproveAsProcurement = (initiation: SupplierInitiation) => {
@@ -202,19 +199,16 @@ export default function ApprovalsPage() {
     // Procurement approval must be PENDING
     if (procurementStatus !== 'PENDING') return false
     
-    // Only the assigned approver can approve (check by approverId)
-    // Admins and Approvers can also approve if they're assigned
-    if (userRole === 'ADMIN' || userRole === 'APPROVER') {
-      // Admin/Approver can approve if they're the assigned approver
-      return procurementApproverId === userId
-    }
+    // Check if user is directly assigned as procurement approver
+    const isDirectlyAssigned = procurementApproverId === userId
     
-    // Procurement managers can only approve if they're the assigned approver
-    if (userRole === 'PROCUREMENT_MANAGER') {
-      return procurementApproverId === userId
-    }
+    // Check if user has delegated procurement authority
+    const hasDelegatedAuthority = initiation.isDelegated && 
+                                   (initiation.delegationType === 'PROCUREMENT' || 
+                                    initiation.delegationType === 'BOTH')
     
-    return false
+    // User can approve if they're directly assigned OR have delegated authority
+    return isDirectlyAssigned || hasDelegatedAuthority
   }
 
   const getApprovalStatus = (initiation: SupplierInitiation) => {

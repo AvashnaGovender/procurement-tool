@@ -175,6 +175,55 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ No procurement manager found for approval!')
     }
 
+    // Check for active delegations
+    const now = new Date()
+    const managerDelegations = assignedManager ? await prisma.userDelegation.findMany({
+      where: {
+        delegatorId: assignedManager.id,
+        isActive: true,
+        startDate: { lte: now },
+        endDate: { gte: now },
+        OR: [
+          { delegationType: 'ALL_APPROVALS' },
+          { delegationType: 'MANAGER_APPROVALS' }
+        ]
+      },
+      include: {
+        delegate: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    }) : []
+    
+    const procurementDelegations = assignedProcurementManager ? await prisma.userDelegation.findMany({
+      where: {
+        delegatorId: assignedProcurementManager.id,
+        isActive: true,
+        startDate: { lte: now },
+        endDate: { gte: now },
+        OR: [
+          { delegationType: 'ALL_APPROVALS' },
+          { delegationType: 'PROCUREMENT_APPROVALS' }
+        ]
+      },
+      include: {
+        delegate: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    }) : []
+
+    console.log(`📋 Manager has ${managerDelegations.length} active delegation(s)`)
+    console.log(`📋 Procurement Manager has ${procurementDelegations.length} active delegation(s)`)
+
     // Send approval emails to managers
     try {
       console.log('📧 Sending approval emails to managers...')
@@ -210,7 +259,7 @@ Best regards,
 Schauenburg Systems Procurement System
       `.trim()
       
-      // Send manager approval email
+      // Send manager approval email to assigned manager
       if (assignedManager) {
         console.log('📧 Sending manager approval email to:', assignedManager.email)
         const managerEmailResult = await sendEmail({
@@ -221,6 +270,52 @@ Schauenburg Systems Procurement System
           businessType: productServiceCategory
         })
         console.log('Manager email result:', managerEmailResult)
+      }
+      
+      // Send manager approval email to delegates
+      for (const delegation of managerDelegations) {
+        const delegateEmailContent = `
+Dear ${delegation.delegate.name},
+
+You are receiving this email because ${assignedManager?.name || 'a manager'} has delegated their approval authority to you.
+
+A new supplier initiation request has been submitted and requires approval.
+
+<strong>Request Details:</strong>
+- <strong>Supplier:</strong> ${supplierName}
+- <strong>Email:</strong> ${supplierEmail}
+- <strong>Business Unit:</strong> ${businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300'}
+- <strong>Product/Service Category:</strong> ${productServiceCategory}
+- <strong>Requested by:</strong> ${requesterName}
+- <strong>Purchase Type:</strong> ${regularPurchase ? 'Regular Purchase' : ''}${regularPurchase && onceOffPurchase ? ', ' : ''}${onceOffPurchase ? 'Once-off Purchase' : ''}
+${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> R${parseFloat(annualPurchaseValue).toLocaleString()}` : ''}
+
+<strong>Reason for Onboarding:</strong>
+${onboardingReason}
+
+<strong>Note:</strong> You are acting as a delegate for ${assignedManager?.name || 'the manager'}.
+
+Please click the button below to review and approve this request:
+
+<div style="text-align: center; margin: 30px 0;">
+  <a href="${approvalsUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">Review & Approve Request</a>
+</div>
+
+Or copy this link to your browser: ${approvalsUrl}
+
+Best regards,
+Schauenburg Systems Procurement System
+        `.trim()
+        
+        console.log('📧 Sending manager approval email to delegate:', delegation.delegate.email)
+        const delegateEmailResult = await sendEmail({
+          to: delegation.delegate.email,
+          subject: 'Supplier Approval Required - New Onboarding Request (Delegated)',
+          content: delegateEmailContent,
+          supplierName: supplierName,
+          businessType: productServiceCategory
+        })
+        console.log('Delegate email result:', delegateEmailResult)
       }
       
       // Procurement approval email
@@ -253,7 +348,7 @@ Best regards,
 Schauenburg Systems Procurement System
       `.trim()
       
-      // Send procurement approval email
+      // Send procurement approval email to assigned procurement manager
       if (assignedProcurementManager) {
         console.log('📧 Sending procurement approval email to:', assignedProcurementManager.email)
         const procurementEmailResult = await sendEmail({
@@ -270,6 +365,52 @@ Schauenburg Systems Procurement System
         } else {
           console.error('❌ Failed to send procurement approval email:', procurementEmailResult.message)
         }
+      }
+      
+      // Send procurement approval email to delegates
+      for (const delegation of procurementDelegations) {
+        const delegateEmailContent = `
+Dear ${delegation.delegate.name},
+
+You are receiving this email because ${assignedProcurementManager?.name || 'a procurement manager'} has delegated their approval authority to you.
+
+A new supplier initiation request has been submitted and requires approval.
+
+<strong>Request Details:</strong>
+- <strong>Supplier:</strong> ${supplierName}
+- <strong>Email:</strong> ${supplierEmail}
+- <strong>Business Unit:</strong> ${businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300'}
+- <strong>Product/Service Category:</strong> ${productServiceCategory}
+- <strong>Requested by:</strong> ${requesterName}
+- <strong>Purchase Type:</strong> ${regularPurchase ? 'Regular Purchase' : ''}${regularPurchase && onceOffPurchase ? ', ' : ''}${onceOffPurchase ? 'Once-off Purchase' : ''}
+${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> R${parseFloat(annualPurchaseValue).toLocaleString()}` : ''}
+
+<strong>Reason for Onboarding:</strong>
+${onboardingReason}
+
+<strong>Note:</strong> You are acting as a delegate for ${assignedProcurementManager?.name || 'the procurement manager'}.
+
+Please click the button below to review and approve this request:
+
+<div style="text-align: center; margin: 30px 0;">
+  <a href="${approvalsUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">Review & Approve Request</a>
+</div>
+
+Or copy this link to your browser: ${approvalsUrl}
+
+Best regards,
+Schauenburg Systems Procurement System
+        `.trim()
+        
+        console.log('📧 Sending procurement approval email to delegate:', delegation.delegate.email)
+        const delegateEmailResult = await sendEmail({
+          to: delegation.delegate.email,
+          subject: 'Supplier Approval Required - New Onboarding Request (Delegated)',
+          content: delegateEmailContent,
+          supplierName: supplierName,
+          businessType: productServiceCategory
+        })
+        console.log('Delegate email result:', delegateEmailResult)
       }
       
       console.log('✅ Approval notification emails processed')

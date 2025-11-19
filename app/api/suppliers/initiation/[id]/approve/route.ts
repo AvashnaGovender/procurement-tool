@@ -39,12 +39,50 @@ export async function POST(
       }, { status: 403 })
     }
 
+    // Check for active delegations where current user is the delegate
+    const now = new Date()
+    const activeDelegations = await prisma.userDelegation.findMany({
+      where: {
+        delegateId: session.user.id,
+        isActive: true,
+        startDate: { lte: now },
+        endDate: { gte: now }
+      }
+    })
+    
+    const delegatedUserIds = activeDelegations.map(d => d.delegatorId)
+    
+    // Check if user has delegation authority
+    const hasDelegatedManagerAuthority = activeDelegations.some(d => 
+      d.delegatorId === initiation.managerApproval?.approverId &&
+      (d.delegationType === 'ALL_APPROVALS' || d.delegationType === 'MANAGER_APPROVALS')
+    )
+    
+    const hasDelegatedProcurementAuthority = activeDelegations.some(d => 
+      d.delegatorId === initiation.procurementApproval?.approverId &&
+      (d.delegationType === 'ALL_APPROVALS' || d.delegationType === 'PROCUREMENT_APPROVALS')
+    )
+    
+    console.log(`\n🔐 Approval Authorization Check:`)
+    console.log(`   User: ${session.user.email} (${session.user.role})`)
+    console.log(`   Initiation ID: ${initiationId}`)
+    console.log(`   Manager Approval - Assigned to: ${initiation.managerApproval?.approverId || 'None'}`)
+    console.log(`   Procurement Approval - Assigned to: ${initiation.procurementApproval?.approverId || 'None'}`)
+    console.log(`   Active Delegations: ${activeDelegations.length}`)
+    console.log(`   Delegated Manager Authority: ${hasDelegatedManagerAuthority}`)
+    console.log(`   Delegated Procurement Authority: ${hasDelegatedProcurementAuthority}`)
+
     // Determine which approval to update based on user role and assigned approver
     const userRole = session.user.role
     const isAssignedManager = initiation.managerApproval && initiation.managerApproval.approverId === session.user.id
     const isAssignedProcurementManager = initiation.procurementApproval && initiation.procurementApproval.approverId === session.user.id
     const isAdmin = userRole === 'ADMIN'
     const isApprover = userRole === 'APPROVER'
+    
+    // Can act as manager if: assigned as manager OR has delegated manager authority
+    const canApproveAsManager = isAssignedManager || hasDelegatedManagerAuthority
+    // Can act as procurement manager if: assigned as procurement manager OR has delegated procurement authority
+    const canApproveAsProcurementManager = isAssignedProcurementManager || hasDelegatedProcurementAuthority
 
     // Determine which approval to process
     let shouldUpdateManagerApproval = false
@@ -57,24 +95,41 @@ export async function POST(
       } else if (approverRole === 'PROCUREMENT_MANAGER') {
         shouldUpdateProcurementApproval = true
       } else {
-        // If no role specified, check which approval is pending and if user is assigned
-        if (initiation.managerApproval?.status === 'PENDING' && isAssignedManager) {
+        // If no role specified, check which approval is pending
+        if (initiation.managerApproval?.status === 'PENDING' && canApproveAsManager) {
           shouldUpdateManagerApproval = true
-        } else if (initiation.procurementApproval?.status === 'PENDING' && isAssignedProcurementManager) {
+        } else if (initiation.procurementApproval?.status === 'PENDING' && canApproveAsProcurementManager) {
           shouldUpdateProcurementApproval = true
         }
       }
-    } else if (isAssignedManager) {
-      // Only the assigned manager can approve (not just any user with MANAGER role)
-      shouldUpdateManagerApproval = true
-    } else if (isAssignedProcurementManager) {
-      // Only the assigned procurement manager can approve (not just any user with PROCUREMENT_MANAGER role)
-      shouldUpdateProcurementApproval = true
+    } else {
+      // Check based on explicit role parameter OR which approvals are pending
+      if (approverRole === 'MANAGER') {
+        if (canApproveAsManager && initiation.managerApproval?.status === 'PENDING') {
+          shouldUpdateManagerApproval = true
+        }
+      } else if (approverRole === 'PROCUREMENT_MANAGER') {
+        if (canApproveAsProcurementManager && initiation.procurementApproval?.status === 'PENDING') {
+          shouldUpdateProcurementApproval = true
+        }
+      } else {
+        // No specific role - default to first pending approval they can handle
+        if (canApproveAsManager && initiation.managerApproval?.status === 'PENDING') {
+          shouldUpdateManagerApproval = true
+        } else if (canApproveAsProcurementManager && initiation.procurementApproval?.status === 'PENDING') {
+          shouldUpdateProcurementApproval = true
+        }
+      }
     }
+    
+    console.log(`   Can Approve as Manager: ${canApproveAsManager}`)
+    console.log(`   Can Approve as Procurement: ${canApproveAsProcurementManager}`)
+    console.log(`   Should Update Manager Approval: ${shouldUpdateManagerApproval}`)
+    console.log(`   Should Update Procurement Approval: ${shouldUpdateProcurementApproval}`)
 
     if (!shouldUpdateManagerApproval && !shouldUpdateProcurementApproval) {
       return NextResponse.json({ 
-        error: 'Not authorized to approve this initiation. Only the assigned approver can approve this request.' 
+        error: 'Not authorized to approve this initiation. Only the assigned approver or their delegate can approve this request.' 
       }, { status: 403 })
     }
 

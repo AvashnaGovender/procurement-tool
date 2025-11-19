@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Send email notification to delegate
+    // Send email notifications
     try {
       const { sendEmail } = await import('@/lib/email-sender')
       
@@ -192,7 +192,8 @@ export async function POST(request: NextRequest) {
         'CONTRACT_APPROVALS': 'Contract Approvals'
       }
 
-      const emailContent = `
+      // Email to delegate (person receiving the delegation)
+      const delegateEmailContent = `
 Dear ${delegation.delegate.name},
 
 ${delegation.delegator.name} has delegated their approval authority to you.
@@ -213,13 +214,49 @@ Best regards,
 Procurement Team
       `.trim()
 
+      console.log(`📧 Sending delegation notification to delegate: ${delegation.delegate.email}`)
       await sendEmail({
         to: delegation.delegate.email,
         subject: `Approval Authority Delegated to You by ${delegation.delegator.name}`,
-        content: emailContent
+        content: delegateEmailContent,
+        supplierName: delegation.delegate.name,
+        businessType: 'Delegation Notification'
       })
+
+      // Email to delegator (person creating the delegation)
+      const delegatorEmailContent = `
+Dear ${delegation.delegator.name},
+
+This is a confirmation that you have successfully delegated your approval authority to ${delegation.delegate.name}.
+
+<strong>Delegation Details:</strong>
+- <strong>Delegate:</strong> ${delegation.delegate.name} (${delegation.delegate.email})
+- <strong>Type:</strong> ${delegationTypeLabel[delegation.delegationType] || delegation.delegationType}
+- <strong>Period:</strong> ${format(start, 'PP')} to ${format(end, 'PP')}
+${reason ? `- <strong>Reason:</strong> ${reason}` : ''}
+${notes ? `- <strong>Notes:</strong> ${notes}` : ''}
+
+During this period, ${delegation.delegate.name} will be able to approve requests on your behalf. 
+You will receive notifications when they take actions as your delegate.
+
+You can view and manage your delegations in the Settings page.
+
+Best regards,
+Procurement Team
+      `.trim()
+
+      console.log(`📧 Sending delegation confirmation to delegator: ${delegation.delegator.email}`)
+      await sendEmail({
+        to: delegation.delegator.email,
+        subject: `Delegation Created: You Have Delegated Authority to ${delegation.delegate.name}`,
+        content: delegatorEmailContent,
+        supplierName: delegation.delegator.name,
+        businessType: 'Delegation Confirmation'
+      })
+
+      console.log('✅ Delegation notification emails sent successfully')
     } catch (emailError) {
-      console.error('Failed to send delegation email:', emailError)
+      console.error('❌ Failed to send delegation emails:', emailError)
       // Don't fail the delegation creation if email fails
     }
 
