@@ -108,6 +108,11 @@ export function SupplierList({ searchQuery = "", filters }: SupplierListProps) {
 
   // Filter suppliers based on search query and filters
   useEffect(() => {
+    console.log('\n🔄 Starting filter operation...')
+    console.log(`   Total suppliers loaded: ${suppliers.length}`)
+    console.log(`   Search query: "${searchQuery}"`)
+    console.log(`   Filters:`, filters)
+    
     let filtered = suppliers
 
     // Apply search filter
@@ -128,26 +133,39 @@ export function SupplierList({ searchQuery = "", filters }: SupplierListProps) {
           natureOfBusiness.includes(searchLower)
         )
       })
+      console.log(`   After search filter: ${filtered.length} suppliers`)
     }
 
     // Apply filters
     if (filters) {
       // Status filter
       if (filters.status.length > 0) {
+        const beforeCount = filtered.length
         filtered = filtered.filter(supplier => 
           filters.status.includes(supplier.status.toLowerCase())
         )
+        console.log(`   Status filter (${filters.status.join(', ')}): ${beforeCount} → ${filtered.length} suppliers`)
       }
 
       // Products/Services filter
       if (filters.category && filters.category !== 'all') {
-        console.log('🔍 Filtering by category:', filters.category)
+        console.log(`\n   🎯 Category filter active: "${filters.category}"`)
+        console.log(`   Checking ${filtered.length} suppliers...`)
+        
         filtered = filtered.filter(supplier => {
-          const matches = supplier.sector === filters.category || 
-                         supplier.natureOfBusiness === filters.category
-          console.log(`  Supplier: ${supplier.companyName}, sector: ${supplier.sector}, natureOfBusiness: ${supplier.natureOfBusiness}, matches: ${matches}`)
+          const sectorMatch = supplier.sector === filters.category
+          const natureMatch = supplier.natureOfBusiness === filters.category
+          const matches = sectorMatch || natureMatch
+          
+          console.log(`      • ${supplier.companyName || 'N/A'}`)
+          console.log(`        - sector: "${supplier.sector || 'NOT SET'}" ${sectorMatch ? '✅' : '❌'}`)
+          console.log(`        - natureOfBusiness: "${supplier.natureOfBusiness || 'NOT SET'}" ${natureMatch ? '✅' : '❌'}`)
+          console.log(`        - Result: ${matches ? '✅ INCLUDED' : '❌ EXCLUDED'}`)
+          
           return matches
         })
+        
+        console.log(`   After category filter: ${filtered.length} suppliers\n`)
       }
 
       // Rating filter (mock implementation - would need real evaluation data)
@@ -175,6 +193,7 @@ export function SupplierList({ searchQuery = "", filters }: SupplierListProps) {
       }
     }
 
+    console.log(`\n✅ Final result: ${filtered.length} suppliers after all filters`)
     setFilteredSuppliers(filtered)
   }, [suppliers, searchQuery, filters])
 

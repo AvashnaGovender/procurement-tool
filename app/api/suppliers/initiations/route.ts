@@ -11,12 +11,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if user has permission to view initiations
-    const canView = ['ADMIN', 'MANAGER', 'PROCUREMENT_MANAGER', 'APPROVER'].includes(session.user.role)
-    
-    if (!canView) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    // All authenticated users can view initiations
+    // (Filtering logic below ensures users only see their own or ones they need to approve)
 
     // Check for active delegations where current user is the delegate
     const now = new Date()
@@ -35,6 +31,10 @@ export async function GET(request: NextRequest) {
 
     // Get IDs of users this person is delegating for
     const delegatedUserIds = activeDelegations.map(d => d.delegatorId)
+
+    console.log(`\n📋 Fetching initiations for user: ${session.user.email}`)
+    console.log(`   User ID: ${session.user.id}`)
+    console.log(`   User Role: ${session.user.role}`)
 
     // Build where clause based on user role
     // - Admins can see all initiations
@@ -63,8 +63,13 @@ export async function GET(request: NextRequest) {
       } else {
         // Regular users only see their own
         userFilterClause = { initiatedById: session.user.id }
+        console.log(`   Regular user - filtering by initiatedById: ${session.user.id}`)
       }
+    } else {
+      console.log(`   Admin user - no filtering`)
     }
+    
+    console.log(`   User filter clause:`, JSON.stringify(userFilterClause))
 
     const initiations = await prisma.supplierInitiation.findMany({
       include: {
@@ -131,7 +136,12 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    console.log(`📊 Found ${initiations.length} initiations for user ${session.user.email} (role: ${session.user.role})`)
+    console.log(`\n📊 Found ${initiations.length} initiations for user ${session.user.email} (role: ${session.user.role})`)
+    
+    // Log each initiation for debugging
+    initiations.forEach((init, index) => {
+      console.log(`   [${index + 1}] ${init.supplierName} - Status: ${init.status}, InitiatedBy: ${init.initiatedById}, HasOnboarding: ${!!init.onboarding}`)
+    })
 
     const formattedInitiations = initiations.map(initiation => {
       // Check if this initiation is visible to the user via delegation

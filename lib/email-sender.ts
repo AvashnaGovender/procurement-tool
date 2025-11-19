@@ -94,7 +94,10 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   emailContent = emailContent.replace(/\n/g, '<br />\n')
   
   if (onboardingToken) {
-    const formUrl = `http://localhost:3000/supplier-onboarding-form?token=${onboardingToken}`
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const formUrl = `${baseUrl}/supplier-onboarding-form?token=${onboardingToken}`
+    
+    console.log('🔗 Generated onboarding form URL:', formUrl)
     
     // Create a clean HTML button with no newlines inside it
     const formLinkHtml = `<div style="text-align: center; margin: 30px 0;"><a href="${formUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">Complete Registration Form</a></div>`

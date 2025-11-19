@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 
-// GET - Fetch all users (admin only)
+// GET - Fetch all users
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -13,35 +13,57 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only admins can view all users
-    if (session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    console.log(`👥 Fetching users for: ${session.user.email}, role: ${session.user.role}`)
+
+    // Admins get full user information, others get basic info for delegations
+    if (session.user.role === 'ADMIN') {
+      // Admins see all users with full details
+      const users = await prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          managerId: true,
+          department: true,
+          manager: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      })
+      console.log(`   ✅ Admin: Returning ${users.length} users with full details`)
+      return NextResponse.json({ success: true, users })
+    } else {
+      // Non-admins only see active users with basic info (for delegations)
+      const users = await prisma.user.findMany({
+        where: {
+          isActive: true,
+          id: { not: session.user.id } // Exclude self
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          department: true
+        },
+        orderBy: {
+          name: 'asc'
+        }
+      })
+      console.log(`   ✅ Regular user: Returning ${users.length} active users (basic info)`)
+      return NextResponse.json({ success: true, users })
     }
 
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        managerId: true,
-        department: true,
-        manager: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
-
-    return NextResponse.json({ success: true, users })
   } catch (error) {
     console.error('Error fetching users:', error)
     return NextResponse.json(
