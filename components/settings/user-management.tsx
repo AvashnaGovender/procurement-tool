@@ -59,7 +59,7 @@ export function UserManagement() {
       const response = await fetch("/api/users")
       if (response.ok) {
         const data = await response.json()
-        setUsers(data)
+        setUsers(data.success ? data.users : data)
       } else {
         setError("Failed to fetch users")
       }

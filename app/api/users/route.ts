@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
         isActive: true,
         createdAt: true,
         managerId: true,
+        department: true,
         manager: {
           select: {
             id: true,
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(users)
+    return NextResponse.json({ success: true, users })
   } catch (error) {
     console.error('Error fetching users:', error)
     return NextResponse.json(
