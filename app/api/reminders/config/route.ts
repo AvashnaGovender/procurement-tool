@@ -63,7 +63,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, firstReminderAfterDays, secondReminderAfterDays, finalReminderAfterDays, isEnabled } = body
+    const { id, firstReminderAfterHours, secondReminderAfterHours, finalReminderAfterHours, isEnabled, emailSubjectTemplate, emailBodyTemplate } = body
 
     if (!id) {
       return NextResponse.json(
@@ -72,15 +72,22 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    console.log(`📝 Updating reminder config ${id}:`, { firstReminderAfterHours, secondReminderAfterHours, finalReminderAfterHours, isEnabled })
+
+    const updateData: any = {}
+    if (firstReminderAfterHours !== undefined) updateData.firstReminderAfterHours = Number(firstReminderAfterHours)
+    if (secondReminderAfterHours !== undefined) updateData.secondReminderAfterHours = Number(secondReminderAfterHours)
+    if (finalReminderAfterHours !== undefined) updateData.finalReminderAfterHours = Number(finalReminderAfterHours)
+    if (isEnabled !== undefined) updateData.isEnabled = Boolean(isEnabled)
+    if (emailSubjectTemplate !== undefined) updateData.emailSubjectTemplate = emailSubjectTemplate
+    if (emailBodyTemplate !== undefined) updateData.emailBodyTemplate = emailBodyTemplate
+
     const updated = await prisma.reminderConfiguration.update({
       where: { id },
-      data: {
-        firstReminderAfterDays,
-        secondReminderAfterDays,
-        finalReminderAfterDays,
-        isEnabled
-      }
+      data: updateData
     })
+
+    console.log(`✅ Updated reminder config: ${updated.reminderType}`)
 
     return NextResponse.json({
       success: true,

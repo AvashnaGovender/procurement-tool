@@ -234,6 +234,14 @@ export function ReminderConfiguration() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
         </div>
+      ) : configs.length === 0 ? (
+        <Alert className="bg-yellow-50 border-yellow-300">
+          <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-800">
+            <strong>No reminder configurations found.</strong> Please run the initialization script to set up default configurations:
+            <code className="block bg-gray-100 px-2 py-1 rounded mt-2">npx tsx scripts/init-reminder-configs.ts</code>
+          </AlertDescription>
+        </Alert>
       ) : (
         <div className="space-y-4">
           {configs.map((config) => {
