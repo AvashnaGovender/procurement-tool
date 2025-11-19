@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 
 interface Supplier {
   id: string
@@ -45,11 +46,11 @@ interface FilterState {
 interface SupplierListProps {
   searchQuery?: string
   filters?: FilterState
-  onProductsServicesChange?: (productsServices: string[]) => void
 }
 
-export function SupplierList({ searchQuery = "", filters, onProductsServicesChange }: SupplierListProps) {
+export function SupplierList({ searchQuery = "", filters }: SupplierListProps) {
   const router = useRouter()
+  const { data: session } = useSession()
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [filteredSuppliers, setFilteredSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,17 +65,7 @@ export function SupplierList({ searchQuery = "", filters, onProductsServicesChan
         
         if (data.success) {
           setSuppliers(data.suppliers)
-          
-          // Extract unique products/services from natureOfBusiness field
-          const uniqueProductsServices = Array.from(
-            new Set(
-              data.suppliers
-                .map(supplier => supplier.natureOfBusiness)
-                .filter(Boolean) // Remove null/undefined values
-            )
-          ).sort()
-          
-          onProductsServicesChange?.(uniqueProductsServices)
+          // No longer need to extract categories dynamically - using standardized list
         } else {
           setError(data.error || 'Failed to fetch suppliers')
         }
@@ -88,6 +79,32 @@ export function SupplierList({ searchQuery = "", filters, onProductsServicesChan
 
     fetchSuppliers()
   }, [])
+
+  const handleDeleteSupplier = async (supplierId: string, companyName: string) => {
+    if (!confirm(`Are you sure you want to permanently delete "${companyName}"? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/suppliers/${supplierId}/delete`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        // Remove from local state
+        setSuppliers(prev => prev.filter(s => s.id !== supplierId))
+        alert(`Supplier "${companyName}" has been successfully deleted.`)
+      } else {
+        alert(`Failed to delete supplier: ${data.error}`)
+      }
+    } catch (error) {
+      console.error('Error deleting supplier:', error)
+      alert('An error occurred while deleting the supplier.')
+    }
+  }
 
   // Filter suppliers based on search query and filters
   useEffect(() => {
@@ -125,6 +142,7 @@ export function SupplierList({ searchQuery = "", filters, onProductsServicesChan
       // Products/Services filter
       if (filters.category && filters.category !== 'all') {
         filtered = filtered.filter(supplier => 
+          supplier.sector === filters.category || 
           supplier.natureOfBusiness === filters.category
         )
       }
@@ -191,8 +209,9 @@ export function SupplierList({ searchQuery = "", filters, onProductsServicesChan
   }
 
   const getSupplierRating = (supplier: Supplier) => {
-    // Mock rating - in real implementation, this would come from evaluations
-    return 4.5 // Default rating
+    // TODO: Implement supplier rating module
+    // For now, return 0 until rating system is implemented
+    return 0
   }
 
   if (loading) {
@@ -342,10 +361,18 @@ export function SupplierList({ searchQuery = "", filters, onProductsServicesChan
                         Edit Supplier
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-600">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Remove
-                    </DropdownMenuItem>
+                    {session?.user?.role === 'ADMIN' && (
+                      <DropdownMenuItem 
+                        className="text-red-600"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteSupplier(supplier.id, supplier.companyName || 'Unknown')
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Remove
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

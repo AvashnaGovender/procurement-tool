@@ -128,6 +128,7 @@ export function UserManagement() {
           email: formData.email,
           role: formData.role,
           isActive: formData.isActive,
+          managerId: formData.managerId || null,
           ...(formData.password && { password: formData.password })
         }),
       })

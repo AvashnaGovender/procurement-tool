@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Admins can see all suppliers, others only see their own
+    const whereClause = session.user.role === 'ADMIN' 
+      ? {} 
+      : { createdById: session.user.id }
+
     const suppliers = await prisma.supplier.findMany({
+      where: whereClause,
       orderBy: {
         createdAt: 'desc'
       },
@@ -16,6 +30,7 @@ export async function GET(request: NextRequest) {
         contactPhone: true,
         status: true,
         createdAt: true,
+        createdById: true,
         natureOfBusiness: true,
         sector: true,
         bbbeeLevel: true,

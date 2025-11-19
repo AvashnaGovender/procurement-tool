@@ -68,12 +68,6 @@ const statConfig = [
     icon: Star,
     color: "text-purple-500",
   },
-  {
-    title: "Cost Savings",
-    key: "costSavings" as keyof SupplierStats,
-    icon: TrendingUp,
-    color: "text-green-500",
-  },
 ]
 
 export function SupplierStats() {
@@ -106,7 +100,7 @@ export function SupplierStats() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {statConfig.map((stat) => {
           const Icon = stat.icon
           return (
@@ -136,7 +130,7 @@ export function SupplierStats() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
       {statConfig.map((stat) => {
         const Icon = stat.icon
         const statData = stats?.[stat.key]

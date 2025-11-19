@@ -65,6 +65,21 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Get the current user with their manager relationship
+    console.log('Fetching user with manager relationship...')
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: {
+        manager: true
+      }
+    })
+
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    console.log('Current user:', currentUser.email, 'Manager:', currentUser.manager?.email || 'None')
+
     // Create the supplier initiation
     console.log('Creating supplier initiation...')
     const initiation = await prisma.supplierInitiation.create({
@@ -90,56 +105,65 @@ export async function POST(request: NextRequest) {
     })
     console.log('Initiation created:', initiation.id)
 
-    // Create approval records for manager and procurement manager
-    // Find users with manager roles (prefer MANAGER role, then others)
-    let managers = await prisma.user.findMany({
-      where: {
-        role: 'MANAGER',
-        isActive: true
-      },
-      take: 1
-    })
-    
-    // If no MANAGER found, fallback to ADMIN or APPROVER
-    if (managers.length === 0) {
-      managers = await prisma.user.findMany({
+    // Create approval records for the user's assigned manager and a procurement manager
+    let assignedManager = null
+    let assignedProcurementManager = null
+
+    // Use the user's assigned manager if they have one
+    if (currentUser.managerId && currentUser.manager && currentUser.manager.isActive) {
+      assignedManager = currentUser.manager
+      console.log('Using assigned manager:', assignedManager.email)
+      
+      await prisma.managerApproval.create({
+        data: {
+          initiationId: initiation.id,
+          approverId: assignedManager.id,
+          status: 'PENDING'
+        }
+      })
+    } else {
+      // Fallback: Find any active manager if user doesn't have one assigned
+      console.log('No manager assigned to user, looking for any active manager...')
+      const fallbackManagers = await prisma.user.findMany({
         where: {
-          role: {
-            in: ['ADMIN', 'APPROVER']
-          },
+          role: 'MANAGER',
           isActive: true
         },
         take: 1
       })
+      
+      if (fallbackManagers.length > 0) {
+        assignedManager = fallbackManagers[0]
+        console.log('Using fallback manager:', assignedManager.email)
+        
+        await prisma.managerApproval.create({
+          data: {
+            initiationId: initiation.id,
+            approverId: assignedManager.id,
+            status: 'PENDING'
+          }
+        })
+      } else {
+        console.warn('⚠️ No manager found for approval!')
+      }
     }
 
+    // Find an active procurement manager
     const procurementManagers = await prisma.user.findMany({
       where: {
         role: 'PROCUREMENT_MANAGER',
         isActive: true
       },
       orderBy: {
-        createdAt: 'desc' // Get the most recently created procurement manager
+        createdAt: 'desc'
       },
       take: 1
     })
 
-    let assignedManager = null
-    let assignedProcurementManager = null
-
-    if (managers.length > 0) {
-      assignedManager = managers[0]
-      await prisma.managerApproval.create({
-        data: {
-          initiationId: initiation.id,
-          approverId: managers[0].id,
-          status: 'PENDING'
-        }
-      })
-    }
-
     if (procurementManagers.length > 0) {
       assignedProcurementManager = procurementManagers[0]
+      console.log('Using procurement manager:', assignedProcurementManager.email)
+      
       await prisma.procurementApproval.create({
         data: {
           initiationId: initiation.id,
@@ -147,6 +171,8 @@ export async function POST(request: NextRequest) {
           status: 'PENDING'
         }
       })
+    } else {
+      console.warn('⚠️ No procurement manager found for approval!')
     }
 
     // Send approval emails to managers
@@ -189,7 +215,7 @@ Schauenburg Systems Procurement System
         console.log('📧 Sending manager approval email to:', assignedManager.email)
         const managerEmailResult = await sendEmail({
           to: assignedManager.email,
-          subject: 'Onboarding Supplier Approval Required',
+          subject: 'Supplier Approval Required - New Onboarding Request',
           content: managerEmailContent,
           supplierName: supplierName,
           businessType: productServiceCategory
@@ -232,7 +258,7 @@ Schauenburg Systems Procurement System
         console.log('📧 Sending procurement approval email to:', assignedProcurementManager.email)
         const procurementEmailResult = await sendEmail({
           to: assignedProcurementManager.email,
-          subject: 'Approval for Onboarding New Supplier',
+          subject: 'Supplier Approval Required - New Onboarding Request',
           content: procurementEmailContent,
           supplierName: supplierName,
           businessType: productServiceCategory

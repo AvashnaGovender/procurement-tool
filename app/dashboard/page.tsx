@@ -1,8 +1,6 @@
 import { Sidebar } from "@/components/layout/sidebar"
 import { DashboardModules } from "@/components/dashboard/dashboard-modules"
 import { UserMenu } from "@/components/user-menu"
-import { Bell } from "lucide-react"
-import { Button } from "@/components/ui/button"
 
 export default function DashboardPage() {
   return (
@@ -19,9 +17,6 @@ export default function DashboardPage() {
             <p className="text-sm text-muted-foreground original:text-slate-600">Welcome back! Here's what's happening today.</p>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-accent original:text-slate-600 original:hover:text-slate-800 original:hover:bg-slate-200">
-              <Bell className="h-5 w-5" />
-            </Button>
             <UserMenu />
           </div>
         </header>

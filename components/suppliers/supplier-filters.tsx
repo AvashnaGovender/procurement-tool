@@ -7,10 +7,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useState } from "react"
+import { PRODUCT_SERVICE_CATEGORIES } from "@/lib/product-service-categories"
 
 interface SupplierFiltersProps {
   onFiltersChange?: (filters: FilterState) => void
-  availableProductsServices?: string[]
 }
 
 interface FilterState {
@@ -20,7 +20,7 @@ interface FilterState {
   location: string
 }
 
-export function SupplierFilters({ onFiltersChange, availableProductsServices = [] }: SupplierFiltersProps) {
+export function SupplierFilters({ onFiltersChange }: SupplierFiltersProps) {
   const [filters, setFilters] = useState<FilterState>({
     status: [],
     category: "all",
@@ -100,9 +100,9 @@ export function SupplierFilters({ onFiltersChange, availableProductsServices = [
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Products/Services</SelectItem>
-              {availableProductsServices.map((productService) => (
-                <SelectItem key={productService} value={productService}>
-                  {productService}
+              {PRODUCT_SERVICE_CATEGORIES.map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category}
                 </SelectItem>
               ))}
             </SelectContent>

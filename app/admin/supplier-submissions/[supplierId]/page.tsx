@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -80,6 +81,7 @@ interface Supplier {
 
 export default function SupplierDetailPage({ params }: { params: Promise<{ supplierId: string }> }) {
   const router = useRouter()
+  const { data: session } = useSession()
   const resolvedParams = use(params)
   const [supplier, setSupplier] = useState<Supplier | null>(null)
   const [loading, setLoading] = useState(true)
@@ -98,6 +100,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState<Partial<Supplier>>({})
   const [saving, setSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState("details")
 
   // AI Insights state
   const [aiProcessing, setAiProcessing] = useState(false)
@@ -121,6 +124,19 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       checkExistingAnalysisJob()
     }
   }, [supplier?.id])
+
+  // Handle browser back button to redirect to dashboard
+  useEffect(() => {
+    const handlePopState = () => {
+      router.push('/dashboard')
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [router])
 
   // Poll for analysis job status
   useEffect(() => {
@@ -352,6 +368,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     if (supplier) {
       setEditData({ ...supplier })
       setIsEditing(true)
+      setActiveTab("details") // Switch to details tab
     }
   }
 
@@ -553,7 +570,7 @@ Procurement Team`
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-500 mb-4">Supplier not found</p>
-          <Button onClick={() => router.push('/admin/supplier-submissions')}>
+          <Button onClick={() => router.push('/dashboard')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
           </Button>
@@ -614,10 +631,10 @@ Procurement Team`
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push('/admin/supplier-submissions')}
+                onClick={() => router.push('/dashboard')}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
+                Back to Dashboard
               </Button>
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-gray-900">{supplier.companyName}</h1>
@@ -671,7 +688,7 @@ Procurement Team`
 
       {/* Content */}
       <div className="max-w-7xl mx-auto p-6">
-        <Tabs defaultValue="details" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
@@ -1349,15 +1366,16 @@ Procurement Team`
                             </div>
                           </AlertDescription>
                         </Alert>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleRevisionClick(missingDocs)}
-                          disabled={supplier.status === 'APPROVED' || supplier.status === 'REJECTED'}
-                          className="w-full sm:w-auto border-orange-500 text-orange-700 hover:bg-orange-50"
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Request Revision - Missing Documents
-                        </Button>
+                        {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' && (
+                          <Button
+                            variant="outline"
+                            onClick={() => handleRevisionClick(missingDocs)}
+                            className="w-full sm:w-auto border-orange-500 text-orange-700 hover:bg-orange-50"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Request Revision - Missing Documents
+                          </Button>
+                        )}
                       </div>
                     )
                   } else {
@@ -1898,38 +1916,51 @@ Procurement Team`
                   </AlertDescription>
                 </Alert>
                 
-                <div className="flex flex-col gap-4">
-                  <Button
-                    onClick={handleApproveClick}
-                    disabled={supplier.status === 'APPROVED'}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Approve Supplier
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={handleRejectClick}
-                    disabled={supplier.status === 'REJECTED'}
-                  >
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Reject Supplier
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleRevisionClick()}
-                    disabled={supplier.status === 'APPROVED' || supplier.status === 'REJECTED'}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Request Revision
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleDeleteClick}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Supplier
-                  </Button>
-                </div>
+                {/* Only show action buttons if supplier is not approved or rejected */}
+                {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' ? (
+                  <div className="flex flex-col gap-4">
+                    <Button onClick={handleApproveClick}>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Approve Supplier
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleRejectClick}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Reject Supplier
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleRevisionClick()}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Request Revision
+                    </Button>
+                  </div>
+                ) : (
+                  <Alert className={supplier.status === 'APPROVED' ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}>
+                    <AlertDescription className={supplier.status === 'APPROVED' ? 'text-green-800' : 'text-red-800'}>
+                      {supplier.status === 'APPROVED' 
+                        ? '✅ This supplier has been approved. No further actions are available.' 
+                        : '❌ This supplier has been rejected. No further actions are available.'}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {/* Delete button - only available for admin */}
+                {session?.user?.role === 'ADMIN' && (
+                  <div className="pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={handleDeleteClick}
+                      className="w-full text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Supplier
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

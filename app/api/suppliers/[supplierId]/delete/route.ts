@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import fs from 'fs'
 import path from 'path'
@@ -8,6 +10,23 @@ export async function DELETE(
   { params }: { params: Promise<{ supplierId: string }> }
 ) {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized. Please log in.' },
+        { status: 401 }
+      )
+    }
+
+    // Check admin authorization
+    if (session.user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden. Only administrators can delete suppliers.' },
+        { status: 403 }
+      )
+    }
+
     const { supplierId } = await params
 
     if (!supplierId) {

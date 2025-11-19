@@ -36,6 +36,36 @@ export async function GET(request: NextRequest) {
     // Get IDs of users this person is delegating for
     const delegatedUserIds = activeDelegations.map(d => d.delegatorId)
 
+    // Build where clause based on user role
+    // - Admins can see all initiations
+    // - Managers/Procurement Managers see initiations they need to approve OR created
+    // - Regular users only see their own initiations
+    let userFilterClause = {}
+    
+    if (session.user.role !== 'ADMIN') {
+      if (session.user.role === 'MANAGER' || session.user.role === 'PROCUREMENT_MANAGER') {
+        // Managers see initiations where they are the approver OR they created it
+        userFilterClause = {
+          OR: [
+            { initiatedById: session.user.id },
+            ...(session.user.role === 'MANAGER' ? [{ 
+              managerApproval: { 
+                approverId: session.user.id 
+              } 
+            }] : []),
+            ...(session.user.role === 'PROCUREMENT_MANAGER' ? [{ 
+              procurementApproval: { 
+                approverId: session.user.id 
+              } 
+            }] : [])
+          ]
+        }
+      } else {
+        // Regular users only see their own
+        userFilterClause = { initiatedById: session.user.id }
+      }
+    }
+
     const initiations = await prisma.supplierInitiation.findMany({
       include: {
         managerApproval: {
@@ -74,18 +104,24 @@ export async function GET(request: NextRequest) {
         }
       },
       where: {
-        // Exclude initiations where supplier has submitted their form
-        // Show initiations that either:
-        // 1. Don't have an onboarding record yet, OR
-        // 2. Have an onboarding record but supplier hasn't submitted form
-        OR: [
+        AND: [
+          // User filter (admins see all, users see their own)
+          userFilterClause,
+          // Exclude initiations where supplier has submitted their form
+          // Show initiations that either:
+          // 1. Don't have an onboarding record yet, OR
+          // 2. Have an onboarding record but supplier hasn't submitted form
           {
-            onboarding: null
-          },
-          {
-            onboarding: {
-              supplierFormSubmitted: false
-            }
+            OR: [
+              {
+                onboarding: null
+              },
+              {
+                onboarding: {
+                  supplierFormSubmitted: false
+                }
+              }
+            ]
           }
         ]
       },

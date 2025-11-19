@@ -21,7 +21,6 @@ export default function SuppliersPage() {
     rating: "any",
     location: "all"
   })
-  const [availableProductsServices, setAvailableProductsServices] = useState<string[]>([])
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value)
@@ -29,10 +28,6 @@ export default function SuppliersPage() {
 
   const handleFiltersChange = (newFilters: FilterState) => {
     setFilters(newFilters)
-  }
-
-  const handleProductsServicesChange = (productsServices: string[]) => {
-    setAvailableProductsServices(productsServices)
   }
 
   return (
@@ -44,15 +39,13 @@ export default function SuppliersPage() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <div className="lg:col-span-1">
               <SupplierFilters 
-                onFiltersChange={handleFiltersChange} 
-                availableProductsServices={availableProductsServices}
+                onFiltersChange={handleFiltersChange}
               />
             </div>
             <div className="lg:col-span-3">
               <SupplierList 
                 searchQuery={searchQuery} 
-                filters={filters} 
-                onProductsServicesChange={handleProductsServicesChange}
+                filters={filters}
               />
             </div>
           </div>

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Building2, CheckCircle, AlertCircle, Users, DollarSign, ArrowLeft, Home } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { PRODUCT_SERVICE_CATEGORIES } from "@/lib/product-service-categories"
 
 interface SupplierInitiationFormProps {
   onSubmissionComplete?: (initiationId: string) => void
@@ -245,15 +246,26 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
             
             <div className="space-y-2">
               <Label htmlFor="productServiceCategory">Product/Service Category *</Label>
-              <Input
-                id="productServiceCategory"
-                value={formData.productServiceCategory}
-                onChange={(e) => handleInputChange('productServiceCategory', e.target.value)}
-                placeholder="Enter product/service category"
-                className={!formData.productServiceCategory ? "border-red-300" : ""}
-              />
+              <Select 
+                value={formData.productServiceCategory} 
+                onValueChange={(value) => handleInputChange('productServiceCategory', value)}
+              >
+                <SelectTrigger 
+                  id="productServiceCategory"
+                  className={!formData.productServiceCategory ? "border-red-300" : ""}
+                >
+                  <SelectValue placeholder="Select product/service category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRODUCT_SERVICE_CATEGORIES.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {!formData.productServiceCategory && (
-                <p className="text-sm text-red-600">Please enter product/service category</p>
+                <p className="text-sm text-red-600">Please select product/service category</p>
               )}
             </div>
           </div>
