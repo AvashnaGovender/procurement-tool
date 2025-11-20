@@ -35,41 +35,46 @@ export async function GET(request: NextRequest) {
     console.log(`\n📋 Fetching initiations for user: ${session.user.email}`)
     console.log(`   User ID: ${session.user.id}`)
     console.log(`   User Role: ${session.user.role}`)
+    console.log(`   Active delegations: ${activeDelegations.length}`)
 
     // Build where clause based on user role
     // - Admins can see all initiations
-    // - Managers/Procurement Managers see initiations they need to approve OR created
+    // - Users with approval responsibilities see initiations they need to approve OR created
     // - Regular users only see their own initiations
     let userFilterClause = {}
     
     if (session.user.role !== 'ADMIN') {
-      if (session.user.role === 'MANAGER' || session.user.role === 'PROCUREMENT_MANAGER') {
-        // Managers see initiations where they are the approver OR they created it
-        userFilterClause = {
-          OR: [
-            { initiatedById: session.user.id },
-            ...(session.user.role === 'MANAGER' ? [{ 
-              managerApproval: { 
-                approverId: session.user.id 
-              } 
-            }] : []),
-            ...(session.user.role === 'PROCUREMENT_MANAGER' ? [{ 
-              procurementApproval: { 
-                approverId: session.user.id 
-              } 
-            }] : [])
-          ]
-        }
-      } else {
-        // Regular users only see their own
-        userFilterClause = { initiatedById: session.user.id }
-        console.log(`   Regular user - filtering by initiatedById: ${session.user.id}`)
-      }
+      console.log(`   ⚙️ Building filter for non-admin user`)
+      
+      // Build OR conditions: initiations they created OR where they are assigned as approver
+      const orConditions = [
+        { initiatedById: session.user.id }
+      ]
+      
+      // Always check if user is assigned as manager approver (regardless of role)
+      // This allows users who are assigned as managers to specific users to see their initiations
+      orConditions.push({ 
+        managerApproval: { 
+          approverId: session.user.id 
+        } 
+      })
+      console.log(`   ✅ Added manager approval filter for user ID: ${session.user.id}`)
+      
+      // Always check if user is assigned as procurement approver (regardless of role)
+      orConditions.push({ 
+        procurementApproval: { 
+          approverId: session.user.id 
+        } 
+      })
+      console.log(`   ✅ Added procurement approval filter for user ID: ${session.user.id}`)
+      
+      userFilterClause = { OR: orConditions }
+      console.log(`   📝 OR conditions count: ${orConditions.length}`)
     } else {
       console.log(`   Admin user - no filtering`)
     }
     
-    console.log(`   User filter clause:`, JSON.stringify(userFilterClause))
+    console.log(`   User filter clause:`, JSON.stringify(userFilterClause, null, 2))
 
     const initiations = await prisma.supplierInitiation.findMany({
       include: {
@@ -140,7 +145,30 @@ export async function GET(request: NextRequest) {
     
     // Log each initiation for debugging
     initiations.forEach((init, index) => {
-      console.log(`   [${index + 1}] ${init.supplierName} - Status: ${init.status}, InitiatedBy: ${init.initiatedById}, HasOnboarding: ${!!init.onboarding}`)
+      console.log(`   [${index + 1}] ${init.supplierName}`)
+      console.log(`       Status: ${init.status}`)
+      console.log(`       InitiatedBy: ${init.initiatedById} (${init.initiatedBy?.name})`)
+      console.log(`       HasOnboarding: ${!!init.onboarding}`)
+      
+      if (init.managerApproval) {
+        console.log(`       Manager Approval:`)
+        console.log(`         Status: ${init.managerApproval.status}`)
+        console.log(`         ApproverId: ${init.managerApproval.approverId}`)
+        console.log(`         Approver Name: ${init.managerApproval.approver.name}`)
+        console.log(`         Matches Current User? ${init.managerApproval.approverId === session.user.id ? '✅ YES' : '❌ NO'}`)
+      } else {
+        console.log(`       Manager Approval: ❌ NULL`)
+      }
+      
+      if (init.procurementApproval) {
+        console.log(`       Procurement Approval:`)
+        console.log(`         Status: ${init.procurementApproval.status}`)
+        console.log(`         ApproverId: ${init.procurementApproval.approverId}`)
+        console.log(`         Approver Name: ${init.procurementApproval.approver.name}`)
+        console.log(`         Matches Current User? ${init.procurementApproval.approverId === session.user.id ? '✅ YES' : '❌ NO'}`)
+      } else {
+        console.log(`       Procurement Approval: ❌ NULL`)
+      }
     })
 
     const formattedInitiations = initiations.map(initiation => {

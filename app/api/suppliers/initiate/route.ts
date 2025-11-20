@@ -110,9 +110,11 @@ export async function POST(request: NextRequest) {
     let assignedProcurementManager = null
 
     // Use the user's assigned manager if they have one
+    // NOTE: The assigned manager doesn't need to have the "MANAGER" role
+    // Any active user who is set as someone's manager can approve their initiations
     if (currentUser.managerId && currentUser.manager && currentUser.manager.isActive) {
       assignedManager = currentUser.manager
-      console.log('Using assigned manager:', assignedManager.email)
+      console.log('✅ Using assigned manager:', assignedManager.email, '(Role:', assignedManager.role + ')')
       
       await prisma.managerApproval.create({
         data: {
@@ -121,6 +123,7 @@ export async function POST(request: NextRequest) {
           status: 'PENDING'
         }
       })
+      console.log('✅ Manager approval record created for:', assignedManager.email)
     } else {
       // Fallback: Find any active manager if user doesn't have one assigned
       console.log('No manager assigned to user, looking for any active manager...')

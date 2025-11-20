@@ -83,14 +83,26 @@ export default function ApprovalsPage() {
     
     setLoading(true)
     try {
+      console.log('🔄 Fetching initiations...')
       const response = await fetch('/api/suppliers/initiations')
       const data = await response.json()
       
+      console.log(`✅ Received ${Array.isArray(data) ? data.length : 0} initiations`)
+      
       if (Array.isArray(data)) {
+        // Log summary of initiations for debugging
+        data.forEach((init, index) => {
+          console.log(`   [${index + 1}] ${init.supplierName}`)
+          console.log(`       Status: ${init.status}`)
+          console.log(`       Manager Approval: ${init.managerApproval?.status || 'N/A'} (Approver: ${init.managerApproval?.approver || 'N/A'})`)
+          console.log(`       Procurement Approval: ${init.procurementApproval?.status || 'N/A'} (Approver: ${init.procurementApproval?.approver || 'N/A'})`)
+        })
         setInitiations(data)
+      } else {
+        console.error('❌ Response is not an array:', data)
       }
     } catch (error) {
-      console.error('Error fetching initiations:', error)
+      console.error('❌ Error fetching initiations:', error)
     } finally {
       setLoading(false)
     }
