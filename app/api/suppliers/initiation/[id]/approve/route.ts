@@ -170,17 +170,25 @@ export async function POST(
 
       if (action === 'reject') {
         newStatus = 'REJECTED'
+        console.log('❌ Initiation rejected')
       } else {
         // Check if both approvals are now complete
         const managerApproved = updatedInitiation.managerApproval?.status === 'APPROVED'
         const procurementApproved = updatedInitiation.procurementApproval?.status === 'APPROVED'
 
+        console.log(`\n📊 Approval Status Check:`)
+        console.log(`   Manager Approved: ${managerApproved}`)
+        console.log(`   Procurement Approved: ${procurementApproved}`)
+
         if (managerApproved && procurementApproved) {
           newStatus = 'APPROVED'
+          console.log('✅ Both approvals complete - status: APPROVED')
         } else if (managerApproved) {
           newStatus = 'MANAGER_APPROVED'
+          console.log('⏳ Manager approved, waiting for procurement - status: MANAGER_APPROVED')
         } else if (procurementApproved) {
           newStatus = 'PROCUREMENT_APPROVED'
+          console.log('⏳ Procurement approved, waiting for manager - status: PROCUREMENT_APPROVED')
         }
       }
 
@@ -193,10 +201,16 @@ export async function POST(
       if (newStatus === 'APPROVED') {
         // Get the initiation details
         const initiationDetails = await prisma.supplierInitiation.findUnique({
-          where: { id: initiationId }
+          where: { id: initiationId },
+          include: {
+            onboarding: true
+          }
         })
 
-        if (initiationDetails) {
+        // IMPORTANT: Check if supplier was already created and email already sent
+        // This prevents duplicate emails if the approval endpoint is called multiple times
+        if (initiationDetails && !initiationDetails.emailSent && !initiationDetails.onboarding) {
+          console.log('📧 Both approvals complete - proceeding with supplier creation and email...')
           // Create a supplier record with AWAITING_DOCS status
           const supplier = await prisma.supplier.create({
             data: {
@@ -240,33 +254,40 @@ export async function POST(
               data: { onboardingToken }
             })
             
-            // Prepare email content
-            const emailSubject = 'Supplier Onboarding - Approval Granted'
+            // Prepare email content  
+            const emailSubject = 'Supplier Onboarding - Next Steps'
             const emailContent = `
 Dear ${initiationDetails.supplierContactPerson},
 
-Welcome to Schauenburg Systems! We are pleased to inform you that your supplier onboarding request has been approved.
+Thank you for your interest in becoming a supplier partner with Schauenburg Systems.
 
-Your request details:
+Your onboarding request has been reviewed and approved. We're excited to begin working with you!
+
+<strong>Your Request Details:</strong>
 - Business Unit: ${initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300'}
 - Product/Service Category: ${initiationDetails.productServiceCategory}
 - Purchase Type: ${initiationDetails.regularPurchase ? 'Regular Purchase' : ''}${initiationDetails.regularPurchase && initiationDetails.onceOffPurchase ? ', ' : ''}${initiationDetails.onceOffPurchase ? 'Once-off Purchase' : ''}
 ${initiationDetails.annualPurchaseValue ? `- Annual Purchase Value: R${initiationDetails.annualPurchaseValue.toLocaleString()}` : ''}
 
-To complete your supplier registration, please click the button below to access our supplier onboarding portal:
+<strong>Next Step:</strong>
+Please complete your supplier registration by clicking the button below. You'll be guided through uploading the required documentation and compliance information.
 
 {formLink}
 
-This portal will guide you through the required documentation and compliance requirements.
-
-If you have any questions, please don't hesitate to contact our procurement team.
+If you have any questions, please contact our procurement team.
 
 Best regards,
 Schauenburg Systems Procurement Team
             `.trim()
             
             // Send the email
-            console.log('📧 Sending supplier onboarding email...')
+            console.log('\n📧 ===== SENDING SUPPLIER ONBOARDING EMAIL =====')
+            console.log('   To:', initiationDetails.supplierEmail)
+            console.log('   Subject:', emailSubject)
+            console.log('   Supplier Name:', initiationDetails.supplierName)
+            console.log('   Has Onboarding Token:', !!onboardingToken)
+            console.log('================================================\n')
+            
             const emailResult = await sendEmail({
               to: initiationDetails.supplierEmail,
               subject: emailSubject,
@@ -278,7 +299,7 @@ Schauenburg Systems Procurement Team
             
             if (emailResult.success) {
               console.log('✅ Supplier onboarding email sent successfully')
-              console.log('Email result:', emailResult)
+              console.log('   Message ID:', emailResult.emailId)
             } else {
               console.error('❌ Failed to send supplier onboarding email:', emailResult.message)
             }
@@ -347,6 +368,10 @@ Schauenburg Systems Procurement Team
               emailSentAt: new Date()
             }
           })
+        } else if (initiationDetails) {
+          console.log('⚠️ Skipping supplier creation - email already sent or onboarding record exists')
+          console.log(`   emailSent: ${initiationDetails.emailSent}`)
+          console.log(`   onboarding exists: ${!!initiationDetails.onboarding}`)
         }
       }
     }

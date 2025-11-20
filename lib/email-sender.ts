@@ -82,7 +82,8 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   // Use provided content (already templated from frontend)
   const emailSubject = subject || 'Supplier Onboarding - Welcome'
   
-  // Determine if this is an approval email (manager/procurement approval)
+  // Determine if this is an internal approval email (manager/procurement approval requests)
+  // Supplier onboarding emails should show "Welcome" header
   const isApprovalEmail = emailSubject.toLowerCase().includes('approval required') || 
                           emailSubject.toLowerCase().includes('approval pending')
   
