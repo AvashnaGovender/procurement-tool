@@ -668,7 +668,6 @@ async function processAnalysisJob(
       documentCompleteness: documentCompletenessRisk,
       documentQuality: documentQualityRisk,
       companyVerification: supplier.registrationNumber ? 'VERIFIED' : 'PENDING',
-      financialStability: supplier.bankAccountName && supplier.bankName ? 'ACCEPTABLE' : 'REVIEW_REQUIRED',
       complianceHistory: highRiskFindings.length > 0 ? 'ISSUES_FOUND' : 'NO_ISSUES'
     }
 
@@ -694,12 +693,11 @@ async function processAnalysisJob(
     // Calculate overall score with weighted factors
     const baseScore = analysisResults.complianceCheck.complianceScore
     
-    // Apply risk penalties
+    // Apply risk penalties based on actual analysis results
     let riskPenalty = 0
     riskPenalty += riskFactors.documentCompleteness === 'HIGH' ? 15 : riskFactors.documentCompleteness === 'MEDIUM' ? 8 : 0
     riskPenalty += riskFactors.documentQuality === 'HIGH' ? 10 : riskFactors.documentQuality === 'MEDIUM' ? 5 : 0
     riskPenalty += riskFactors.companyVerification === 'PENDING' ? 5 : 0
-    riskPenalty += riskFactors.financialStability === 'REVIEW_REQUIRED' ? 5 : 0
     riskPenalty += riskFactors.complianceHistory === 'ISSUES_FOUND' ? 10 : 0
     
     // Penalty for claimed but missing certifications (-2 points each)
