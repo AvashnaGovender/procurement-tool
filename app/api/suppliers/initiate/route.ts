@@ -27,16 +27,17 @@ export async function POST(request: NextRequest) {
       productServiceCategory,
       requesterName,
       relationshipDeclaration,
-      regularPurchase,
+      purchaseType,
       annualPurchaseValue,
       creditApplication,
       creditApplicationReason,
-      onceOffPurchase,
       onboardingReason
     } = body
 
     // Validate required fields
-    if (!businessUnit || !processReadUnderstood || !dueDiligenceCompleted || 
+    // businessUnit should be an array with at least one item
+    const businessUnits = Array.isArray(businessUnit) ? businessUnit : (businessUnit ? [businessUnit] : [])
+    if (!businessUnits || businessUnits.length === 0 || !processReadUnderstood || !dueDiligenceCompleted || 
         !supplierName || !supplierEmail || !supplierContactPerson || !productServiceCategory || !requesterName || 
         !relationshipDeclaration || !onboardingReason) {
       return NextResponse.json({ 
@@ -44,15 +45,15 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Validate that at least one purchase type is selected
-    if (!regularPurchase && !onceOffPurchase) {
+    // Validate that a purchase type is selected
+    if (!purchaseType || !['REGULAR', 'ONCE_OFF', 'SHARED_IP'].includes(purchaseType)) {
       return NextResponse.json({ 
-        error: 'Please select at least one purchase type (Regular or Once-off)' 
+        error: 'Please select a purchase type' 
       }, { status: 400 })
     }
 
     // Validate annual purchase value if regular purchase is selected
-    if (regularPurchase && (!annualPurchaseValue || parseFloat(annualPurchaseValue) <= 0)) {
+    if (purchaseType === 'REGULAR' && (!annualPurchaseValue || parseFloat(annualPurchaseValue) <= 0)) {
       return NextResponse.json({ 
         error: 'Please enter a valid annual purchase value for regular purchases' 
       }, { status: 400 })
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
     console.log('Creating supplier initiation...')
     const initiation = await prisma.supplierInitiation.create({
       data: {
-        businessUnit,
+        businessUnit: businessUnits,
         processReadUnderstood,
         dueDiligenceCompleted,
         supplierName,
@@ -93,11 +94,10 @@ export async function POST(request: NextRequest) {
         productServiceCategory,
         requesterName,
         relationshipDeclaration,
-        regularPurchase,
+        purchaseType: purchaseType as 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP',
         annualPurchaseValue: annualPurchaseValue ? parseFloat(annualPurchaseValue) : null,
         creditApplication,
         creditApplicationReason: creditApplication ? null : creditApplicationReason,
-        onceOffPurchase,
         onboardingReason,
         initiatedById: session.user.id,
         status: 'SUBMITTED'
@@ -241,11 +241,12 @@ A new supplier initiation request has been submitted and requires your approval.
 <strong>Request Details:</strong>
 - <strong>Supplier:</strong> ${supplierName}
 - <strong>Email:</strong> ${supplierEmail}
-- <strong>Business Unit:</strong> ${businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300'}
+- <strong>Business Unit(s):</strong> ${businessUnits.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')}
 - <strong>Product/Service Category:</strong> ${productServiceCategory}
 - <strong>Requested by:</strong> ${requesterName}
-- <strong>Purchase Type:</strong> ${regularPurchase ? 'Regular Purchase' : ''}${regularPurchase && onceOffPurchase ? ', ' : ''}${onceOffPurchase ? 'Once-off Purchase' : ''}
+- <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
 ${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> R${parseFloat(annualPurchaseValue).toLocaleString()}` : ''}
+- <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}
 
 <strong>Reason for Onboarding:</strong>
 ${onboardingReason}
@@ -287,11 +288,12 @@ A new supplier initiation request has been submitted and requires approval.
 <strong>Request Details:</strong>
 - <strong>Supplier:</strong> ${supplierName}
 - <strong>Email:</strong> ${supplierEmail}
-- <strong>Business Unit:</strong> ${businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300'}
+- <strong>Business Unit(s):</strong> ${businessUnits.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')}
 - <strong>Product/Service Category:</strong> ${productServiceCategory}
 - <strong>Requested by:</strong> ${requesterName}
-- <strong>Purchase Type:</strong> ${regularPurchase ? 'Regular Purchase' : ''}${regularPurchase && onceOffPurchase ? ', ' : ''}${onceOffPurchase ? 'Once-off Purchase' : ''}
+- <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
 ${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> R${parseFloat(annualPurchaseValue).toLocaleString()}` : ''}
+- <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}
 
 <strong>Reason for Onboarding:</strong>
 ${onboardingReason}
@@ -330,11 +332,12 @@ A new supplier initiation request has been submitted and requires your approval.
 <strong>Request Details:</strong>
 - <strong>Supplier:</strong> ${supplierName}
 - <strong>Email:</strong> ${supplierEmail}
-- <strong>Business Unit:</strong> ${businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300'}
+- <strong>Business Unit(s):</strong> ${businessUnits.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')}
 - <strong>Product/Service Category:</strong> ${productServiceCategory}
 - <strong>Requested by:</strong> ${requesterName}
-- <strong>Purchase Type:</strong> ${regularPurchase ? 'Regular Purchase' : ''}${regularPurchase && onceOffPurchase ? ', ' : ''}${onceOffPurchase ? 'Once-off Purchase' : ''}
+- <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
 ${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> R${parseFloat(annualPurchaseValue).toLocaleString()}` : ''}
+- <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}
 
 <strong>Reason for Onboarding:</strong>
 ${onboardingReason}
@@ -382,11 +385,12 @@ A new supplier initiation request has been submitted and requires approval.
 <strong>Request Details:</strong>
 - <strong>Supplier:</strong> ${supplierName}
 - <strong>Email:</strong> ${supplierEmail}
-- <strong>Business Unit:</strong> ${businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300'}
+- <strong>Business Unit(s):</strong> ${businessUnits.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')}
 - <strong>Product/Service Category:</strong> ${productServiceCategory}
 - <strong>Requested by:</strong> ${requesterName}
-- <strong>Purchase Type:</strong> ${regularPurchase ? 'Regular Purchase' : ''}${regularPurchase && onceOffPurchase ? ', ' : ''}${onceOffPurchase ? 'Once-off Purchase' : ''}
+- <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
 ${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> R${parseFloat(annualPurchaseValue).toLocaleString()}` : ''}
+- <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}
 
 <strong>Reason for Onboarding:</strong>
 ${onboardingReason}

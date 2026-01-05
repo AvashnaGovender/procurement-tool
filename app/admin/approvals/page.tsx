@@ -17,7 +17,7 @@ interface SupplierInitiation {
   supplierName: string
   supplierEmail: string
   supplierContactPerson: string
-  businessUnit: string
+  businessUnit: string | string[]
   requesterName: string
   submittedAt: string
   isDelegated?: boolean
@@ -37,9 +37,8 @@ interface SupplierInitiation {
     comments?: string
   }
   initiatedById?: string
-  regularPurchase: boolean
+  purchaseType: string
   annualPurchaseValue?: number
-  onceOffPurchase: boolean
   onboardingReason: string
   processReadUnderstood: boolean
   dueDiligenceCompleted: boolean
@@ -346,11 +345,13 @@ export default function ApprovalsPage() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                     <div>
-                      <p className="text-sm font-medium text-slate-600">Business Unit</p>
+                      <p className="text-sm font-medium text-slate-600">Business Unit{Array.isArray(initiation.businessUnit) && initiation.businessUnit.length > 1 ? 's' : ''}</p>
                       <p className="text-sm">
-                        {initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                          ? 'Schauenburg Systems 200' 
-                          : 'Schauenburg (Pty) Ltd 300'
+                        {Array.isArray(initiation.businessUnit) 
+                          ? initiation.businessUnit.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')
+                          : (initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
+                              ? 'Schauenburg Systems 200' 
+                              : 'Schauenburg (Pty) Ltd 300')
                         }
                       </p>
                     </div>
@@ -372,9 +373,7 @@ export default function ApprovalsPage() {
                     <div>
                       <p className="text-sm font-medium text-slate-600">Purchase Type</p>
                       <p className="text-sm">
-                        {initiation.regularPurchase && 'Regular Purchase'}
-                        {initiation.regularPurchase && initiation.onceOffPurchase && ', '}
-                        {initiation.onceOffPurchase && 'Once-off Purchase'}
+                        {initiation.purchaseType === 'REGULAR' ? 'Regular Purchase' : initiation.purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
                         {initiation.annualPurchaseValue && ` (R${initiation.annualPurchaseValue.toLocaleString()})`}
                       </p>
                     </div>
@@ -590,10 +589,12 @@ export default function ApprovalsPage() {
                       </div>
                       <div>
                         <p><strong>Category:</strong> {selectedInitiation.productServiceCategory}</p>
-                        <p><strong>Business Unit:</strong> {
-                          selectedInitiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                            ? 'Schauenburg Systems 200' 
-                            : 'Schauenburg (Pty) Ltd 300'
+                        <p><strong>Business Unit{Array.isArray(selectedInitiation.businessUnit) && selectedInitiation.businessUnit.length > 1 ? 's' : ''}:</strong> {
+                          Array.isArray(selectedInitiation.businessUnit) 
+                            ? selectedInitiation.businessUnit.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')
+                            : (selectedInitiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
+                                ? 'Schauenburg Systems 200' 
+                                : 'Schauenburg (Pty) Ltd 300')
                         }</p>
                       </div>
                     </div>

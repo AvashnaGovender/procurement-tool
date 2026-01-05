@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { compare } from "bcryptjs"
 import { prisma } from "./prisma"
+import { Prisma } from "@prisma/client"
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-development",
@@ -37,12 +38,26 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing credentials")
         }
 
-        // Find user in database
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email
-          }
-        })
+        // Normalize email to lowercase for case-insensitive lookup
+        const normalizedEmail = credentials.email.toLowerCase().trim()
+
+        // Find user in database (case-insensitive using Prisma.sql)
+        // This approach works reliably across all Prisma versions
+        const users = await prisma.$queryRaw<Array<{
+          id: string
+          email: string
+          name: string
+          password: string
+          role: string
+          department: string | null
+          isActive: boolean
+          lastLoginAt: Date | null
+          createdAt: Date
+          updatedAt: Date
+        }>>(
+          Prisma.sql`SELECT * FROM "users" WHERE LOWER(email) = LOWER(${normalizedEmail}) LIMIT 1`
+        )
+        const user = users[0] || null
 
         if (!user) {
           throw new Error("Invalid email or password")
@@ -72,7 +87,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
-          department: user.department,
+          department: user.department ?? undefined,
         }
       }
     })

@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
+import { isDocumentRequired, type DocumentKey } from "@/lib/document-requirements"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,6 +24,9 @@ function SupplierOnboardingForm() {
   const [error, setError] = useState("")
   const [revisionNotes, setRevisionNotes] = useState<string | null>(null)
   const [existingFiles, setExistingFiles] = useState<{[key: string]: string[]}>({})
+  const [purchaseType, setPurchaseType] = useState<string | null>(null)
+  const [creditApplication, setCreditApplication] = useState<boolean>(false)
+  const [requiredDocuments, setRequiredDocuments] = useState<string[]>([])
   
   // Form state
   const [formData, setFormData] = useState({
@@ -125,6 +129,16 @@ function SupplierOnboardingForm() {
           setExistingFiles(data.uploadedFiles || {})
           if (data.revisionNotes) {
             setRevisionNotes(data.revisionNotes)
+          }
+          // Set purchase type, credit application status, and required documents
+          if (data.purchaseType) {
+            setPurchaseType(data.purchaseType)
+          }
+          if (data.creditApplication !== undefined) {
+            setCreditApplication(data.creditApplication)
+          }
+          if (data.requiredDocuments) {
+            setRequiredDocuments(data.requiredDocuments)
           }
         } else {
           console.error('Failed to load existing data:', data.error)
@@ -921,29 +935,56 @@ function SupplierOnboardingForm() {
             <CardHeader>
               <CardTitle>9. Required Documents</CardTitle>
               <CardDescription>
-                Please upload all required documents.
+                {purchaseType === 'ONCE_OFF' && `For Once-off Purchase, only Bank Confirmation Letter and Company Registration Documents (CIPC) are required.${creditApplication ? ' Credit Application Form is also required.' : ''}`}
+                {purchaseType === 'REGULAR' && `For Regular Purchase, all documents are required except the Non-Disclosure Agreement (NDA).${creditApplication ? ' Credit Application Form is also required.' : ''}`}
+                {purchaseType === 'SHARED_IP' && `For Shared IP, all documents including the Non-Disclosure Agreement (NDA) are required.${creditApplication ? ' Credit Application Form is also required.' : ''}`}
+                {!purchaseType && 'Please upload all required documents. Required documents are marked with *.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {[
-                { key: 'companyRegistration', label: 'Company Registration Documents *', required: true },
-                { key: 'cm29Directors', label: 'Copy of CM29 - List of Directors', required: false },
-                { key: 'shareholderCerts', label: 'Shareholder Certificates', required: false },
-                { key: 'proofOfShareholding', label: 'Proof of Shareholding', required: false },
-                { key: 'bbbeeAccreditation', label: 'BBBEE Accreditation *', required: true },
-                { key: 'bbbeeScorecard', label: 'BBBEE Scorecard Report', required: false },
-                { key: 'taxClearance', label: 'Tax Clearance Certificate *', required: true },
-                { key: 'vatCertificate', label: 'VAT Registration Certificate', required: false },
-                { key: 'bankConfirmation', label: 'Bank Confirmation Letter *', required: true },
-                { key: 'nda', label: 'Non-Disclosure Agreement (NDA) - Signed *', required: true },
-                { key: 'healthSafety', label: 'Health and Safety Policy', required: false },
-                { key: 'creditApplication', label: 'Credit Application Form', required: false },
-                { key: 'qualityCert', label: 'Quality Certification', required: false },
-                { key: 'goodStanding', label: 'Letter of Good Standing', required: false },
-                { key: 'sectorRegistrations', label: 'Sector Registrations', required: false },
-                { key: 'organogram', label: 'Updated Company Organogram', required: false },
-                { key: 'companyProfile', label: 'Company Profile', required: false },
-              ].map(({ key, label, required }) => (
+                { key: 'companyRegistration', label: 'Company Registration Documents (CIPC)', baseLabel: 'Company Registration Documents' },
+                { key: 'cm29Directors', label: 'Copy of CM29 - List of Directors', baseLabel: 'Copy of CM29 - List of Directors' },
+                { key: 'shareholderCerts', label: 'Shareholder Certificates', baseLabel: 'Shareholder Certificates' },
+                { key: 'proofOfShareholding', label: 'Proof of Shareholding', baseLabel: 'Proof of Shareholding' },
+                { key: 'bbbeeAccreditation', label: 'BBBEE Accreditation', baseLabel: 'BBBEE Accreditation' },
+                { key: 'bbbeeScorecard', label: 'BBBEE Scorecard Report', baseLabel: 'BBBEE Scorecard Report' },
+                { key: 'taxClearance', label: 'Tax Clearance Certificate', baseLabel: 'Tax Clearance Certificate' },
+                { key: 'vatCertificate', label: 'VAT Registration Certificate', baseLabel: 'VAT Registration Certificate' },
+                { key: 'bankConfirmation', label: 'Bank Confirmation Letter', baseLabel: 'Bank Confirmation Letter' },
+                { key: 'nda', label: 'Non-Disclosure Agreement (NDA) - Signed', baseLabel: 'Non-Disclosure Agreement (NDA) - Signed' },
+                { key: 'healthSafety', label: 'Health and Safety Policy', baseLabel: 'Health and Safety Policy' },
+                { key: 'creditApplication', label: 'Credit Application Form', baseLabel: 'Credit Application Form' },
+                { key: 'qualityCert', label: 'Quality Certification', baseLabel: 'Quality Certification' },
+                { key: 'goodStanding', label: 'Letter of Good Standing', baseLabel: 'Letter of Good Standing' },
+                { key: 'sectorRegistrations', label: 'Sector Registrations', baseLabel: 'Sector Registrations' },
+                { key: 'organogram', label: 'Updated Company Organogram', baseLabel: 'Updated Company Organogram' },
+                { key: 'companyProfile', label: 'Company Profile', baseLabel: 'Company Profile' },
+              ]
+              .filter(({ key }) => {
+                // For ONCE_OFF, only show bankConfirmation and companyRegistration
+                // Also show creditApplication if credit application was selected
+                if (purchaseType === 'ONCE_OFF') {
+                  return key === 'bankConfirmation' || key === 'companyRegistration' || (key === 'creditApplication' && creditApplication)
+                }
+                // For REGULAR, show all except NDA
+                // Credit application form is included if credit application was selected
+                if (purchaseType === 'REGULAR') {
+                  return key !== 'nda'
+                }
+                // For SHARED_IP, show all documents
+                // Credit application form is included if credit application was selected
+                // If purchaseType is not set yet, show all (will be filtered once loaded)
+                return true
+              })
+              .map(({ key, label, baseLabel }) => {
+                const isRequired = purchaseType 
+                  ? isDocumentRequired(key as DocumentKey, purchaseType as any, creditApplication) 
+                  : requiredDocuments.includes(key)
+                const displayLabel = isRequired ? `${baseLabel} *` : baseLabel
+                return { key, label: displayLabel, required: isRequired }
+              })
+              .map(({ key, label, required }) => (
                 <div key={key} className="border rounded-lg p-4">
                   <Label className="mb-2 block">{label}</Label>
                   

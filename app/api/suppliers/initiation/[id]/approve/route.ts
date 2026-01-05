@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-sender'
+import { getRequiredDocuments } from '@/lib/document-requirements'
 
 export async function POST(
   request: NextRequest,
@@ -226,6 +227,9 @@ export async function POST(
             }
           })
 
+          // Determine required documents based on purchase type and credit application
+          const requiredDocuments = getRequiredDocuments(initiationDetails.purchaseType, initiationDetails.creditApplication)
+          
           // Create onboarding record linked to the supplier
           await prisma.supplierOnboarding.create({
             data: {
@@ -237,7 +241,8 @@ export async function POST(
               sector: initiationDetails.productServiceCategory,
               currentStep: 'PENDING_SUPPLIER_RESPONSE',
               overallStatus: 'AWAITING_RESPONSE',
-              initiatedById: initiationDetails.initiatedById
+              initiatedById: initiationDetails.initiatedById,
+              requiredDocuments: requiredDocuments
             }
           })
 
@@ -264,9 +269,11 @@ Thank you for your interest in becoming a supplier partner with Schauenburg Syst
 Your onboarding request has been reviewed and approved. We're excited to begin working with you!
 
 <strong>Your Request Details:</strong>
-- Business Unit: ${initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300'}
+- Business Unit(s): ${Array.isArray(initiationDetails.businessUnit) 
+  ? initiationDetails.businessUnit.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')
+  : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
 - Product/Service Category: ${initiationDetails.productServiceCategory}
-- Purchase Type: ${initiationDetails.regularPurchase ? 'Regular Purchase' : ''}${initiationDetails.regularPurchase && initiationDetails.onceOffPurchase ? ', ' : ''}${initiationDetails.onceOffPurchase ? 'Once-off Purchase' : ''}
+- Purchase Type: ${initiationDetails.purchaseType === 'REGULAR' ? 'Regular Purchase' : initiationDetails.purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
 ${initiationDetails.annualPurchaseValue ? `- Annual Purchase Value: R${initiationDetails.annualPurchaseValue.toLocaleString()}` : ''}
 
 <strong>Next Step:</strong>
@@ -320,7 +327,9 @@ Great news! The supplier initiation request you submitted has been approved by b
 <strong>Supplier Details:</strong>
 - <strong>Supplier Name:</strong> ${initiationDetails.supplierName}
 - <strong>Email:</strong> ${initiationDetails.supplierEmail}
-- <strong>Business Unit:</strong> ${initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300'}
+- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) 
+  ? initiationDetails.businessUnit.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')
+  : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
 - <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
 
 The supplier has been sent an email with instructions to complete their onboarding documentation. You can track the progress of this supplier onboarding in the Supplier Submissions dashboard.

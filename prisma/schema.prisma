@@ -287,8 +287,8 @@ enum SupplierStatus {
 model SupplierInitiation {
   id                        String                    @id @default(cuid())
   
-  // Business Unit Selection
-  businessUnit              BusinessUnit
+  // Business Unit Selection (can select multiple)
+  businessUnit              BusinessUnit[]
   
   // Checklist Items
   processReadUnderstood     Boolean                   @default(false)
@@ -303,11 +303,10 @@ model SupplierInitiation {
   relationshipDeclaration   String
   
   // Purchase Information
-  regularPurchase           Boolean                   @default(false)
+  purchaseType              PurchaseType
   annualPurchaseValue        Float?
   creditApplication          Boolean                   @default(false)
   creditApplicationReason   String?
-  onceOffPurchase           Boolean                   @default(false)
   onboardingReason          String                    @db.Text
   
   // Status and Workflow
@@ -341,6 +340,12 @@ model SupplierInitiation {
 enum BusinessUnit {
   SCHAUENBURG_SYSTEMS_200
   SCHAUENBURG_PTY_LTD_300
+}
+
+enum PurchaseType {
+  REGULAR
+  ONCE_OFF
+  SHARED_IP
 }
 
 enum InitiationStatus {

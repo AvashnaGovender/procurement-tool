@@ -28,8 +28,11 @@ function LoginForm() {
     setError("")
 
     try {
+      // Normalize email to lowercase for case-insensitive login
+      const normalizedEmail = email.toLowerCase().trim()
+      
       const result = await signIn("credentials", {
-        email,
+        email: normalizedEmail,
         password,
         redirect: false,
       })

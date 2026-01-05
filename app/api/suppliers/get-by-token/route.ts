@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getRequiredDocuments } from '@/lib/document-requirements'
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +18,13 @@ export async function GET(request: NextRequest) {
     const onboarding = await prisma.supplierOnboarding.findUnique({
       where: { onboardingToken: token },
       include: {
-        supplier: true
+        supplier: true,
+        initiation: {
+          select: {
+            purchaseType: true,
+            creditApplication: true
+          }
+        }
       }
     })
 
@@ -76,12 +83,28 @@ export async function GET(request: NextRequest) {
     // Get uploaded files info from airtableData if available
     const uploadedFiles = supplier.airtableData?.uploadedFiles || {}
 
+    // Get purchase type and credit application status
+    const purchaseType = onboarding.initiation?.purchaseType || onboarding.requiredDocuments.length > 0 
+      ? (onboarding.requiredDocuments.includes('nda') ? 'SHARED_IP' : 
+         onboarding.requiredDocuments.length <= 2 ? 'ONCE_OFF' : 'REGULAR')
+      : null
+    
+    const creditApplication = onboarding.initiation?.creditApplication || false
+    
+    // Use stored requiredDocuments if available, otherwise calculate from purchaseType and creditApplication
+    const requiredDocuments = onboarding.requiredDocuments.length > 0 
+      ? onboarding.requiredDocuments 
+      : (purchaseType ? getRequiredDocuments(purchaseType as any, creditApplication) : [])
+
     return NextResponse.json({
       success: true,
       formData,
       uploadedFiles,
       revisionNotes: onboarding.revisionNotes,
-      isRevision: onboarding.revisionRequested
+      isRevision: onboarding.revisionRequested,
+      purchaseType,
+      creditApplication,
+      requiredDocuments
     })
   } catch (error) {
     console.error('Error fetching supplier data:', error)

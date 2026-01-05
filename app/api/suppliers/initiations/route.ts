@@ -232,9 +232,8 @@ export async function GET(request: NextRequest) {
           approvedAt: initiation.procurementApproval.approvedAt,
           comments: initiation.procurementApproval.comments
         } : null,
-        regularPurchase: initiation.regularPurchase,
+        purchaseType: initiation.purchaseType,
         annualPurchaseValue: initiation.annualPurchaseValue,
-        onceOffPurchase: initiation.onceOffPurchase,
         creditApplication: initiation.creditApplication,
         creditApplicationReason: initiation.creditApplicationReason,
         onboardingReason: initiation.onboardingReason,

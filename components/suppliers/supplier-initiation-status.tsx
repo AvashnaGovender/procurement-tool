@@ -14,7 +14,7 @@ interface InitiationData {
   id: string
   status: string
   supplierName: string
-  businessUnit: string
+  businessUnit: string | string[]
   submittedAt: string
   managerApproval?: {
     status: string
@@ -123,11 +123,13 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
               <p className="text-lg">{initiationData.supplierName}</p>
             </div>
             <div>
-              <h4 className="font-medium text-sm text-gray-600">Business Unit</h4>
+              <h4 className="font-medium text-sm text-gray-600">Business Unit{Array.isArray(initiationData.businessUnit) && initiationData.businessUnit.length > 1 ? 's' : ''}</h4>
               <p className="text-lg">
-                {initiationData.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                  ? 'Schauenburg Systems 200' 
-                  : 'Schauenburg (Pty) Ltd 300'
+                {Array.isArray(initiationData.businessUnit) 
+                  ? initiationData.businessUnit.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')
+                  : (initiationData.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
+                      ? 'Schauenburg Systems 200' 
+                      : 'Schauenburg (Pty) Ltd 300')
                 }
               </p>
             </div>

@@ -6,11 +6,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Check, ChevronsUpDown } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Building2, CheckCircle, AlertCircle, Users, DollarSign, ArrowLeft, Home } from "lucide-react"
+import { Building2, CheckCircle, AlertCircle, Users, DollarSign, ArrowLeft, Home, Plus, Check, ChevronsUpDown } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { PRODUCT_SERVICE_CATEGORIES } from "@/lib/product-service-categories"
@@ -23,8 +28,18 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
   const { data: session } = useSession()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [customCategoryInput, setCustomCategoryInput] = useState("")
+  const [customCategories, setCustomCategories] = useState<string[]>(() => {
+    // Load custom categories from localStorage on mount
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('customProductServiceCategories')
+      return stored ? JSON.parse(stored) : []
+    }
+    return []
+  })
+  const [categorySearchOpen, setCategorySearchOpen] = useState(false)
   const [formData, setFormData] = useState({
-    businessUnit: "",
+    businessUnit: [] as string[],
     processReadUnderstood: false,
     dueDiligenceCompleted: false,
     supplierName: "",
@@ -33,11 +48,10 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
     productServiceCategory: "",
     requesterName: session?.user?.name || "",
     relationshipDeclaration: "",
-    regularPurchase: false,
+    purchaseType: "",
     annualPurchaseValue: "",
     creditApplication: false,
     creditApplicationReason: "",
-    onceOffPurchase: false,
     onboardingReason: ""
   })
 
@@ -57,6 +71,47 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
       [field]: value
     }))
   }
+
+  const handleBusinessUnitChange = (value: string, checked: boolean) => {
+    setFormData(prev => {
+      const currentUnits = prev.businessUnit || []
+      if (checked) {
+        // Add the business unit if it's not already in the array
+        return {
+          ...prev,
+          businessUnit: [...currentUnits, value]
+        }
+      } else {
+        // Remove the business unit from the array
+        return {
+          ...prev,
+          businessUnit: currentUnits.filter(unit => unit !== value)
+        }
+      }
+    })
+  }
+
+  const handleAddCustomCategory = () => {
+    const trimmedInput = customCategoryInput.trim()
+    if (trimmedInput && !customCategories.includes(trimmedInput) && !PRODUCT_SERVICE_CATEGORIES.includes(trimmedInput as any)) {
+      const newCategories = [...customCategories, trimmedInput]
+      setCustomCategories(newCategories)
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('customProductServiceCategories', JSON.stringify(newCategories))
+      }
+      // Set the newly added category as selected (replacing "Other Products/Services")
+      handleInputChange('productServiceCategory', trimmedInput)
+      // Clear the input and close the popover
+      setCustomCategoryInput("")
+      setCategorySearchOpen(false)
+    }
+  }
+
+  // Combine standard and custom categories, then sort alphabetically
+  const allCategories = [...PRODUCT_SERVICE_CATEGORIES, ...customCategories].sort((a, b) => 
+    a.localeCompare(b, undefined, { sensitivity: 'base' })
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -89,11 +144,15 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
 
   const isFormValid = () => {
     // Check all required fields
-    const hasBusinessUnit = !!formData.businessUnit
+    const hasBusinessUnit = Array.isArray(formData.businessUnit) && formData.businessUnit.length > 0
     const hasChecklist = formData.processReadUnderstood && formData.dueDiligenceCompleted
-    const hasSupplierInfo = !!formData.supplierName && !!formData.supplierEmail && !!formData.supplierContactPerson && !!formData.productServiceCategory && !!formData.requesterName && !!formData.relationshipDeclaration
-    const hasPurchaseType = formData.regularPurchase || formData.onceOffPurchase
-    const hasAnnualValue = !formData.regularPurchase || (formData.regularPurchase && formData.annualPurchaseValue && parseFloat(formData.annualPurchaseValue) > 0)
+    // For productServiceCategory, if "Other Products/Services" is selected, it must be replaced with a custom category
+    const hasValidCategory = formData.productServiceCategory && 
+      formData.productServiceCategory !== "Other Products/Services" &&
+      (allCategories.includes(formData.productServiceCategory))
+    const hasSupplierInfo = !!formData.supplierName && !!formData.supplierEmail && !!formData.supplierContactPerson && hasValidCategory && !!formData.requesterName && !!formData.relationshipDeclaration
+    const hasPurchaseType = !!formData.purchaseType
+    const hasAnnualValue = formData.purchaseType !== "REGULAR" || (formData.purchaseType === "REGULAR" && formData.annualPurchaseValue && parseFloat(formData.annualPurchaseValue) > 0)
     const hasCreditReason = formData.creditApplication || (!formData.creditApplication && formData.creditApplicationReason)
     const hasOnboardingReason = !!formData.onboardingReason
 
@@ -141,22 +200,32 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="businessUnit">Business Unit *</Label>
-            <Select 
-              value={formData.businessUnit} 
-              onValueChange={(value) => handleInputChange('businessUnit', value)}
-            >
-              <SelectTrigger className={!formData.businessUnit ? "border-red-300" : ""}>
-                <SelectValue placeholder="Select Business Unit" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="SCHAUENBURG_SYSTEMS_200">Schauenburg Systems 200</SelectItem>
-                <SelectItem value="SCHAUENBURG_PTY_LTD_300">Schauenburg (Pty) Ltd 300</SelectItem>
-              </SelectContent>
-            </Select>
-            {!formData.businessUnit && (
-              <p className="text-sm text-red-600">Please select a business unit</p>
+          <div className="space-y-3">
+            <Label>Business Unit *</Label>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="businessUnit200"
+                  checked={formData.businessUnit.includes("SCHAUENBURG_SYSTEMS_200")}
+                  onCheckedChange={(checked) => handleBusinessUnitChange("SCHAUENBURG_SYSTEMS_200", checked === true)}
+                />
+                <Label htmlFor="businessUnit200" className="font-normal cursor-pointer">
+                  Schauenburg Systems 200
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="businessUnit300"
+                  checked={formData.businessUnit.includes("SCHAUENBURG_PTY_LTD_300")}
+                  onCheckedChange={(checked) => handleBusinessUnitChange("SCHAUENBURG_PTY_LTD_300", checked === true)}
+                />
+                <Label htmlFor="businessUnit300" className="font-normal cursor-pointer">
+                  Schauenburg (Pty) Ltd 300
+                </Label>
+              </div>
+            </div>
+            {(!formData.businessUnit || formData.businessUnit.length === 0) && (
+              <p className="text-sm text-red-600">Please select at least one business unit</p>
             )}
           </div>
         </CardContent>
@@ -256,26 +325,80 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
             
             <div className="space-y-2">
               <Label htmlFor="productServiceCategory">Product/Service Category *</Label>
-              <Select 
-                value={formData.productServiceCategory} 
-                onValueChange={(value) => handleInputChange('productServiceCategory', value)}
-              >
-                <SelectTrigger 
-                  id="productServiceCategory"
-                  className={!formData.productServiceCategory ? "border-red-300" : ""}
-                >
-                  <SelectValue placeholder="Select product/service category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRODUCT_SERVICE_CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={categorySearchOpen} onOpenChange={setCategorySearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={categorySearchOpen}
+                    className={`w-full justify-between ${!formData.productServiceCategory || formData.productServiceCategory === "Other Products/Services" ? "border-red-300" : ""}`}
+                  >
+                    {formData.productServiceCategory
+                      ? allCategories.find((cat) => cat === formData.productServiceCategory) || formData.productServiceCategory
+                      : "Select product/service category..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[350px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search categories..." />
+                    <CommandList>
+                      <CommandEmpty>No category found.</CommandEmpty>
+                      <CommandGroup>
+                        {allCategories.map((category) => (
+                          <CommandItem
+                            key={category}
+                            value={category}
+                            onSelect={() => {
+                              handleInputChange('productServiceCategory', category)
+                              // Clear custom input when selecting a different option
+                              if (category !== "Other Products/Services") {
+                                setCustomCategoryInput("")
+                              }
+                              setCategorySearchOpen(false)
+                            }}
+                          >
+                            <Check
+                              className={`mr-2 h-4 w-4 ${formData.productServiceCategory === category ? "opacity-100" : "opacity-0"}`}
+                            />
+                            {category}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {formData.productServiceCategory === "Other Products/Services" && (
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="Type custom service category"
+                    value={customCategoryInput}
+                    onChange={(e) => setCustomCategoryInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleAddCustomCategory()
+                      }
+                    }}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleAddCustomCategory}
+                    disabled={!customCategoryInput.trim() || customCategories.includes(customCategoryInput.trim()) || PRODUCT_SERVICE_CATEGORIES.includes(customCategoryInput.trim() as any)}
+                    size="default"
+                    className="px-3"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
               {!formData.productServiceCategory && (
                 <p className="text-sm text-red-600">Please select product/service category</p>
+              )}
+              {formData.productServiceCategory === "Other Products/Services" && (
+                <p className="text-sm text-red-600">Please type and add a custom service category using the input field above</p>
               )}
             </div>
           </div>
@@ -317,19 +440,37 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="regularPurchase"
-              checked={formData.regularPurchase}
-              onCheckedChange={(checked) => handleInputChange('regularPurchase', checked)}
-            />
-            <Label htmlFor="regularPurchase" className={!formData.regularPurchase && !formData.onceOffPurchase ? "text-red-600" : ""}>
-              Regular Purchase *
-            </Label>
+          <div className="space-y-2">
+            <Label htmlFor="purchaseType">Purchase Type *</Label>
+            <Select 
+              value={formData.purchaseType} 
+              onValueChange={(value) => {
+                handleInputChange('purchaseType', value)
+                // Clear annual purchase value if not Regular Purchase
+                if (value !== "REGULAR") {
+                  handleInputChange('annualPurchaseValue', "")
+                }
+              }}
+            >
+              <SelectTrigger 
+                id="purchaseType"
+                className={!formData.purchaseType ? "border-red-300" : ""}
+              >
+                <SelectValue placeholder="Select purchase type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="REGULAR">Regular Purchase</SelectItem>
+                <SelectItem value="ONCE_OFF">Once-off Purchase</SelectItem>
+                <SelectItem value="SHARED_IP">Shared IP</SelectItem>
+              </SelectContent>
+            </Select>
+            {!formData.purchaseType && (
+              <p className="text-sm text-red-600">Please select a purchase type</p>
+            )}
           </div>
 
-          {formData.regularPurchase && (
-            <div className="ml-6 space-y-2">
+          {formData.purchaseType === "REGULAR" && (
+            <div className="space-y-2">
               <Label htmlFor="annualPurchaseValue">Annual Purchase Value (R) *</Label>
               <Input
                 id="annualPurchaseValue"
@@ -337,9 +478,9 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
                 value={formData.annualPurchaseValue}
                 onChange={(e) => handleInputChange('annualPurchaseValue', e.target.value)}
                 placeholder="Enter annual purchase value"
-                className={formData.regularPurchase && (!formData.annualPurchaseValue || parseFloat(formData.annualPurchaseValue) <= 0) ? "border-red-300" : ""}
+                className={(!formData.annualPurchaseValue || parseFloat(formData.annualPurchaseValue) <= 0) ? "border-red-300" : ""}
               />
-              {formData.regularPurchase && (!formData.annualPurchaseValue || parseFloat(formData.annualPurchaseValue) <= 0) && (
+              {(!formData.annualPurchaseValue || parseFloat(formData.annualPurchaseValue) <= 0) && (
                 <p className="text-sm text-red-600">Please enter a valid annual purchase value</p>
               )}
             </div>
@@ -369,21 +510,6 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
                 <p className="text-sm text-red-600">Please provide a reason for not requiring credit application</p>
               )}
             </div>
-          )}
-
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="onceOffPurchase"
-              checked={formData.onceOffPurchase}
-              onCheckedChange={(checked) => handleInputChange('onceOffPurchase', checked)}
-            />
-            <Label htmlFor="onceOffPurchase" className={!formData.regularPurchase && !formData.onceOffPurchase ? "text-red-600" : ""}>
-              Once-off Purchase *
-            </Label>
-          </div>
-          
-          {!formData.regularPurchase && !formData.onceOffPurchase && (
-            <p className="text-sm text-red-600">Please select at least one purchase type (Regular or Once-off)</p>
           )}
 
           <Separator />

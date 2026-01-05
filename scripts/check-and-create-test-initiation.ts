@@ -47,7 +47,7 @@ async function checkAndCreateTestInitiation() {
       // Create test initiation
       const initiation = await prisma.supplierInitiation.create({
         data: {
-          businessUnit: 'SCHAUENBURG_SYSTEMS_200',
+          businessUnit: ['SCHAUENBURG_SYSTEMS_200'],
           processReadUnderstood: true,
           dueDiligenceCompleted: true,
           supplierName: 'Test Supplier Company',
@@ -56,10 +56,9 @@ async function checkAndCreateTestInitiation() {
           productServiceCategory: 'IT Services',
           requesterName: admin.name,
           relationshipDeclaration: 'No existing relationship with this supplier',
-          regularPurchase: true,
+          purchaseType: 'REGULAR',
           annualPurchaseValue: 500000,
           creditApplication: true,
-          onceOffPurchase: false,
           onboardingReason: 'We need this supplier for specialized IT services that are not available from our current suppliers. They offer competitive pricing and have excellent references.',
           initiatedById: admin.id,
           status: 'SUBMITTED'

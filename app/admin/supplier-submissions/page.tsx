@@ -61,7 +61,7 @@ interface SupplierInitiation {
   id: string
   status: string
   supplierName: string
-  businessUnit: string
+  businessUnit: string | string[]
   requesterName: string
   submittedAt: string
   managerApproval?: {
@@ -76,9 +76,8 @@ interface SupplierInitiation {
     approvedAt?: string
     comments?: string
   }
-  regularPurchase: boolean
+  purchaseType: string
   annualPurchaseValue?: number
-  onceOffPurchase: boolean
   onboardingReason: string
 }
 
@@ -381,20 +380,20 @@ export default function SupplierSubmissionsPage() {
                           
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                             <div>
-                              <p className="text-sm font-medium text-slate-600">Business Unit</p>
+                              <p className="text-sm font-medium text-slate-600">Business Unit{Array.isArray(initiation.businessUnit) && initiation.businessUnit.length > 1 ? 's' : ''}</p>
                               <p className="text-sm">
-                                {initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                                  ? 'Schauenburg Systems 200' 
-                                  : 'Schauenburg (Pty) Ltd 300'
+                                {Array.isArray(initiation.businessUnit) 
+                                  ? initiation.businessUnit.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')
+                                  : (initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
+                                      ? 'Schauenburg Systems 200' 
+                                      : 'Schauenburg (Pty) Ltd 300')
                                 }
                               </p>
                             </div>
                             <div>
                               <p className="text-sm font-medium text-slate-600">Purchase Type</p>
                               <p className="text-sm">
-                                {initiation.regularPurchase && 'Regular Purchase'}
-                                {initiation.regularPurchase && initiation.onceOffPurchase && ', '}
-                                {initiation.onceOffPurchase && 'Once-off Purchase'}
+                                {initiation.purchaseType === 'REGULAR' ? 'Regular Purchase' : initiation.purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
                                 {initiation.annualPurchaseValue && ` (R${initiation.annualPurchaseValue.toLocaleString()})`}
                               </p>
                             </div>
