@@ -115,21 +115,41 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
     setIsSubmitting(true)
 
     try {
+      // Prepare submission data - exclude credit application fields for Once-off Purchase
+      const submissionData = { ...formData }
+      if (formData.purchaseType === 'ONCE_OFF') {
+        // For Once-off Purchase, set credit application to false and clear reason
+        submissionData.creditApplication = false
+        submissionData.creditApplicationReason = ''
+      }
+      
       const response = await fetch('/api/suppliers/initiate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submissionData),
       })
 
       if (response.ok) {
         const result = await response.json()
         onSubmissionComplete?.(result.initiationId)
       } else {
-        const errorData = await response.json()
-        console.error('API Error:', errorData)
-        alert(`Failed to submit initiation: ${errorData.error || 'Unknown error'}`)
+        let errorMessage = 'Unknown error'
+        try {
+          const errorData = await response.json()
+          console.error('API Error:', errorData)
+          errorMessage = errorData.error || errorData.message || `Server error (${response.status})`
+        } catch (parseError) {
+          // If response is not JSON, try to get text
+          try {
+            const text = await response.text()
+            errorMessage = text || `Server error (${response.status})`
+          } catch (textError) {
+            errorMessage = `Server error (${response.status})`
+          }
+        }
+        alert(`Failed to submit initiation: ${errorMessage}`)
       }
     } catch (error) {
       console.error('Error submitting initiation:', error)

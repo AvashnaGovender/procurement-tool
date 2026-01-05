@@ -439,8 +439,13 @@ Schauenburg Systems Procurement System
       stack: error instanceof Error ? error.stack : undefined,
       name: error instanceof Error ? error.name : undefined
     })
+    
+    // Return a properly formatted error response
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ 
-      error: `Failed to create supplier initiation: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      success: false,
+      error: `Failed to create supplier initiation: ${errorMessage}`,
+      message: errorMessage
     }, { status: 500 })
   }
 }
