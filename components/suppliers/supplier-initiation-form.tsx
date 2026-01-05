@@ -150,7 +150,10 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
     const hasSupplierInfo = !!formData.supplierName && !!formData.supplierEmail && !!formData.supplierContactPerson && hasValidCategory && !!formData.requesterName && !!formData.relationshipDeclaration
     const hasPurchaseType = !!formData.purchaseType
     const hasAnnualValue = formData.purchaseType !== "REGULAR" || (formData.purchaseType === "REGULAR" && formData.annualPurchaseValue && parseFloat(formData.annualPurchaseValue) > 0)
-    const hasCreditReason = formData.creditApplication || (!formData.creditApplication && formData.creditApplicationReason)
+    // Credit application is not required for Once-off Purchase
+    const hasCreditReason = formData.purchaseType === 'ONCE_OFF' || 
+      formData.creditApplication || 
+      (!formData.creditApplication && formData.creditApplicationReason)
     const hasOnboardingReason = !!formData.onboardingReason
 
     return hasBusinessUnit && hasChecklist && hasSupplierInfo && hasPurchaseType && hasAnnualValue && hasCreditReason && hasOnboardingReason
@@ -447,6 +450,11 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
                 if (value !== "REGULAR") {
                   handleInputChange('annualPurchaseValue', "")
                 }
+                // For Once-off Purchase, clear credit application fields
+                if (value === "ONCE_OFF") {
+                  handleInputChange('creditApplication', false)
+                  handleInputChange('creditApplicationReason', "")
+                }
               }}
             >
               <SelectTrigger 
@@ -483,30 +491,34 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
             </div>
           )}
 
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="creditApplication"
-              checked={formData.creditApplication}
-              onCheckedChange={(checked) => handleInputChange('creditApplication', checked)}
-            />
-            <Label htmlFor="creditApplication">Credit Application *</Label>
-          </div>
+          {formData.purchaseType !== 'ONCE_OFF' && (
+            <>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="creditApplication"
+                  checked={formData.creditApplication}
+                  onCheckedChange={(checked) => handleInputChange('creditApplication', checked)}
+                />
+                <Label htmlFor="creditApplication">Credit Application *</Label>
+              </div>
 
-          {!formData.creditApplication && (
-            <div className="ml-6 space-y-2">
-              <Label htmlFor="creditApplicationReason">Reason for No Credit Application *</Label>
-              <Textarea
-                id="creditApplicationReason"
-                value={formData.creditApplicationReason}
-                onChange={(e) => handleInputChange('creditApplicationReason', e.target.value)}
-                placeholder="Provide reason for not requiring credit application"
-                rows={2}
-                className={!formData.creditApplication && !formData.creditApplicationReason ? "border-red-300" : ""}
-              />
-              {!formData.creditApplication && !formData.creditApplicationReason && (
-                <p className="text-sm text-red-600">Please provide a reason for not requiring credit application</p>
+              {!formData.creditApplication && (
+                <div className="ml-6 space-y-2">
+                  <Label htmlFor="creditApplicationReason">Reason for No Credit Application *</Label>
+                  <Textarea
+                    id="creditApplicationReason"
+                    value={formData.creditApplicationReason}
+                    onChange={(e) => handleInputChange('creditApplicationReason', e.target.value)}
+                    placeholder="Provide reason for not requiring credit application"
+                    rows={2}
+                    className={!formData.creditApplication && !formData.creditApplicationReason ? "border-red-300" : ""}
+                  />
+                  {!formData.creditApplication && !formData.creditApplicationReason && (
+                    <p className="text-sm text-red-600">Please provide a reason for not requiring credit application</p>
+                  )}
+                </div>
               )}
-            </div>
+            </>
           )}
 
           <Separator />

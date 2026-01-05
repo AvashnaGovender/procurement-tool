@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Validate credit application reason if credit application is not selected
-    if (!creditApplication && !creditApplicationReason) {
+    // Validate credit application reason if credit application is not selected (not required for Once-off Purchase)
+    if (purchaseType !== 'ONCE_OFF' && !creditApplication && !creditApplicationReason) {
       return NextResponse.json({ 
         error: 'Please provide a reason for not requiring credit application' 
       }, { status: 400 })
