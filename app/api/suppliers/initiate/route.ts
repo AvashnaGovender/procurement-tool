@@ -12,11 +12,25 @@ export async function POST(request: NextRequest) {
     console.log('Session:', session?.user?.id ? 'Authenticated' : 'Not authenticated')
     
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ 
+        success: false,
+        error: 'Unauthorized',
+        message: 'You must be logged in to submit a supplier initiation'
+      }, { status: 401 })
     }
 
-    const body = await request.json()
-    console.log('Request body:', body)
+    let body
+    try {
+      body = await request.json()
+      console.log('Request body:', JSON.stringify(body, null, 2))
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError)
+      return NextResponse.json({ 
+        success: false,
+        error: 'Invalid request body',
+        message: 'The request body could not be parsed. Please check your input and try again.'
+      }, { status: 400 })
+    }
     const {
       businessUnit,
       processReadUnderstood,
@@ -40,29 +54,52 @@ export async function POST(request: NextRequest) {
     if (!businessUnits || businessUnits.length === 0 || !processReadUnderstood || !dueDiligenceCompleted || 
         !supplierName || !supplierEmail || !supplierContactPerson || !productServiceCategory || !requesterName || 
         !relationshipDeclaration || !onboardingReason) {
+      console.error('Validation failed - Missing required fields:', {
+        businessUnits: businessUnits.length,
+        processReadUnderstood,
+        dueDiligenceCompleted,
+        supplierName: !!supplierName,
+        supplierEmail: !!supplierEmail,
+        supplierContactPerson: !!supplierContactPerson,
+        productServiceCategory: !!productServiceCategory,
+        requesterName: !!requesterName,
+        relationshipDeclaration: !!relationshipDeclaration,
+        onboardingReason: !!onboardingReason
+      })
       return NextResponse.json({ 
-        error: 'Missing required fields' 
+        success: false,
+        error: 'Missing required fields',
+        message: 'Please complete all required fields before submitting'
       }, { status: 400 })
     }
 
     // Validate that a purchase type is selected
     if (!purchaseType || !['REGULAR', 'ONCE_OFF', 'SHARED_IP'].includes(purchaseType)) {
+      console.error('Validation failed - Invalid purchase type:', purchaseType)
       return NextResponse.json({ 
-        error: 'Please select a purchase type' 
+        success: false,
+        error: 'Please select a purchase type',
+        message: 'Please select a valid purchase type (Regular Purchase, Once-off Purchase, or Shared IP)'
       }, { status: 400 })
     }
 
     // Validate annual purchase value if regular purchase is selected
     if (purchaseType === 'REGULAR' && (!annualPurchaseValue || parseFloat(annualPurchaseValue) <= 0)) {
+      console.error('Validation failed - Invalid annual purchase value:', annualPurchaseValue)
       return NextResponse.json({ 
-        error: 'Please enter a valid annual purchase value for regular purchases' 
+        success: false,
+        error: 'Please enter a valid annual purchase value for regular purchases',
+        message: 'Annual purchase value is required and must be greater than 0 for regular purchases'
       }, { status: 400 })
     }
 
     // Validate credit application reason if credit application is not selected (not required for Once-off Purchase)
     if (purchaseType !== 'ONCE_OFF' && !creditApplication && !creditApplicationReason) {
+      console.error('Validation failed - Missing credit application reason')
       return NextResponse.json({ 
-        error: 'Please provide a reason for not requiring credit application' 
+        success: false,
+        error: 'Please provide a reason for not requiring credit application',
+        message: 'If credit application is not selected, please provide a reason'
       }, { status: 400 })
     }
 
@@ -76,7 +113,12 @@ export async function POST(request: NextRequest) {
     })
 
     if (!currentUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      console.error('User not found:', session.user.id)
+      return NextResponse.json({ 
+        success: false,
+        error: 'User not found',
+        message: 'Your user account could not be found. Please contact support.'
+      }, { status: 404 })
     }
 
     console.log('Current user:', currentUser.email, 'Manager:', currentUser.manager?.email || 'None')

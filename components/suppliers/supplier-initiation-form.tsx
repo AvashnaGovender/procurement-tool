@@ -136,19 +136,37 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
         onSubmissionComplete?.(result.initiationId)
       } else {
         let errorMessage = 'Unknown error'
+        const contentType = response.headers.get('content-type')
+        
         try {
-          const errorData = await response.json()
-          console.error('API Error:', errorData)
-          errorMessage = errorData.error || errorData.message || `Server error (${response.status})`
-        } catch (parseError) {
-          // If response is not JSON, try to get text
-          try {
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json()
+            console.error('API Error Response:', {
+              status: response.status,
+              statusText: response.statusText,
+              data: errorData
+            })
+            
+            // Handle empty object or various error formats
+            if (errorData && typeof errorData === 'object') {
+              errorMessage = errorData.error || 
+                           errorData.message || 
+                           errorData.details ||
+                           (Object.keys(errorData).length === 0 ? `Server error (${response.status})` : JSON.stringify(errorData))
+            } else {
+              errorMessage = `Server error (${response.status}): ${response.statusText}`
+            }
+          } else {
+            // Try to get text response
             const text = await response.text()
-            errorMessage = text || `Server error (${response.status})`
-          } catch (textError) {
-            errorMessage = `Server error (${response.status})`
+            errorMessage = text || `Server error (${response.status}): ${response.statusText}`
           }
+        } catch (parseError) {
+          console.error('Error parsing response:', parseError)
+          errorMessage = `Server error (${response.status}): ${response.statusText || 'Unknown error'}`
         }
+        
+        console.error('Final error message:', errorMessage)
         alert(`Failed to submit initiation: ${errorMessage}`)
       }
     } catch (error) {
