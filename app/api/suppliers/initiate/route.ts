@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-sender'
+import { getRequiredDocuments } from '@/lib/document-requirements'
+import { BusinessUnit } from '@prisma/client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,7 +52,13 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     // businessUnit should be an array with at least one item
-    const businessUnits = Array.isArray(businessUnit) ? businessUnit : (businessUnit ? [businessUnit] : [])
+    const businessUnitsRaw = Array.isArray(businessUnit) ? businessUnit : (businessUnit ? [businessUnit] : [])
+    
+    // Validate and cast to BusinessUnit enum
+    const businessUnits: BusinessUnit[] = businessUnitsRaw
+      .filter(unit => unit === 'SCHAUENBURG_SYSTEMS_200' || unit === 'SCHAUENBURG_PTY_LTD_300')
+      .map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? BusinessUnit.SCHAUENBURG_SYSTEMS_200 : BusinessUnit.SCHAUENBURG_PTY_LTD_300)
+    
     if (!businessUnits || businessUnits.length === 0 || !processReadUnderstood || !dueDiligenceCompleted || 
         !supplierName || !supplierEmail || !supplierContactPerson || !productServiceCategory || !requesterName || 
         !relationshipDeclaration || !onboardingReason) {
