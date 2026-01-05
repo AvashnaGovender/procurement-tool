@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Loader2, Upload, CheckCircle, AlertCircle, FileIcon, X, Plus, Check, ChevronsUpDown } from "lucide-react"
+import { Loader2, Upload, CheckCircle, AlertCircle, FileIcon, X, Plus, Check, ChevronsUpDown, Copy } from "lucide-react"
 import Image from "next/image"
 import { PRODUCT_SERVICE_CATEGORIES } from "@/lib/product-service-categories"
 import { SOUTH_AFRICAN_BANKS } from "@/lib/south-african-banks"
@@ -169,6 +170,29 @@ function SupplierOnboardingForm() {
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleSameForAllResponsiblePersons = () => {
+    // Copy contact person details to all responsible person fields
+    setFormData(prev => ({
+      ...prev,
+      // Banking
+      rpBanking: prev.contactPerson,
+      rpBankingPhone: prev.contactNumber,
+      rpBankingEmail: prev.emailAddress,
+      // Quality Management
+      rpQuality: prev.contactPerson,
+      rpQualityPhone: prev.contactNumber,
+      rpQualityEmail: prev.emailAddress,
+      // SHE
+      rpSHE: prev.contactPerson,
+      rpSHEPhone: prev.contactNumber,
+      rpSHEEmail: prev.emailAddress,
+      // BBBEE
+      rpBBBEE: prev.contactPerson,
+      rpBBBEEPhone: prev.contactNumber,
+      rpBBBEEEmail: prev.emailAddress,
+    }))
   }
 
   const handleAddCustomCategory = async () => {
@@ -841,6 +865,15 @@ function SupplierOnboardingForm() {
                 </div>
               </div>
               <div>
+                <Label htmlFor="associatedCompanyBranchName">Associated Company Branch Name</Label>
+                <Textarea
+                  id="associatedCompanyBranchName"
+                  value={formData.associatedCompanyBranchName}
+                  onChange={(e) => handleInputChange('associatedCompanyBranchName', e.target.value)}
+                  rows={2}
+                />
+              </div>
+              <div>
                 <Label htmlFor="branchesContactNumbers">Branches Contact Numbers</Label>
                 <Textarea
                   id="branchesContactNumbers"
@@ -1058,8 +1091,24 @@ function SupplierOnboardingForm() {
           {/* Section 6: Responsible Persons */}
           <Card>
             <CardHeader>
-              <CardTitle>6. Responsible Persons</CardTitle>
-              <CardDescription>Contact details for key personnel</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>6. Responsible Persons</CardTitle>
+                  <CardDescription>Contact details for key personnel</CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSameForAllResponsiblePersons}
+                  disabled={!formData.contactPerson || !formData.contactNumber || !formData.emailAddress}
+                  className="flex items-center gap-2"
+                  title="Copy contact person details to all responsible person fields"
+                >
+                  <Copy className="h-4 w-4" />
+                  Same for all
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Banking RP */}
@@ -1208,12 +1257,24 @@ function SupplierOnboardingForm() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="bbbeeStatus">BBBEE Status *</Label>
-                  <Input
-                    id="bbbeeStatus"
-                    required
+                  <Select
                     value={formData.bbbeeStatus}
-                    onChange={(e) => handleInputChange('bbbeeStatus', e.target.value)}
-                  />
+                    onValueChange={(value) => handleInputChange('bbbeeStatus', value)}
+                    required
+                  >
+                    <SelectTrigger id="bbbeeStatus">
+                      <SelectValue placeholder="Select BBBEE level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Level 1">Level 1</SelectItem>
+                      <SelectItem value="Level 2">Level 2</SelectItem>
+                      <SelectItem value="Level 3">Level 3</SelectItem>
+                      <SelectItem value="Level 4">Level 4</SelectItem>
+                      <SelectItem value="Level 5">Level 5</SelectItem>
+                      <SelectItem value="Level 6">Level 6</SelectItem>
+                      <SelectItem value="Level 7">Level 7</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="numberOfEmployees">Number of Employees *</Label>
@@ -1225,15 +1286,6 @@ function SupplierOnboardingForm() {
                     onChange={(e) => handleInputChange('numberOfEmployees', e.target.value)}
                   />
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="associatedCompanyBranchName">Associated Company Branch Name</Label>
-                <Textarea
-                  id="associatedCompanyBranchName"
-                  value={formData.associatedCompanyBranchName}
-                  onChange={(e) => handleInputChange('associatedCompanyBranchName', e.target.value)}
-                  rows={2}
-                />
               </div>
             </CardContent>
           </Card>
