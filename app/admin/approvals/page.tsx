@@ -559,8 +559,8 @@ export default function ApprovalsPage() {
 
         {/* Approval Dialog */}
         <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>
                 {approvalAction === 'approve' ? 'Approve' : 'Reject'} Supplier Initiation
                 {approvalRole === 'MANAGER' ? ' (Manager Approval)' : ' (Procurement Manager Approval)'}
@@ -574,14 +574,14 @@ export default function ApprovalsPage() {
             </DialogHeader>
             
             {selectedInitiation && (
-              <div className="space-y-4">
+              <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-2">
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-4">
                   <h4 className="font-medium text-slate-900 mb-3">Complete Initiation Details:</h4>
                   
                   {/* Basic Information */}
                   <div>
                     <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Supplier Information</p>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                       <div>
                         <p><strong>Supplier Name:</strong> {selectedInitiation.supplierName}</p>
                         <p><strong>Contact Person:</strong> {selectedInitiation.supplierContactPerson || 'N/A'}</p>
@@ -603,7 +603,7 @@ export default function ApprovalsPage() {
                   {/* Requester Information */}
                   <div className="pt-3 border-t">
                     <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Requester Information</p>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                       <div>
                         <p><strong>Requester:</strong> {selectedInitiation.requesterName}</p>
                         <p><strong>Submitted:</strong> {new Date(selectedInitiation.submittedAt).toLocaleDateString()}</p>
@@ -614,15 +614,15 @@ export default function ApprovalsPage() {
                   {/* Purchase Information */}
                   <div className="pt-3 border-t">
                     <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Purchase Information</p>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                       <div>
                         <p><strong>Purchase Type:</strong></p>
                         <p className="text-slate-700">
-                          {selectedInitiation.regularPurchase && 'Regular Purchase'}
-                          {selectedInitiation.regularPurchase && selectedInitiation.onceOffPurchase && ', '}
-                          {selectedInitiation.onceOffPurchase && 'Once-off Purchase'}
+                          {selectedInitiation.purchaseType === 'REGULAR' && 'Regular Purchase'}
+                          {selectedInitiation.purchaseType === 'ONCE_OFF' && 'Once-off Purchase'}
+                          {selectedInitiation.purchaseType === 'SHARED_IP' && 'Shared IP'}
                         </p>
-                        {selectedInitiation.annualPurchaseValue && (
+                        {selectedInitiation.purchaseType === 'REGULAR' && selectedInitiation.annualPurchaseValue && (
                           <p className="mt-1"><strong>Annual Value:</strong> R{selectedInitiation.annualPurchaseValue.toLocaleString()}</p>
                         )}
                       </div>
@@ -640,7 +640,7 @@ export default function ApprovalsPage() {
                   {/* Checklist */}
                   <div className="pt-3 border-t">
                     <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Checklist</p>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                       <div className="flex items-center gap-2">
                         {selectedInitiation.processReadUnderstood ? (
                           <CheckCircle className="h-4 w-4 text-green-500" />
@@ -690,25 +690,25 @@ export default function ApprovalsPage() {
                     required={approvalAction === 'reject'}
                   />
                 </div>
-                
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setApprovalDialogOpen(false)}
-                    disabled={submittingApproval}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleApproval}
-                    disabled={submittingApproval || (approvalAction === 'reject' && !approvalComments.trim())}
-                    variant={approvalAction === 'reject' ? 'destructive' : 'default'}
-                  >
-                    {submittingApproval ? 'Processing...' : `${approvalAction === 'approve' ? 'Approve' : 'Reject'}`}
-                  </Button>
-                </div>
               </div>
             )}
+            
+            <div className="flex justify-end gap-2 flex-shrink-0 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => setApprovalDialogOpen(false)}
+                disabled={submittingApproval}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleApproval}
+                disabled={submittingApproval || (approvalAction === 'reject' && !approvalComments.trim())}
+                variant={approvalAction === 'reject' ? 'destructive' : 'default'}
+              >
+                {submittingApproval ? 'Processing...' : `${approvalAction === 'approve' ? 'Approve' : 'Reject'}`}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

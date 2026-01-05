@@ -1525,3 +1525,26 @@ model SystemConfig {
 
   @@map("system_config")
 }
+
+// ============================================================================
+// CUSTOM OPTIONS - User-added options for dropdowns
+// ============================================================================
+
+model CustomOption {
+  id                  String        @id @default(cuid())
+  optionType          CustomOptionType
+  value               String        // The actual option value (e.g., "Custom Bank Name")
+  createdById         String?       // User who created this option
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@unique([optionType, value]) // Prevent duplicates per type
+  @@index([optionType])
+  @@map("custom_options")
+}
+
+enum CustomOptionType {
+  PRODUCT_SERVICE_CATEGORY
+  BANK
+  ACCOUNT_TYPE
+}

@@ -354,8 +354,8 @@ export default function SupplierInitiationsPage() {
 
       {/* Approval Dialog */}
       <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>
               {approvalAction === 'approve' ? 'Approve' : 'Reject'} Supplier Initiation
             </DialogTitle>
@@ -367,7 +367,7 @@ export default function SupplierInitiationsPage() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-2">
             <div>
               <Label htmlFor="comments">Comments (Optional)</Label>
               <Textarea
@@ -378,23 +378,23 @@ export default function SupplierInitiationsPage() {
                 rows={3}
               />
             </div>
-            
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setApprovalDialogOpen(false)}
-                disabled={submittingApproval}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleApproval}
-                disabled={submittingApproval}
-                variant={approvalAction === 'reject' ? 'destructive' : 'default'}
-              >
-                {submittingApproval ? 'Processing...' : `${approvalAction === 'approve' ? 'Approve' : 'Reject'}`}
-              </Button>
-            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2 flex-shrink-0 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => setApprovalDialogOpen(false)}
+              disabled={submittingApproval}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleApproval}
+              disabled={submittingApproval}
+              variant={approvalAction === 'reject' ? 'destructive' : 'default'}
+            >
+              {submittingApproval ? 'Processing...' : `${approvalAction === 'approve' ? 'Approve' : 'Reject'}`}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

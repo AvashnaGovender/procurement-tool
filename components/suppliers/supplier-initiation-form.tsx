@@ -26,15 +26,9 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [customCategoryInput, setCustomCategoryInput] = useState("")
-  const [customCategories, setCustomCategories] = useState<string[]>(() => {
-    // Load custom categories from localStorage on mount
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('customProductServiceCategories')
-      return stored ? JSON.parse(stored) : []
-    }
-    return []
-  })
+  const [customCategories, setCustomCategories] = useState<string[]>([])
   const [categorySearchOpen, setCategorySearchOpen] = useState(false)
+  const [loadingCategories, setLoadingCategories] = useState(true)
   const [formData, setFormData] = useState({
     businessUnit: [] as string[],
     processReadUnderstood: false,
@@ -62,6 +56,25 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
     }
   }, [session?.user?.name])
 
+  // Fetch custom categories from database
+  useEffect(() => {
+    const fetchCustomCategories = async () => {
+      try {
+        const response = await fetch('/api/custom-options?type=PRODUCT_SERVICE_CATEGORY')
+        const data = await response.json()
+        if (data.success) {
+          setCustomCategories(data.options || [])
+        }
+      } catch (error) {
+        console.error('Error fetching custom categories:', error)
+      } finally {
+        setLoadingCategories(false)
+      }
+    }
+
+    fetchCustomCategories()
+  }, [])
+
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
@@ -88,20 +101,39 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
     })
   }
 
-  const handleAddCustomCategory = () => {
+  const handleAddCustomCategory = async () => {
     const trimmedInput = customCategoryInput.trim()
     if (trimmedInput && !customCategories.includes(trimmedInput) && !PRODUCT_SERVICE_CATEGORIES.includes(trimmedInput as any)) {
-      const newCategories = [...customCategories, trimmedInput]
-      setCustomCategories(newCategories)
-      // Save to localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('customProductServiceCategories', JSON.stringify(newCategories))
+      try {
+        const response = await fetch('/api/custom-options', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            optionType: 'PRODUCT_SERVICE_CATEGORY',
+            value: trimmedInput,
+          }),
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          // Add to local state
+          setCustomCategories(prev => [...prev, data.option].sort((a, b) => 
+            a.localeCompare(b, undefined, { sensitivity: 'base' })
+          ))
+          // Set the newly added category as selected (replacing "Other Products/Services")
+          handleInputChange('productServiceCategory', data.option)
+          // Clear the input and close the popover
+          setCustomCategoryInput("")
+          setCategorySearchOpen(false)
+        } else {
+          alert(data.error || 'Failed to add custom category')
+        }
+      } catch (error) {
+        console.error('Error adding custom category:', error)
+        alert('Failed to add custom category. Please try again.')
       }
-      // Set the newly added category as selected (replacing "Other Products/Services")
-      handleInputChange('productServiceCategory', trimmedInput)
-      // Clear the input and close the popover
-      setCustomCategoryInput("")
-      setCategorySearchOpen(false)
     }
   }
 

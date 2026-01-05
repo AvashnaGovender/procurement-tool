@@ -10,8 +10,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Upload, CheckCircle, AlertCircle, FileIcon, X } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Loader2, Upload, CheckCircle, AlertCircle, FileIcon, X, Plus, Check, ChevronsUpDown } from "lucide-react"
 import Image from "next/image"
+import { PRODUCT_SERVICE_CATEGORIES } from "@/lib/product-service-categories"
+import { SOUTH_AFRICAN_BANKS } from "@/lib/south-african-banks"
+import { ACCOUNT_TYPES } from "@/lib/account-types"
 
 function SupplierOnboardingForm() {
   const searchParams = useSearchParams()
@@ -27,6 +32,15 @@ function SupplierOnboardingForm() {
   const [purchaseType, setPurchaseType] = useState<string | null>(null)
   const [creditApplication, setCreditApplication] = useState<boolean>(false)
   const [requiredDocuments, setRequiredDocuments] = useState<string[]>([])
+  const [customCategoryInput, setCustomCategoryInput] = useState("")
+  const [customCategories, setCustomCategories] = useState<string[]>([])
+  const [categorySearchOpen, setCategorySearchOpen] = useState(false)
+  const [customBankInput, setCustomBankInput] = useState("")
+  const [customBanks, setCustomBanks] = useState<string[]>([])
+  const [bankSearchOpen, setBankSearchOpen] = useState(false)
+  const [customAccountTypeInput, setCustomAccountTypeInput] = useState("")
+  const [customAccountTypes, setCustomAccountTypes] = useState<string[]>([])
+  const [accountTypeSearchOpen, setAccountTypeSearchOpen] = useState(false)
   
   // Form state
   const [formData, setFormData] = useState({
@@ -156,6 +170,139 @@ function SupplierOnboardingForm() {
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
+
+  const handleAddCustomCategory = async () => {
+    const trimmedInput = customCategoryInput.trim()
+    if (trimmedInput && !customCategories.includes(trimmedInput) && !PRODUCT_SERVICE_CATEGORIES.includes(trimmedInput as any)) {
+      try {
+        const response = await fetch('/api/custom-options', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            optionType: 'PRODUCT_SERVICE_CATEGORY',
+            value: trimmedInput,
+          }),
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          // Add to local state
+          setCustomCategories(prev => [...prev, data.option].sort((a, b) => 
+            a.localeCompare(b, undefined, { sensitivity: 'base' })
+          ))
+          // Set the newly added category as selected (replacing "Other Products/Services")
+          handleInputChange('productsAndServices', data.option)
+          // Clear the input and close the popover
+          setCustomCategoryInput("")
+          setCategorySearchOpen(false)
+        } else {
+          alert(data.error || 'Failed to add custom category')
+        }
+      } catch (error) {
+        console.error('Error adding custom category:', error)
+        alert('Failed to add custom category. Please try again.')
+      }
+    }
+  }
+
+  // Combine standard and custom categories, then sort alphabetically
+  const allCategories = [...PRODUCT_SERVICE_CATEGORIES, ...customCategories].sort((a, b) => 
+    a.localeCompare(b, undefined, { sensitivity: 'base' })
+  )
+
+  const handleAddCustomBank = async () => {
+    const trimmedInput = customBankInput.trim()
+    if (trimmedInput && !customBanks.includes(trimmedInput) && !SOUTH_AFRICAN_BANKS.includes(trimmedInput as any)) {
+      try {
+        const response = await fetch('/api/custom-options', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            optionType: 'BANK',
+            value: trimmedInput,
+          }),
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          // Add to local state
+          setCustomBanks(prev => [...prev, data.option].sort((a, b) => {
+            if (a === "Other") return 1
+            if (b === "Other") return -1
+            return a.localeCompare(b, undefined, { sensitivity: 'base' })
+          }))
+          // Set the newly added bank as selected (replacing "Other")
+          handleInputChange('bankName', data.option)
+          // Clear the input and close the popover
+          setCustomBankInput("")
+          setBankSearchOpen(false)
+        } else {
+          alert(data.error || 'Failed to add custom bank')
+        }
+      } catch (error) {
+        console.error('Error adding custom bank:', error)
+        alert('Failed to add custom bank. Please try again.')
+      }
+    }
+  }
+
+  // Combine standard and custom banks, then sort alphabetically
+  const allBanks = [...SOUTH_AFRICAN_BANKS.filter(b => b !== "Other"), ...customBanks, "Other"].sort((a, b) => {
+    // Keep "Other" at the end
+    if (a === "Other") return 1
+    if (b === "Other") return -1
+    return a.localeCompare(b, undefined, { sensitivity: 'base' })
+  })
+
+  const handleAddCustomAccountType = async () => {
+    const trimmedInput = customAccountTypeInput.trim()
+    if (trimmedInput && !customAccountTypes.includes(trimmedInput) && !ACCOUNT_TYPES.includes(trimmedInput as any)) {
+      try {
+        const response = await fetch('/api/custom-options', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            optionType: 'ACCOUNT_TYPE',
+            value: trimmedInput,
+          }),
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          // Add to local state
+          setCustomAccountTypes(prev => [...prev, data.option].sort((a, b) => {
+            if (a === "Other") return 1
+            if (b === "Other") return -1
+            return a.localeCompare(b, undefined, { sensitivity: 'base' })
+          }))
+          // Set the newly added account type as selected (replacing "Other")
+          handleInputChange('typeOfAccount', data.option)
+          // Clear the input and close the popover
+          setCustomAccountTypeInput("")
+          setAccountTypeSearchOpen(false)
+        } else {
+          alert(data.error || 'Failed to add custom account type')
+        }
+      } catch (error) {
+        console.error('Error adding custom account type:', error)
+        alert('Failed to add custom account type. Please try again.')
+      }
+    }
+  }
+
+  // Combine standard and custom account types, then sort alphabetically
+  const allAccountTypes = [...ACCOUNT_TYPES.filter(a => a !== "Other"), ...customAccountTypes, "Other"].sort((a, b) => {
+    // Keep "Other" at the end
+    if (a === "Other") return 1
+    if (b === "Other") return -1
+    return a.localeCompare(b, undefined, { sensitivity: 'base' })
+  })
 
   const handleFileChange = (category: string, fileList: FileList | null) => {
     if (fileList) {
@@ -482,7 +629,6 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.supplierName}
                     onChange={(e) => handleInputChange('supplierName', e.target.value)}
-                    placeholder="e.g., The Innoverse"
                   />
                 </div>
                 <div>
@@ -492,7 +638,6 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.contactPerson}
                     onChange={(e) => handleInputChange('contactPerson', e.target.value)}
-                    placeholder="Full name"
                   />
                 </div>
                 <div>
@@ -502,7 +647,6 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.nameOfBusiness}
                     onChange={(e) => handleInputChange('nameOfBusiness', e.target.value)}
-                    placeholder="Registered business name"
                   />
                 </div>
                 <div>
@@ -511,7 +655,6 @@ function SupplierOnboardingForm() {
                     id="tradingName"
                     value={formData.tradingName}
                     onChange={(e) => handleInputChange('tradingName', e.target.value)}
-                    placeholder="Trading as..."
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -521,7 +664,6 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.companyRegistrationNo}
                     onChange={(e) => handleInputChange('companyRegistrationNo', e.target.value)}
-                    placeholder="e.g., 2024/07/806"
                   />
                 </div>
               </div>
@@ -541,7 +683,6 @@ function SupplierOnboardingForm() {
                   required
                   value={formData.physicalAddress}
                   onChange={(e) => handleInputChange('physicalAddress', e.target.value)}
-                  placeholder="Street address, city, postal code"
                   rows={3}
                 />
               </div>
@@ -551,7 +692,6 @@ function SupplierOnboardingForm() {
                   id="postalAddress"
                   value={formData.postalAddress}
                   onChange={(e) => handleInputChange('postalAddress', e.target.value)}
-                  placeholder="P.O. Box or same as physical address"
                   rows={3}
                 />
               </div>
@@ -573,7 +713,6 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.contactNumber}
                     onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                    placeholder="0784588458"
                   />
                 </div>
                 <div>
@@ -584,7 +723,6 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.emailAddress}
                     onChange={(e) => handleInputChange('emailAddress', e.target.value)}
-                    placeholder="email@company.com"
                   />
                 </div>
               </div>
@@ -604,19 +742,85 @@ function SupplierOnboardingForm() {
                   required
                   value={formData.natureOfBusiness}
                   onChange={(e) => handleInputChange('natureOfBusiness', e.target.value)}
-                  placeholder="e.g., AI Consulting, Manufacturing"
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="productsAndServices">Products and/or Services *</Label>
-                <Textarea
-                  id="productsAndServices"
-                  required
-                  value={formData.productsAndServices}
-                  onChange={(e) => handleInputChange('productsAndServices', e.target.value)}
-                  placeholder="Describe your products and services"
-                  rows={4}
-                />
+                <Popover open={categorySearchOpen} onOpenChange={setCategorySearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={categorySearchOpen}
+                      className={`w-full justify-between ${!formData.productsAndServices || formData.productsAndServices === "Other Products/Services" ? "border-red-300" : ""}`}
+                    >
+                      {formData.productsAndServices
+                        ? allCategories.find((cat) => cat === formData.productsAndServices) || formData.productsAndServices
+                        : "Select products/services category..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[350px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search categories..." />
+                      <CommandList>
+                        <CommandEmpty>No category found.</CommandEmpty>
+                        <CommandGroup>
+                          {allCategories.map((category) => (
+                            <CommandItem
+                              key={category}
+                              value={category}
+                              onSelect={() => {
+                                handleInputChange('productsAndServices', category)
+                                // Clear custom input when selecting a different option
+                                if (category !== "Other Products/Services") {
+                                  setCustomCategoryInput("")
+                                }
+                                setCategorySearchOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${formData.productsAndServices === category ? "opacity-100" : "opacity-0"}`}
+                              />
+                              {category}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {formData.productsAndServices === "Other Products/Services" && (
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      placeholder="Type custom service category"
+                      value={customCategoryInput}
+                      onChange={(e) => setCustomCategoryInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleAddCustomCategory()
+                        }
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleAddCustomCategory}
+                      disabled={!customCategoryInput.trim() || customCategories.includes(customCategoryInput.trim()) || PRODUCT_SERVICE_CATEGORIES.includes(customCategoryInput.trim() as any)}
+                      size="default"
+                      className="px-3"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                {!formData.productsAndServices && (
+                  <p className="text-sm text-red-600">Please select products/services category</p>
+                )}
+                {formData.productsAndServices === "Other Products/Services" && (
+                  <p className="text-sm text-red-600">Please type and add a custom service category using the input field above</p>
+                )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -642,7 +846,6 @@ function SupplierOnboardingForm() {
                   id="branchesContactNumbers"
                   value={formData.branchesContactNumbers}
                   onChange={(e) => handleInputChange('branchesContactNumbers', e.target.value)}
-                  placeholder="List branch locations and contact numbers"
                   rows={3}
                 />
               </div>
@@ -665,15 +868,83 @@ function SupplierOnboardingForm() {
                     onChange={(e) => handleInputChange('bankAccountName', e.target.value)}
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="bankName">Bank Name *</Label>
-                  <Input
-                    id="bankName"
-                    required
-                    value={formData.bankName}
-                    onChange={(e) => handleInputChange('bankName', e.target.value)}
-                    placeholder="e.g., FNB, Standard Bank"
-                  />
+                  <Popover open={bankSearchOpen} onOpenChange={setBankSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={bankSearchOpen}
+                        className={`w-full justify-between ${!formData.bankName || formData.bankName === "Other" ? "border-red-300" : ""}`}
+                      >
+                        {formData.bankName
+                          ? allBanks.find((bank) => bank === formData.bankName) || formData.bankName
+                          : "Select bank..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[350px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search banks..." />
+                        <CommandList>
+                          <CommandEmpty>No bank found.</CommandEmpty>
+                          <CommandGroup>
+                            {allBanks.map((bank) => (
+                              <CommandItem
+                                key={bank}
+                                value={bank}
+                                onSelect={() => {
+                                  handleInputChange('bankName', bank)
+                                  // Clear custom input when selecting a different option
+                                  if (bank !== "Other") {
+                                    setCustomBankInput("")
+                                  }
+                                  setBankSearchOpen(false)
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${formData.bankName === bank ? "opacity-100" : "opacity-0"}`}
+                                />
+                                {bank}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {formData.bankName === "Other" && (
+                    <div className="flex gap-2 mt-2">
+                      <Input
+                        placeholder="Type custom bank name"
+                        value={customBankInput}
+                        onChange={(e) => setCustomBankInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleAddCustomBank()
+                          }
+                        }}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleAddCustomBank}
+                        disabled={!customBankInput.trim() || customBanks.includes(customBankInput.trim()) || SOUTH_AFRICAN_BANKS.includes(customBankInput.trim() as any)}
+                        size="default"
+                        className="px-3"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  {!formData.bankName && (
+                    <p className="text-sm text-red-600">Please select bank</p>
+                  )}
+                  {formData.bankName === "Other" && (
+                    <p className="text-sm text-red-600">Please type and add a custom bank name using the input field above</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="branchName">Branch Name *</Label>
@@ -702,15 +973,83 @@ function SupplierOnboardingForm() {
                     onChange={(e) => handleInputChange('accountNumber', e.target.value)}
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="typeOfAccount">Type of Account *</Label>
-                  <Input
-                    id="typeOfAccount"
-                    required
-                    value={formData.typeOfAccount}
-                    onChange={(e) => handleInputChange('typeOfAccount', e.target.value)}
-                    placeholder="e.g., Cheque, Savings"
-                  />
+                  <Popover open={accountTypeSearchOpen} onOpenChange={setAccountTypeSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={accountTypeSearchOpen}
+                        className={`w-full justify-between ${!formData.typeOfAccount || formData.typeOfAccount === "Other" ? "border-red-300" : ""}`}
+                      >
+                        {formData.typeOfAccount
+                          ? allAccountTypes.find((accountType) => accountType === formData.typeOfAccount) || formData.typeOfAccount
+                          : "Select account type..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[350px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search account types..." />
+                        <CommandList>
+                          <CommandEmpty>No account type found.</CommandEmpty>
+                          <CommandGroup>
+                            {allAccountTypes.map((accountType) => (
+                              <CommandItem
+                                key={accountType}
+                                value={accountType}
+                                onSelect={() => {
+                                  handleInputChange('typeOfAccount', accountType)
+                                  // Clear custom input when selecting a different option
+                                  if (accountType !== "Other") {
+                                    setCustomAccountTypeInput("")
+                                  }
+                                  setAccountTypeSearchOpen(false)
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${formData.typeOfAccount === accountType ? "opacity-100" : "opacity-0"}`}
+                                />
+                                {accountType}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {formData.typeOfAccount === "Other" && (
+                    <div className="flex gap-2 mt-2">
+                      <Input
+                        placeholder="Type custom account type"
+                        value={customAccountTypeInput}
+                        onChange={(e) => setCustomAccountTypeInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleAddCustomAccountType()
+                          }
+                        }}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleAddCustomAccountType}
+                        disabled={!customAccountTypeInput.trim() || customAccountTypes.includes(customAccountTypeInput.trim()) || ACCOUNT_TYPES.includes(customAccountTypeInput.trim() as any)}
+                        size="default"
+                        className="px-3"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  {!formData.typeOfAccount && (
+                    <p className="text-sm text-red-600">Please select account type</p>
+                  )}
+                  {formData.typeOfAccount === "Other" && (
+                    <p className="text-sm text-red-600">Please type and add a custom account type using the input field above</p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -874,7 +1213,6 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.bbbeeStatus}
                     onChange={(e) => handleInputChange('bbbeeStatus', e.target.value)}
-                    placeholder="e.g., Level 1, Level 2"
                   />
                 </div>
                 <div>
@@ -885,7 +1223,6 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.numberOfEmployees}
                     onChange={(e) => handleInputChange('numberOfEmployees', e.target.value)}
-                    placeholder="e.g., 50"
                   />
                 </div>
               </div>
