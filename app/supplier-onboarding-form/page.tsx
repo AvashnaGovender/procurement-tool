@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
-import { isDocumentRequired, isDocumentMandatory, type DocumentKey } from "@/lib/document-requirements"
+import { isDocumentRequired, isDocumentMandatory, type DocumentKey, type PurchaseType } from "@/lib/document-requirements"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -1357,24 +1357,37 @@ function SupplierOnboardingForm() {
                   return key === 'bankConfirmation' || key === 'companyRegistration' || (key === 'creditApplication' && creditApplication)
                 }
                 // For REGULAR, show all except NDA
-                // Credit application form is included if credit application was selected
+                // Credit application form is only shown if credit application was selected
                 if (purchaseType === 'REGULAR') {
-                  return key !== 'nda'
+                  if (key === 'nda') return false
+                  if (key === 'creditApplication') return creditApplication
+                  return true
                 }
                 // For SHARED_IP, show all documents
-                // Credit application form is included if credit application was selected
+                // Credit application form is only shown if credit application was selected
+                if (purchaseType === 'SHARED_IP') {
+                  if (key === 'creditApplication') return creditApplication
+                  return true
+                }
                 // If purchaseType is not set yet, show all (will be filtered once loaded)
                 return true
               })
               .map(({ key, label, baseLabel }) => {
                 // Check if document should be shown (requested)
                 const isRequested = purchaseType 
-                  ? isDocumentRequired(key as DocumentKey, purchaseType as any, creditApplication) 
+                  ? isDocumentRequired(key as DocumentKey, purchaseType as PurchaseType, creditApplication) 
                   : requiredDocuments.includes(key)
                 // Check if document is mandatory (should be marked with *)
-                const isMandatory = purchaseType 
-                  ? isDocumentMandatory(key as DocumentKey, purchaseType as any)
-                  : false
+                // Only mark as mandatory if purchaseType is valid and document is actually mandatory
+                let isMandatory = false
+                if (purchaseType && (purchaseType === 'REGULAR' || purchaseType === 'ONCE_OFF' || purchaseType === 'SHARED_IP')) {
+                  try {
+                    isMandatory = isDocumentMandatory(key as DocumentKey, purchaseType as PurchaseType)
+                  } catch (error) {
+                    console.error('Error checking if document is mandatory:', error)
+                    isMandatory = false
+                  }
+                }
                 const displayLabel = isMandatory ? `${baseLabel} *` : baseLabel
                 return { key, label: displayLabel, required: isMandatory, requested: isRequested }
               })

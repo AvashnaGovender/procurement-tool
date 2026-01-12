@@ -140,17 +140,27 @@ export function getMandatoryDocuments(purchaseType: PurchaseType): DocumentKey[]
  * Note: For taxClearance, goodStanding is also accepted as an alternative
  */
 export function isDocumentMandatory(documentKey: DocumentKey, purchaseType: PurchaseType): boolean {
+  // Validate purchaseType
+  if (!purchaseType || (purchaseType !== 'ONCE_OFF' && purchaseType !== 'REGULAR' && purchaseType !== 'SHARED_IP')) {
+    return false
+  }
+  
   // For ONCE_OFF, only companyRegistration and bankConfirmation are mandatory
   if (purchaseType === 'ONCE_OFF') {
     return documentKey === 'companyRegistration' || documentKey === 'bankConfirmation'
   }
   
+  // Get the list of mandatory documents for this purchase type
+  const mandatoryDocs = getMandatoryDocuments(purchaseType)
+  
   // goodStanding is accepted as alternative to taxClearance for REGULAR and SHARED_IP
+  // So if taxClearance is mandatory, goodStanding is also considered mandatory
   if (documentKey === 'goodStanding') {
-    return true // goodStanding is mandatory for REGULAR and SHARED_IP (as alternative to taxClearance)
+    return mandatoryDocs.includes('taxClearance') // goodStanding is mandatory if taxClearance is mandatory
   }
   
-  return getMandatoryDocuments(purchaseType).includes(documentKey)
+  // Check if the document is in the mandatory list
+  return mandatoryDocs.includes(documentKey)
 }
 
 /**

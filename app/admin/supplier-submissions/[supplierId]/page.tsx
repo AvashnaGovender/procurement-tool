@@ -92,6 +92,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [rejectReason, setRejectReason] = useState("")
   const [revisionDialogOpen, setRevisionDialogOpen] = useState(false)
   const [revisionNotes, setRevisionNotes] = useState("")
+  const [revisionSubmitting, setRevisionSubmitting] = useState(false)
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [successDialogOpen, setSuccessDialogOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
@@ -113,6 +114,8 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
 
   // Document verification state
   const [documentVerifications, setDocumentVerifications] = useState<Record<string, boolean>>({})
+  // Document incorrect state - tracks which documents are marked as incorrect
+  const [incorrectDocuments, setIncorrectDocuments] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     fetchSupplier()
@@ -286,6 +289,14 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     }
   }
 
+  const handleIncorrectToggle = (version: number, category: string, fileName: string, currentState: boolean) => {
+    const key = `${version}-${category}-${fileName}`
+    setIncorrectDocuments(prev => ({
+      ...prev,
+      [key]: !currentState
+    }))
+  }
+
   const handleApproveClick = () => {
     setApproveDialogOpen(true)
   }
@@ -409,11 +420,39 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     }
   }
 
-  const handleRevisionClick = (missingDocsList?: Array<{ name: string, icon: string }>) => {
+  const handleRevisionClick = (missingDocsList?: Array<{ name: string, icon: string }>, incorrectDocsList?: Array<{ version: number, category: string, fileName: string }>) => {
     setRevisionDialogOpen(true)
     
+    // If incorrect documents are provided, pre-fill the revision notes
+    if (incorrectDocsList && incorrectDocsList.length > 0) {
+      const documentNames = incorrectDocsList.map(doc => {
+        const categoryName = doc.category.replace(/([A-Z])/g, ' $1').trim()
+        return `${categoryName}: ${doc.fileName}`
+      })
+      
+      const preFilledNotes = `Dear ${supplier?.contactPerson || 'Supplier'},
+
+We have reviewed your submission and found that the following documents require correction:
+
+${documentNames.map((name, idx) => `${idx + 1}. ${name}`).join('\n')}
+
+Please review and correct these documents. The issues may include:
+- Document is not clear or legible
+- Document is expired or outdated
+- Document does not match the required format
+- Information in the document is incorrect or incomplete
+- Document is not the correct type required
+
+Please upload corrected versions of these documents by logging into the supplier portal using the link provided in your original onboarding email.
+
+If you have any questions or need clarification, please don't hesitate to contact us.
+
+Best regards,
+Procurement Team`
+      setRevisionNotes(preFilledNotes)
+    }
     // If missing documents are provided, pre-fill the revision notes
-    if (missingDocsList && missingDocsList.length > 0) {
+    else if (missingDocsList && missingDocsList.length > 0) {
       const preFilledNotes = `Dear ${supplier?.contactPerson || 'Supplier'},
 
 We have reviewed your submission and found that the following compulsory documents are missing:
@@ -444,6 +483,12 @@ Procurement Team`
       return
     }
 
+    // Prevent multiple submissions
+    if (revisionSubmitting) {
+      return
+    }
+
+    setRevisionSubmitting(true)
     try {
       const response = await fetch('/api/suppliers/request-revision', {
         method: 'POST',
@@ -460,6 +505,8 @@ Procurement Team`
         setSuccessMessage(`Revision request sent successfully!\n\nAn email with your feedback has been sent to ${supplier?.contactEmail}`)
         setSuccessDialogOpen(true)
         await fetchSupplier()
+        setRevisionDialogOpen(false)
+        setRevisionNotes("")
       } else {
         setErrorMessage(`Failed to send revision request: ${data.error}`)
         setErrorDialogOpen(true)
@@ -469,8 +516,7 @@ Procurement Team`
       setErrorMessage('Failed to send revision request. Please try again.')
       setErrorDialogOpen(true)
     } finally {
-      setRevisionDialogOpen(false)
-      setRevisionNotes("")
+      setRevisionSubmitting(false)
     }
   }
 
@@ -1367,39 +1413,137 @@ Procurement Team`
                           </AlertDescription>
                         </Alert>
                         {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' && (
-                          <Button
-                            variant="outline"
-                            onClick={() => handleRevisionClick(missingDocs)}
-                            className="w-full sm:w-auto border-orange-500 text-orange-700 hover:bg-orange-50"
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Request Revision - Missing Documents
-                          </Button>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => handleRevisionClick(missingDocs)}
+                              className="w-full sm:w-auto border-orange-500 text-orange-700 hover:bg-orange-50"
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Request Revision - Missing Documents
+                            </Button>
+                            {(() => {
+                              // Collect incorrect documents
+                              const incorrectDocsList: Array<{ version: number, category: string, fileName: string }> = []
+                              Object.keys(incorrectDocuments).forEach(key => {
+                                if (incorrectDocuments[key]) {
+                                  // Key format: "version-category-fileName"
+                                  // We need to split carefully since fileName might contain dashes
+                                  const parts = key.split('-')
+                                  if (parts.length >= 3) {
+                                    const version = parts[0]
+                                    const category = parts[1]
+                                    const fileName = parts.slice(2).join('-') // Rejoin remaining parts as fileName
+                                    incorrectDocsList.push({
+                                      version: parseInt(version),
+                                      category,
+                                      fileName
+                                    })
+                                  }
+                                }
+                              })
+                              
+                              if (incorrectDocsList.length > 0) {
+                                return (
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => handleRevisionClick(undefined, incorrectDocsList)}
+                                    className="w-full sm:w-auto border-red-500 text-red-700 hover:bg-red-50"
+                                  >
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Request Revision - Incorrect Documents ({incorrectDocsList.length})
+                                  </Button>
+                                )
+                              }
+                              return null
+                            })()}
+                          </div>
                         )}
                       </div>
                     )
                   } else {
                     return (
-                      <Alert className="bg-green-50 border-green-300 mb-6">
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                        <AlertDescription>
-                          <strong className="text-green-900">✅ All Compulsory Documents Uploaded</strong>
-                          <p className="text-sm text-green-800 mt-1">
-                            All {mandatoryDocs.length} mandatory documents have been provided. Review each document for accuracy and completeness.
-                          </p>
-                        </AlertDescription>
-                      </Alert>
+                      <div className="space-y-4 mb-6">
+                        <Alert className="bg-green-50 border-green-300">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <AlertDescription>
+                            <strong className="text-green-900">✅ All Compulsory Documents Uploaded</strong>
+                            <p className="text-sm text-green-800 mt-1">
+                              All {mandatoryDocs.length} mandatory documents have been provided. Review each document for accuracy and completeness.
+                            </p>
+                          </AlertDescription>
+                        </Alert>
+                        {(() => {
+                          // Collect incorrect documents
+                          const incorrectDocsList: Array<{ version: number, category: string, fileName: string }> = []
+                          Object.keys(incorrectDocuments).forEach(key => {
+                            if (incorrectDocuments[key]) {
+                              // Key format: "version-category-fileName"
+                              // We need to split carefully since fileName might contain dashes
+                              const parts = key.split('-')
+                              if (parts.length >= 3) {
+                                const version = parts[0]
+                                const category = parts[1]
+                                const fileName = parts.slice(2).join('-') // Rejoin remaining parts as fileName
+                                incorrectDocsList.push({
+                                  version: parseInt(version),
+                                  category,
+                                  fileName
+                                })
+                              }
+                            }
+                          })
+                          
+                          if (incorrectDocsList.length > 0 && supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED') {
+                            return (
+                              <Button
+                                variant="outline"
+                                onClick={() => handleRevisionClick(undefined, incorrectDocsList)}
+                                className="w-full sm:w-auto border-red-500 text-red-700 hover:bg-red-50"
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Request Revision - Incorrect Documents ({incorrectDocsList.length})
+                              </Button>
+                            )
+                          }
+                          
+                          // Show general Request Revision button if no missing or incorrect documents
+                          if (incorrectDocsList.length === 0 && supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED') {
+                            return (
+                              <Button
+                                variant="outline"
+                                onClick={() => handleRevisionClick()}
+                                className="w-full sm:w-auto border-blue-500 text-blue-700 hover:bg-blue-50"
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Request Revision
+                              </Button>
+                            )
+                          }
+                          return null
+                        })()}
+                      </div>
                     )
                   }
                 })()}
                 
-                {/* Show all versions */}
-                {supplier.airtableData.allVersions.map((versionData: any, versionIndex: number) => (
-                  <Card key={versionIndex} className={versionIndex === supplier.airtableData.allVersions.length - 1 ? 'border-blue-500 border-2' : ''}>
+                {/* Show all versions - sort by version number descending (newest first) */}
+                {[...(supplier.airtableData.allVersions || [])]
+                  .sort((a: any, b: any) => b.version - a.version)
+                  .map((versionData: any, versionIndex: number) => {
+                    const isLatestVersion = versionIndex === 0
+                    const isOldVersion = !isLatestVersion
+                    
+                    return (
+                  <Card 
+                    key={versionIndex} 
+                    className={`${isLatestVersion ? 'border-blue-500 border-2' : ''} ${isOldVersion ? 'opacity-60 bg-gray-50' : ''}`}
+                  >
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-lg">
-                          Version {versionData.version} {versionIndex === supplier.airtableData.allVersions.length - 1 && <Badge className="ml-2 bg-blue-500">Current</Badge>}
+                          Version {versionData.version} {isLatestVersion && <Badge className="ml-2 bg-blue-500">Current</Badge>}
+                          {isOldVersion && <Badge variant="outline" className="ml-2 text-gray-500">Previous</Badge>}
                         </CardTitle>
                         <div className="text-sm text-gray-500">
                           {new Date(versionData.date).toLocaleString()}
@@ -1421,9 +1565,10 @@ Procurement Team`
                                 const fileUrl = `/api/suppliers/documents/${supplier.supplierCode}/v${versionData.version}/${category}/${file}`
                                 const verificationKey = `${versionData.version}-${category}-${file}`
                                 const isVerified = documentVerifications[verificationKey] || false
+                                const isIncorrect = incorrectDocuments[verificationKey] || false
                           
                           return (
-                            <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded hover:bg-gray-100 transition-colors">
+                            <div key={index} className={`flex items-center justify-between p-3 rounded transition-colors ${isOldVersion ? 'bg-gray-100 opacity-75' : 'bg-gray-50 hover:bg-gray-100'}`}>
                               <div className="flex items-center gap-3 flex-1">
                                 <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
                                 <span className="text-sm truncate">{file}</span>
@@ -1435,6 +1580,9 @@ Procurement Team`
                                 )}
                                 {isVerified && (
                                   <Badge className="ml-2 bg-green-500 text-white">Verified</Badge>
+                                )}
+                                {isIncorrect && (
+                                  <Badge className="ml-2 bg-red-500 text-white">Incorrect</Badge>
                                 )}
                               </div>
                               <div className="flex items-center gap-3">
@@ -1449,6 +1597,19 @@ Procurement Team`
                                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                                   >
                                     Verified
+                                  </label>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`incorrect-${verificationKey}`}
+                                    checked={isIncorrect}
+                                    onCheckedChange={() => handleIncorrectToggle(versionData.version, category, file, isIncorrect)}
+                                  />
+                                  <label
+                                    htmlFor={`incorrect-${verificationKey}`}
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-red-600"
+                                  >
+                                    Incorrect
                                   </label>
                                 </div>
                                 {(isPdf || isImage) && (
@@ -1471,7 +1632,8 @@ Procurement Team`
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                    )
+                  })}
               </div>
             ) : (
               <Card>
@@ -2132,8 +2294,19 @@ Procurement Team`
             <Button variant="outline" onClick={() => setRevisionDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="outline" onClick={confirmRevision}>
-              Send Revision Request
+            <Button 
+              variant="outline" 
+              onClick={confirmRevision}
+              disabled={revisionSubmitting}
+            >
+              {revisionSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                'Send Revision Request'
+              )}
             </Button>
           </div>
         </DialogContent>
