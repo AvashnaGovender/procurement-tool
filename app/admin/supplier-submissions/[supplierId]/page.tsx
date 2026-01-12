@@ -32,6 +32,7 @@ import {
   AlertCircle
 } from "lucide-react"
 import { workerClient } from "@/lib/worker-client"
+import { getMandatoryDocuments, type PurchaseType } from "@/lib/document-requirements"
 
 interface Supplier {
   id: string
@@ -77,6 +78,13 @@ interface Supplier {
   qualityManagementCert?: boolean | null
   sheCertification?: boolean | null
   authorizationAgreement?: boolean | null
+  onboarding?: {
+    requiredDocuments?: string[]
+    initiation?: {
+      purchaseType?: string
+      creditApplication?: boolean
+    } | null
+  } | null
 }
 
 export default function SupplierDetailPage({ params }: { params: Promise<{ supplierId: string }> }) {
@@ -1362,21 +1370,84 @@ Procurement Team`
                     })
                   })
                   
-                  // Define mandatory documents
-                  const mandatoryDocs = [
-                    { key: 'nda', name: 'Non-Disclosure Agreement (NDA)', icon: '📝' },
-                    { key: 'companyRegistration', name: 'Company Registration (CIPC Documents)', icon: '📋' },
-                    { 
-                      key: 'taxOrGoodStanding', 
-                      name: 'Tax Clearance Certificate OR Letter of Good Standing', 
-                      icon: '💼',
-                      checkKeys: ['taxClearance', 'goodStanding'] 
-                    },
-                    { key: 'bankConfirmation', name: 'Bank Confirmation Letter', icon: '🏦' },
-                    { key: 'bbbeeAccreditation', name: 'B-BBEE Certificate', icon: '⭐' }
-                  ]
+                  // Get purchase type from supplier onboarding data
+                  // Priority: 1) initiation.purchaseType (most reliable), 2) infer from requiredDocuments, 3) default to REGULAR
+                  let purchaseType: PurchaseType = 'REGULAR' // Default to REGULAR
                   
-                  const missingDocs = mandatoryDocs.filter(doc => {
+                  // Try to get purchase type from onboarding initiation (most reliable source)
+                  if (supplier.onboarding?.initiation?.purchaseType) {
+                    purchaseType = supplier.onboarding.initiation.purchaseType as PurchaseType
+                  } 
+                  // Otherwise, infer from requiredDocuments in onboarding
+                  else if (supplier.onboarding?.requiredDocuments && supplier.onboarding.requiredDocuments.length > 0) {
+                    const requiredDocs = supplier.onboarding.requiredDocuments as string[]
+                    // If requiredDocuments includes 'nda', it's SHARED_IP
+                    if (requiredDocs.includes('nda')) {
+                      purchaseType = 'SHARED_IP'
+                    } 
+                    // If only 2 documents required, it's ONCE_OFF
+                    else if (requiredDocs.length <= 2) {
+                      purchaseType = 'ONCE_OFF'
+                    } 
+                    // Otherwise, it's REGULAR
+                    else {
+                      purchaseType = 'REGULAR'
+                    }
+                  }
+                  // Fallback: infer from uploaded documents (last resort - not reliable)
+                  else {
+                    const documentCount = Object.keys(allUploadedFiles).length
+                    // Don't infer SHARED_IP just because NDA exists - might be from old version
+                    // Only infer ONCE_OFF if very few documents
+                    if (documentCount <= 2 && allUploadedFiles.bankConfirmation && allUploadedFiles.companyRegistration) {
+                      purchaseType = 'ONCE_OFF'
+                    }
+                    // Default to REGULAR
+                  }
+                  
+                  // Get mandatory documents based on purchase type
+                  const mandatoryDocKeys = getMandatoryDocuments(purchaseType)
+                  
+                  // Map document keys to display format with names and icons
+                  const docDisplayMap: Record<string, { name: string, icon: string }> = {
+                    'nda': { name: 'Non-Disclosure Agreement (NDA)', icon: '📝' },
+                    'companyRegistration': { name: 'Company Registration (CIPC Documents)', icon: '📋' },
+                    'taxClearance': { name: 'Tax Clearance Certificate', icon: '💼' },
+                    'goodStanding': { name: 'Letter of Good Standing', icon: '💼' },
+                    'bankConfirmation': { name: 'Bank Confirmation Letter', icon: '🏦' },
+                    'bbbeeAccreditation': { name: 'B-BBEE Certificate', icon: '⭐' }
+                  }
+                  
+                  // Build mandatory documents list
+                  const mandatoryDocs: Array<{ key: string, name: string, icon: string, checkKeys?: string[] }> = []
+                  
+                  mandatoryDocKeys.forEach(docKey => {
+                    if (docKey === 'taxClearance') {
+                      // Tax clearance or good standing (either one accepted)
+                      mandatoryDocs.push({
+                        key: 'taxOrGoodStanding',
+                        name: 'Tax Clearance Certificate OR Letter of Good Standing',
+                        icon: '💼',
+                        checkKeys: ['taxClearance', 'goodStanding']
+                      })
+                    } else {
+                      const display = docDisplayMap[docKey]
+                      if (display) {
+                        mandatoryDocs.push({
+                          key: docKey,
+                          name: display.name,
+                          icon: display.icon
+                        })
+                      }
+                    }
+                  })
+                  
+                  // Remove duplicates (in case taxClearance and goodStanding both exist)
+                  const uniqueMandatoryDocs = mandatoryDocs.filter((doc, index, self) =>
+                    index === self.findIndex(d => d.key === doc.key)
+                  )
+                  
+                  const missingDocs = uniqueMandatoryDocs.filter(doc => {
                     if (doc.checkKeys) {
                       // For tax/good standing, check if either exists across all versions
                       return !doc.checkKeys.some(key => allUploadedFiles[key] && allUploadedFiles[key].length > 0)

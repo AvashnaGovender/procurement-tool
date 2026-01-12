@@ -520,8 +520,27 @@ async function processAnalysisJob(
       })
     })
     
-    // Define mandatory documents - all 5 are required
-    const requiredDocs = ['companyRegistration', 'bbbeeAccreditation', 'taxClearance', 'bankConfirmation', 'nda']
+    // Get purchase type from supplier data or infer from documents
+    let purchaseType: 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP' = 'REGULAR'
+    
+    // Try to infer purchase type from uploaded documents
+    if (allUploadedFiles.nda && allUploadedFiles.nda.length > 0) {
+      purchaseType = 'SHARED_IP'
+    } else {
+      const documentCount = Object.keys(allUploadedFiles).length
+      if (documentCount <= 2 && allUploadedFiles.bankConfirmation && allUploadedFiles.companyRegistration) {
+        purchaseType = 'ONCE_OFF'
+      } else {
+        purchaseType = 'REGULAR'
+      }
+    }
+    
+    // Get mandatory documents based on purchase type
+    const { getMandatoryDocuments } = await import('@/lib/document-requirements')
+    const mandatoryDocKeys = getMandatoryDocuments(purchaseType)
+    
+    // Convert to array of document keys for checking
+    const requiredDocs = mandatoryDocKeys
     const missingDocs = requiredDocs.filter(doc => {
       if (doc === 'taxClearance') {
         // Accept either tax clearance OR good standing across all versions
@@ -529,6 +548,7 @@ async function processAnalysisJob(
         const hasGoodStanding = allUploadedFiles?.goodStanding && allUploadedFiles.goodStanding.length > 0
         return !hasTaxClearance && !hasGoodStanding
       }
+      // For other documents, check if they exist
       return !allUploadedFiles?.[doc] || allUploadedFiles[doc].length === 0
     })
     
