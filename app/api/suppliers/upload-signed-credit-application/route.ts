@@ -4,7 +4,7 @@ import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,8 +17,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user is Procurement Manager
-    if (session.user.role !== 'PROCUREMENT_MANAGER') {
+    // Debug logging
+    console.log('📤 Upload signed credit application - User:', session.user.email, 'Role:', session.user.role)
+
+    // Check if user is Procurement Manager or Admin
+    if (session.user.role !== 'PROCUREMENT_MANAGER' && session.user.role !== 'ADMIN') {
+      console.log('❌ Access denied - User role:', session.user.role, 'Expected: PROCUREMENT_MANAGER or ADMIN')
       return NextResponse.json(
         { success: false, error: 'Only Procurement Managers can upload signed credit applications' },
         { status: 403 }
