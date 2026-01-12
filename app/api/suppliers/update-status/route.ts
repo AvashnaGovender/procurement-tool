@@ -108,6 +108,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Send approval email if status is APPROVED
+    let emailError: Error | null = null
+    let emailSent = false
     if (status === 'APPROVED') {
       try {
         // Get signed credit application file name if available
@@ -117,6 +119,7 @@ export async function POST(request: NextRequest) {
         
         // Send email to supplier
         await sendApprovalEmail(supplier, signedCreditAppFileName)
+        emailSent = true
         
         // Send email to initiator if onboarding exists
         if (onboarding && onboarding.initiationId) {
@@ -134,12 +137,37 @@ export async function POST(request: NextRequest) {
           })
           
           if (initiation && initiation.initiatedBy) {
-            await sendInitiatorApprovalEmail(supplier, initiation.initiatedBy)
+            try {
+              await sendInitiatorApprovalEmail(supplier, initiation.initiatedBy)
+            } catch (initiatorEmailError) {
+              console.error('Failed to send initiator email:', initiatorEmailError)
+              // Don't fail if initiator email fails, but log it
+            }
+          }
+          
+          // Update initiation status to SUPPLIER_EMAILED if email was sent successfully
+          if (emailSent && onboarding.initiationId) {
+            try {
+              await prisma.supplierInitiation.update({
+                where: { id: onboarding.initiationId },
+                data: {
+                  status: 'SUPPLIER_EMAILED',
+                  emailSent: true,
+                  emailSentAt: new Date()
+                }
+              })
+              console.log(`✅ Updated initiation status to SUPPLIER_EMAILED for initiation: ${onboarding.initiationId}`)
+            } catch (updateError) {
+              console.error('Failed to update initiation status:', updateError)
+              // Don't fail the request if this update fails
+            }
           }
         }
-      } catch (emailError) {
+      } catch (err) {
+        emailError = err instanceof Error ? err : new Error('Unknown email error')
         console.error('Failed to send approval email:', emailError)
-        // Don't fail the entire request if email fails
+        // Log the error but don't fail the entire request
+        // We'll return a warning in the response
       }
     }
 
@@ -155,7 +183,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      supplier
+      supplier,
+      emailSent: emailSent,
+      emailError: emailError ? emailError.message : null
     })
   } catch (error) {
     console.error('Error updating supplier status:', error)

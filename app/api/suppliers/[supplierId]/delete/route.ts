@@ -19,10 +19,10 @@ export async function DELETE(
       )
     }
 
-    // Check admin authorization
-    if (session.user.role !== 'ADMIN') {
+    // Check admin or PM authorization
+    if (session.user.role !== 'ADMIN' && session.user.role !== 'PROCUREMENT_MANAGER') {
       return NextResponse.json(
-        { success: false, error: 'Forbidden. Only administrators can delete suppliers.' },
+        { success: false, error: 'Forbidden. Only administrators and procurement managers can delete suppliers.' },
         { status: 403 }
       )
     }
@@ -40,7 +40,11 @@ export async function DELETE(
     const supplier = await prisma.supplier.findUnique({
       where: { id: supplierId },
       include: {
-        onboarding: true
+        onboarding: {
+          include: {
+            initiation: true
+          }
+        }
       }
     })
 
@@ -65,6 +69,9 @@ export async function DELETE(
 
     // Delete all related records in a transaction
     await prisma.$transaction(async (tx) => {
+      // Get the initiation ID before deleting onboarding (if it exists)
+      const initiationId = supplier.onboarding?.initiationId || null
+
       // Delete onboarding timeline entries
       if (supplier.onboarding) {
         await tx.onboardingTimeline.deleteMany({
@@ -79,6 +86,23 @@ export async function DELETE(
           where: { id: supplier.onboarding.id }
         })
         console.log(`✅ Deleted onboarding record: ${supplier.onboarding.id}`)
+      }
+
+      // Delete the related supplier initiation if it exists
+      if (initiationId) {
+        // Delete related approvals first (they have foreign key constraints)
+        await tx.managerApproval.deleteMany({
+          where: { initiationId: initiationId }
+        })
+        await tx.procurementApproval.deleteMany({
+          where: { initiationId: initiationId }
+        })
+        
+        // Delete the initiation
+        await tx.supplierInitiation.delete({
+          where: { id: initiationId }
+        })
+        console.log(`✅ Deleted supplier initiation: ${initiationId}`)
       }
 
       // Delete supplier
