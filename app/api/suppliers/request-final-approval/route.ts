@@ -104,12 +104,33 @@ export async function POST(request: NextRequest) {
 
     const pm = procurementManagers[0]
 
+    // Get credit application status and documents
+    const creditApplication = supplier.onboarding?.initiation?.creditApplication || false
+    let creditApplicationFiles: Array<{ version: number, fileName: string }> = []
+    
+    // Find credit application documents from all versions
+    if (creditApplication && supplier.airtableData?.allVersions) {
+      supplier.airtableData.allVersions.forEach((version: any) => {
+        const versionFiles = version.uploadedFiles || {}
+        if (versionFiles.creditApplication && Array.isArray(versionFiles.creditApplication)) {
+          versionFiles.creditApplication.forEach((fileName: string) => {
+            creditApplicationFiles.push({
+              version: version.version || 1,
+              fileName: fileName
+            })
+          })
+        }
+      })
+    }
+
     // Send email to Procurement Manager
     try {
       await sendFinalApprovalRequestEmail(
         supplier,
         pm,
-        supplier.onboarding?.initiation?.initiatedBy || null
+        supplier.onboarding?.initiation?.initiatedBy || null,
+        creditApplication,
+        creditApplicationFiles
       )
     } catch (emailError) {
       console.error('Failed to send final approval request email:', emailError)
@@ -170,7 +191,9 @@ export async function POST(request: NextRequest) {
 async function sendFinalApprovalRequestEmail(
   supplier: any,
   pm: any,
-  initiator: { name: string, email: string } | null
+  initiator: { name: string, email: string } | null,
+  creditApplication: boolean = false,
+  creditApplicationFiles: Array<{ version: number, fileName: string }> = []
 ) {
   try {
     // Load SMTP configuration
@@ -350,9 +373,47 @@ async function sendFinalApprovalRequestEmail(
       <ul style="color: #374151; line-height: 1.8;">
         <li>Review the supplier's documentation and information</li>
         <li>Verify all mandatory documents are present and correct</li>
+        ${creditApplication && creditApplicationFiles.length > 0 ? '<li><strong>IMPORTANT:</strong> Download, sign, and re-upload the Credit Application document (see details below)</li>' : ''}
         <li>Approve or reject the supplier using the link below</li>
         <li>Contact the initiator if you have any questions</li>
       </ul>
+      
+      ${creditApplication && creditApplicationFiles.length > 0 ? `
+      <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 4px;">
+        <div style="font-weight: bold; color: #92400e; margin-bottom: 10px; font-size: 16px;">
+          ⚠️ Credit Application Document Required
+        </div>
+        <div style="color: #1f2937; line-height: 1.6; margin-bottom: 15px;">
+          <p style="margin: 10px 0;">
+            This supplier has submitted a <strong>Credit Application</strong> which requires your signature before approval.
+          </p>
+          <p style="margin: 10px 0; font-weight: bold;">
+            Action Required:
+          </p>
+          <ol style="margin: 10px 0; padding-left: 20px; line-height: 1.8;">
+            <li>Download the Credit Application document(s) below</li>
+            <li>Review and sign the document(s)</li>
+            <li>Re-upload the signed document(s) to the supplier's profile</li>
+            <li>Only then proceed with final approval</li>
+          </ol>
+        </div>
+        <div style="margin-top: 15px;">
+          <div style="font-weight: bold; color: #92400e; margin-bottom: 10px;">Credit Application Document(s):</div>
+          ${creditApplicationFiles.map((file, index) => {
+            const downloadUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-submissions/${supplier.id}/preview/${supplier.supplierCode}/v${file.version}/creditApplication/${encodeURIComponent(file.fileName)}`
+            return `
+            <div style="margin: 8px 0; padding: 10px; background-color: #ffffff; border-radius: 4px; border: 1px solid #fbbf24;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="color: #374151; font-weight: 500;">${file.fileName}</span>
+                <a href="${downloadUrl}" target="_blank" style="display: inline-block; background-color: #f59e0b; color: #ffffff !important; font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; text-decoration: none; padding: 8px 16px; border-radius: 4px; margin-left: 10px;">Download</a>
+              </div>
+              <div style="color: #6b7280; font-size: 12px; margin-top: 5px;">Version ${file.version}</div>
+            </div>
+            `
+          }).join('')}
+        </div>
+      </div>
+      ` : ''}
       
       <div style="text-align: center; margin: 30px 0;">
         <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 0 auto;">

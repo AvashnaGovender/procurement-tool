@@ -115,7 +115,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Use existing supplier code if available, otherwise generate new one
-        const supplierId = existingSupplier?.supplierCode || `SUP-${Date.now()}-${Math.random().toString(36).substring(7)}`
+        const { generateSupplierCode } = await import('@/lib/generate-supplier-code')
+        const supplierId = existingSupplier?.supplierCode || await generateSupplierCode()
         const supplierDir = join(uploadsDir, supplierId)
         
         // Determine version number for file uploads

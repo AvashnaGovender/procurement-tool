@@ -1434,8 +1434,11 @@ Procurement Team`
                     // Default to REGULAR
                   }
                   
-                  // Get mandatory documents based on purchase type
-                  const mandatoryDocKeys = getMandatoryDocuments(purchaseType)
+                  // Get credit application status
+                  const creditApplication = supplier.onboarding?.initiation?.creditApplication || false
+                  
+                  // Get mandatory documents based on purchase type and credit application
+                  const mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication)
                   
                   // Map document keys to display format with names and icons
                   const docDisplayMap: Record<string, { name: string, icon: string }> = {

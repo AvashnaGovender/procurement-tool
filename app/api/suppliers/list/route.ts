@@ -15,20 +15,20 @@ export async function GET(request: NextRequest) {
 
     // Define where clause based on user role:
     // - ADMIN, MANAGER, PROCUREMENT_MANAGER: See all suppliers
-    // - Regular users: Only see approved suppliers OR suppliers they created
+    // - Regular users: See approved suppliers (all users can see approved suppliers) OR suppliers they created
     let whereClause: any = {}
 
     if (['ADMIN', 'MANAGER', 'PROCUREMENT_MANAGER'].includes(session.user.role)) {
       // Managers and admins see all suppliers
       whereClause = {}
     } else {
-      // Regular users only see:
-      // 1. Suppliers they created (to track their initiation), OR
-      // 2. Approved suppliers (public supplier directory)
+      // Regular users see:
+      // 1. Approved suppliers (all users can see approved suppliers), OR
+      // 2. Suppliers they created (to track their initiation)
       whereClause = {
         OR: [
-          { createdById: session.user.id },
-          { status: 'APPROVED' }
+          { status: 'APPROVED' },
+          { createdById: session.user.id }
         ]
       }
     }
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const suppliers = await prisma.supplier.findMany({
       where: whereClause,
       orderBy: {
-        createdAt: 'desc'
+        companyName: 'asc'
       },
       select: {
         id: true,

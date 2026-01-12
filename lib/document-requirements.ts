@@ -111,10 +111,12 @@ export function getRequiredDocuments(purchaseType: PurchaseType, creditApplicati
  * - taxClearance OR goodStanding (either one accepted) - only for REGULAR and SHARED_IP
  * - bankConfirmation (Bank Confirmation Letter)
  * - nda (Non-Disclosure Agreement) - only for SHARED_IP purchase type
+ * - creditApplication (Credit Application Form) - only if creditApplication is true
  * 
  * @param purchaseType - The purchase type (REGULAR, ONCE_OFF, SHARED_IP)
+ * @param creditApplication - Whether credit application was selected (if true, credit application is mandatory)
  */
-export function getMandatoryDocuments(purchaseType: PurchaseType): DocumentKey[] {
+export function getMandatoryDocuments(purchaseType: PurchaseType, creditApplication: boolean = false): DocumentKey[] {
   const mandatory: DocumentKey[] = [
     'companyRegistration',
     'bankConfirmation'
@@ -130,6 +132,11 @@ export function getMandatoryDocuments(purchaseType: PurchaseType): DocumentKey[]
   // NDA is only mandatory for SHARED_IP purchase type
   if (purchaseType === 'SHARED_IP') {
     mandatory.push('nda')
+  }
+  
+  // Credit Application is mandatory if creditApplication is true
+  if (creditApplication) {
+    mandatory.push('creditApplication')
   }
   
   return mandatory

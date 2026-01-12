@@ -9,28 +9,21 @@ export async function POST(
   try {
     const { supplierId } = await params
     
-    // Get supplier with documents
+    // Get supplier with documents and onboarding
     const supplier = await prisma.supplier.findUnique({
       where: { id: supplierId },
-      select: {
-        id: true,
-        supplierCode: true,
-        companyName: true,
-        contactEmail: true,
-        contactPerson: true,
-        registrationNumber: true,
-        physicalAddress: true,
-        bbbeeLevel: true,
-        bankName: true,
-        branchName: true,
-        branchNumber: true,
-        accountNumber: true,
-        typeOfAccount: true,
-        bankAccountName: true,
-        qualityManagementCert: true,
-        sheCertification: true,
-        airtableData: true,
-      },
+      include: {
+        onboarding: {
+          include: {
+            initiation: {
+              select: {
+                purchaseType: true,
+                creditApplication: true
+              }
+            }
+          }
+        }
+      }
     })
 
     if (!supplier) {
@@ -520,24 +513,33 @@ async function processAnalysisJob(
       })
     })
     
-    // Get purchase type from supplier data or infer from documents
+    // Get purchase type and credit application from supplier data or infer from documents
     let purchaseType: 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP' = 'REGULAR'
+    let creditApplication = false
     
-    // Try to infer purchase type from uploaded documents
-    if (allUploadedFiles.nda && allUploadedFiles.nda.length > 0) {
-      purchaseType = 'SHARED_IP'
-    } else {
-      const documentCount = Object.keys(allUploadedFiles).length
-      if (documentCount <= 2 && allUploadedFiles.bankConfirmation && allUploadedFiles.companyRegistration) {
-        purchaseType = 'ONCE_OFF'
+    // Try to get from supplier onboarding if available
+    if (supplier.onboarding?.initiation) {
+      purchaseType = supplier.onboarding.initiation.purchaseType || purchaseType
+      creditApplication = supplier.onboarding.initiation.creditApplication || false
+    }
+    
+    // If not available, try to infer purchase type from uploaded documents
+    if (!supplier.onboarding?.initiation?.purchaseType) {
+      if (allUploadedFiles.nda && allUploadedFiles.nda.length > 0) {
+        purchaseType = 'SHARED_IP'
       } else {
-        purchaseType = 'REGULAR'
+        const documentCount = Object.keys(allUploadedFiles).length
+        if (documentCount <= 2 && allUploadedFiles.bankConfirmation && allUploadedFiles.companyRegistration) {
+          purchaseType = 'ONCE_OFF'
+        } else {
+          purchaseType = 'REGULAR'
+        }
       }
     }
     
-    // Get mandatory documents based on purchase type
+    // Get mandatory documents based on purchase type and credit application
     const { getMandatoryDocuments } = await import('@/lib/document-requirements')
-    const mandatoryDocKeys = getMandatoryDocuments(purchaseType)
+    const mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication)
     
     // Convert to array of document keys for checking
     const requiredDocs = mandatoryDocKeys

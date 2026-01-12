@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-sender'
 import { getRequiredDocuments } from '@/lib/document-requirements'
+import { generateSupplierCode } from '@/lib/generate-supplier-code'
 
 export async function POST(
   request: NextRequest,
@@ -215,7 +216,7 @@ export async function POST(
           // Create a supplier record with AWAITING_DOCS status
           const supplier = await prisma.supplier.create({
             data: {
-              supplierCode: `SUP-${Date.now()}`, // Generate unique supplier code
+              supplierCode: await generateSupplierCode(), // Generate alphanumeric sequential supplier code
               supplierName: initiationDetails.supplierName,
               contactEmail: initiationDetails.supplierEmail,
               companyName: initiationDetails.supplierName,
