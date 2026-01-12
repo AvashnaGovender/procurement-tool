@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,6 +55,12 @@ interface Supplier {
     supplierFormSubmitted: boolean
     currentStep: string
     overallStatus: string
+    initiationId?: string | null
+    initiation?: {
+      id: string
+      emailSent: boolean
+      status: string
+    } | null
   }
 }
 
@@ -85,6 +92,7 @@ type SortField = 'supplierCode' | 'companyName' | 'contactPerson' | 'contactEmai
 type SortDirection = 'asc' | 'desc'
 
 export default function SupplierSubmissionsPage() {
+  const { data: session } = useSession()
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [initiations, setInitiations] = useState<SupplierInitiation[]>([])
   const [loading, setLoading] = useState(true)
@@ -290,6 +298,21 @@ export default function SupplierSubmissionsPage() {
     return status.replace('_', ' ')
   }
 
+  // Check if email failed for approved suppliers
+  const hasEmailFailed = (supplier: Supplier): boolean => {
+    if (supplier.status !== 'APPROVED') return false
+    
+    // Check if supplier is approved but email wasn't sent
+    // This happens when email fails during approval
+    if (supplier.onboarding?.initiation) {
+      // If initiation exists and emailSent is false, email failed
+      return !supplier.onboarding.initiation.emailSent
+    }
+    
+    // If no initiation record, check onboarding emailSent
+    return supplier.onboarding ? !supplier.onboarding.emailSent : false
+  }
+
   const statusCounts = {
     all: suppliers.length,
     PENDING: suppliers.filter(s => s.status === 'PENDING').length,
@@ -446,8 +469,8 @@ export default function SupplierSubmissionsPage() {
                                 View
                               </Button>
                               
-                              {/* Only show delete button for deletable statuses */}
-                              {['SUBMITTED', 'MANAGER_APPROVED', 'PROCUREMENT_APPROVED', 'REJECTED'].includes(initiation.status) && (
+                              {/* Show delete button for ADMIN and PM - they can delete any initiation that doesn't have a submitted supplier form */}
+                              {(session?.user?.role === 'ADMIN' || session?.user?.role === 'PROCUREMENT_MANAGER') && (
                                 <Button
                                   size="sm"
                                   variant="destructive"
@@ -622,34 +645,76 @@ export default function SupplierSubmissionsPage() {
                             {getSortIcon('status')}
                           </div>
                         </TableHead>
-                        <TableHead className="text-right text-slate-700">Actions</TableHead>
+                        <TableHead className="text-right text-foreground">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredSuppliers.map((supplier) => (
-                        <TableRow key={supplier.id} className="hover:bg-slate-50">
-                          <TableCell className="font-mono text-sm text-slate-700">{supplier.supplierCode}</TableCell>
-                          <TableCell className="font-medium text-slate-900">{supplier.companyName}</TableCell>
-                          <TableCell className="text-slate-700">{supplier.contactPerson}</TableCell>
-                          <TableCell className="text-slate-700">{supplier.contactEmail}</TableCell>
-                          <TableCell className="text-slate-700">{new Date(supplier.createdAt).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <Badge className={`${getStatusColor(supplier.status)} text-white`}>
-                              {getStatusDisplay(supplier)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => window.location.href = `/admin/supplier-submissions/${supplier.id}`}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {filteredSuppliers.map((supplier) => {
+                        const emailFailed = hasEmailFailed(supplier)
+                        return (
+                          <TableRow key={supplier.id} className="hover:bg-muted/50">
+                            <TableCell className="font-mono text-sm text-foreground">{supplier.supplierCode}</TableCell>
+                            <TableCell className="font-medium text-foreground">
+                              <div className="flex items-center gap-2">
+                                {supplier.companyName}
+                                {emailFailed && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    Email Failed
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-foreground">{supplier.contactPerson}</TableCell>
+                            <TableCell className="text-foreground">{supplier.contactEmail}</TableCell>
+                            <TableCell className="text-foreground">{new Date(supplier.createdAt).toLocaleDateString()}</TableCell>
+                            <TableCell>
+                              <Badge className={`${getStatusColor(supplier.status)} text-white`}>
+                                {getStatusDisplay(supplier)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => window.location.href = `/admin/supplier-submissions/${supplier.id}`}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View
+                                </Button>
+                                {(session?.user?.role === 'ADMIN' || session?.user?.role === 'PROCUREMENT_MANAGER') && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950 dark:hover:text-red-300"
+                                    onClick={async () => {
+                                      if (confirm(`Are you sure you want to delete "${supplier.companyName}"? This action cannot be undone.`)) {
+                                        try {
+                                          const response = await fetch(`/api/suppliers/${supplier.id}/delete`, {
+                                            method: 'DELETE',
+                                            headers: { 'Content-Type': 'application/json' }
+                                          })
+                                          const data = await response.json()
+                                          if (data.success) {
+                                            await fetchSuppliers()
+                                          } else {
+                                            alert(`Failed to delete: ${data.error}`)
+                                          }
+                                        } catch (error) {
+                                          console.error('Error deleting supplier:', error)
+                                          alert('Failed to delete supplier. Please try again.')
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 )}

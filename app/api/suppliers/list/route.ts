@@ -64,6 +64,14 @@ export async function GET(request: NextRequest) {
             supplierFormSubmitted: true,
             currentStep: true,
             overallStatus: true,
+            initiationId: true,
+            initiation: {
+              select: {
+                id: true,
+                emailSent: true,
+                status: true
+              }
+            }
           }
         }
       }
