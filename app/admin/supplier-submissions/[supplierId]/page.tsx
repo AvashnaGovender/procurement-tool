@@ -83,6 +83,7 @@ interface Supplier {
     initiation?: {
       purchaseType?: string
       creditApplication?: boolean
+      initiatedById?: string
     } | null
   } | null
 }
@@ -309,6 +310,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     setApproveDialogOpen(true)
   }
 
+
   const handleRejectClick = () => {
     setRejectDialogOpen(true)
     setRejectReason("")
@@ -316,29 +318,55 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
 
   const confirmApprove = async () => {
     try {
-      const response = await fetch('/api/suppliers/update-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          supplierId: supplier?.id, 
-          status: 'APPROVED'
-        })
-      })
-
-      const data = await response.json()
+      // Check if user is PM approving, or initiator requesting final approval
+      const isPmApproving = session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL'
       
-      if (data.success) {
-        setShowCompletion(true)
-        setSuccessMessage(`Supplier approved successfully!\n\nAn approval email has been sent to ${supplier?.contactEmail}`)
-        setSuccessDialogOpen(true)
-        await fetchSupplier()
+      if (isPmApproving) {
+        // PM is approving the supplier
+        const response = await fetch('/api/suppliers/update-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            supplierId: supplier?.id, 
+            status: 'APPROVED'
+          })
+        })
+
+        const data = await response.json()
+        
+        if (data.success) {
+          setShowCompletion(true)
+          setSuccessMessage(`Supplier approved successfully!\n\nAn approval email has been sent to ${supplier?.contactEmail}`)
+          setSuccessDialogOpen(true)
+          await fetchSupplier()
+        } else {
+          setErrorMessage(`Failed to approve supplier: ${data.error}`)
+          setErrorDialogOpen(true)
+        }
       } else {
-        setErrorMessage(`Failed to approve supplier: ${data.error}`)
-        setErrorDialogOpen(true)
+        // Initiator is requesting final approval
+        const response = await fetch('/api/suppliers/request-final-approval', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            supplierId: supplier?.id
+          })
+        })
+
+        const data = await response.json()
+        
+        if (data.success) {
+          setSuccessMessage(`Final approval request sent successfully!\n\nAn email has been sent to the Procurement Manager for final approval.`)
+          setSuccessDialogOpen(true)
+          await fetchSupplier()
+        } else {
+          setErrorMessage(`Failed to request final approval: ${data.error}`)
+          setErrorDialogOpen(true)
+        }
       }
     } catch (error) {
-      console.error('Error updating status:', error)
-      setErrorMessage('Failed to update supplier status. Please try again.')
+      console.error('Error in approval process:', error)
+      setErrorMessage('Failed to process request. Please try again.')
       setErrorDialogOpen(true)
     } finally {
       setApproveDialogOpen(false)
@@ -605,6 +633,7 @@ Procurement Team`
     switch (status) {
       case 'APPROVED': return 'bg-green-500'
       case 'UNDER_REVIEW': return 'bg-yellow-500'
+      case 'AWAITING_FINAL_APPROVAL': return 'bg-orange-500'
       case 'REJECTED': return 'bg-red-500'
       case 'PENDING': return 'bg-gray-500'
       default: return 'bg-blue-500'
@@ -2152,24 +2181,41 @@ Procurement Team`
                 {/* Only show action buttons if supplier is not approved or rejected */}
                 {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' ? (
                   <div className="flex flex-col gap-4">
-                    <Button onClick={handleApproveClick}>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Approve Supplier
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={handleRejectClick}
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Reject Supplier
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleRevisionClick()}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Request Revision
-                    </Button>
+                    {/* Show "Request Final Approval" if current user is the initiator and status is not AWAITING_FINAL_APPROVAL */}
+                    {supplier.onboarding?.initiation?.initiatedById === session?.user?.id && supplier.status !== 'AWAITING_FINAL_APPROVAL' && (
+                      <Button onClick={handleApproveClick}>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Request Final Approval
+                      </Button>
+                    )}
+                    
+                    {/* Show "Approve Supplier" if current user is PM and status is AWAITING_FINAL_APPROVAL */}
+                    {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status === 'AWAITING_FINAL_APPROVAL' && (
+                      <Button onClick={handleApproveClick} className="bg-green-600 hover:bg-green-700">
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Approve Supplier
+                      </Button>
+                    )}
+                    
+                    {/* Show message if user is not initiator and status is not AWAITING_FINAL_APPROVAL */}
+                    {supplier.onboarding?.initiation?.initiatedById !== session?.user?.id && 
+                     supplier.status !== 'AWAITING_FINAL_APPROVAL' && 
+                     session?.user?.role !== 'PROCUREMENT_MANAGER' && (
+                      <Alert>
+                        <AlertDescription>
+                          Only the initiator can request final approval for this supplier.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    
+                    {/* Show message if PM and not AWAITING_FINAL_APPROVAL */}
+                    {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status !== 'AWAITING_FINAL_APPROVAL' && (
+                      <Alert>
+                        <AlertDescription>
+                          Waiting for initiator to request final approval.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
                 ) : (
                   <Alert className={supplier.status === 'APPROVED' ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}>
@@ -2252,9 +2298,15 @@ Procurement Team`
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-green-600">Approve Supplier</DialogTitle>
+            <DialogTitle className="text-green-600">
+              {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
+                ? 'Approve Supplier' 
+                : 'Request Final Approval'}
+            </DialogTitle>
             <DialogDescription>
-              Are you sure you want to approve this supplier? An approval email will be automatically sent.
+              {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
+                ? 'Are you sure you want to approve this supplier? An approval email will be automatically sent to the supplier.'
+                : 'Are you sure you want to request final approval for this supplier? An email will be automatically sent to the Procurement Manager for final approval.'}
             </DialogDescription>
           </DialogHeader>
           
@@ -2274,7 +2326,9 @@ Procurement Team`
               Cancel
             </Button>
             <Button onClick={confirmApprove}>
-              Approve Supplier
+              {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
+                ? 'Approve Supplier' 
+                : 'Request Final Approval'}
             </Button>
           </div>
         </DialogContent>

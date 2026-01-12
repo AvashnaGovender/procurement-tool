@@ -17,7 +17,8 @@ export async function GET(
             initiation: {
               select: {
                 purchaseType: true,
-                creditApplication: true
+                creditApplication: true,
+                initiatedById: true
               }
             }
           }

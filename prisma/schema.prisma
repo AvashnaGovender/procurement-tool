@@ -274,6 +274,7 @@ enum BusinessType {
 enum SupplierStatus {
   PENDING
   UNDER_REVIEW
+  AWAITING_FINAL_APPROVAL
   APPROVED
   REJECTED
   SUSPENDED
