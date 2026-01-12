@@ -1447,7 +1447,8 @@ Procurement Team`
                     'taxClearance': { name: 'Tax Clearance Certificate', icon: '💼' },
                     'goodStanding': { name: 'Letter of Good Standing', icon: '💼' },
                     'bankConfirmation': { name: 'Bank Confirmation Letter', icon: '🏦' },
-                    'bbbeeAccreditation': { name: 'B-BBEE Certificate', icon: '⭐' }
+                    'bbbeeAccreditation': { name: 'B-BBEE Certificate', icon: '⭐' },
+                    'creditApplication': { name: 'Credit Application Form', icon: '💳' }
                   }
                   
                   // Build mandatory documents list

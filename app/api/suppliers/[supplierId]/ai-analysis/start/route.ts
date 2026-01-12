@@ -564,10 +564,29 @@ async function processAnalysisJob(
     }
     
     // Track optional documents across all versions
-    const optionalDocs = ['companyProfile', 'organogram', 'qualityCert', 'healthSafety', 'cm29Directors', 'shareholderCerts', 'proofOfShareholding', 'bbbeeScorecard', 'vatCertificate', 'creditApplication', 'goodStanding', 'sectorRegistrations']
-    const providedOptionalDocs = optionalDocs.filter(doc => allUploadedFiles?.[doc] && allUploadedFiles[doc].length > 0)
+    // Note: creditApplication is NOT optional - it's mandatory when creditApplication is true
+    // goodStanding is also not optional when taxClearance is mandatory (it's an alternative)
+    const optionalDocs = ['companyProfile', 'organogram', 'qualityCert', 'healthSafety', 'cm29Directors', 'shareholderCerts', 'proofOfShareholding', 'bbbeeScorecard', 'vatCertificate', 'sectorRegistrations']
+    // Filter out creditApplication and goodStanding from optional docs if they're mandatory
+    const optionalDocsToCheck = optionalDocs.filter(doc => {
+      // Don't count creditApplication as optional if it's mandatory
+      if (doc === 'creditApplication' && creditApplication) {
+        return false
+      }
+      // Don't count goodStanding as optional if taxClearance is mandatory (it's an alternative)
+      if (doc === 'goodStanding' && (purchaseType === 'REGULAR' || purchaseType === 'SHARED_IP')) {
+        return false
+      }
+      return true
+    })
+    const providedOptionalDocs = optionalDocsToCheck.filter(doc => allUploadedFiles?.[doc] && allUploadedFiles[doc].length > 0)
     
     await addLog(`📋 Mandatory documents: ${requiredDocs.length} required`)
+    await addLog(`📋 Credit Application required: ${creditApplication ? 'YES' : 'NO'}`)
+    if (creditApplication) {
+      const hasCreditApp = allUploadedFiles?.creditApplication && allUploadedFiles.creditApplication.length > 0
+      await addLog(`📋 Credit Application uploaded: ${hasCreditApp ? 'YES' : 'NO'}`)
+    }
     
     // Log tax clearance status specifically across all versions
     const hasTaxClearance = allUploadedFiles?.taxClearance && allUploadedFiles.taxClearance.length > 0
