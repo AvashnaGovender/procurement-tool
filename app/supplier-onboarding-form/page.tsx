@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
-import { isDocumentRequired, type DocumentKey } from "@/lib/document-requirements"
+import { isDocumentRequired, isDocumentMandatory, type DocumentKey } from "@/lib/document-requirements"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -1367,11 +1367,16 @@ function SupplierOnboardingForm() {
                 return true
               })
               .map(({ key, label, baseLabel }) => {
-                const isRequired = purchaseType 
+                // Check if document should be shown (requested)
+                const isRequested = purchaseType 
                   ? isDocumentRequired(key as DocumentKey, purchaseType as any, creditApplication) 
                   : requiredDocuments.includes(key)
-                const displayLabel = isRequired ? `${baseLabel} *` : baseLabel
-                return { key, label: displayLabel, required: isRequired }
+                // Check if document is mandatory (should be marked with *)
+                const isMandatory = purchaseType 
+                  ? isDocumentMandatory(key as DocumentKey, purchaseType as any)
+                  : false
+                const displayLabel = isMandatory ? `${baseLabel} *` : baseLabel
+                return { key, label: displayLabel, required: isMandatory, requested: isRequested }
               })
               .map(({ key, label, required }) => (
                 <div key={key} className="border rounded-lg p-4">

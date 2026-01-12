@@ -39,3 +39,4 @@ export function isValidBank(bank: string): boolean {
   return SOUTH_AFRICAN_BANKS.includes(bank as SouthAfricanBank)
 }
 
+
