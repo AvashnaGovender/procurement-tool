@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CheckCircle, XCircle, Clock, User, Building2, DollarSign, AlertCircle, Eye } from "lucide-react"
 import { useSession } from "next-auth/react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import Link from "next/link"
 
 interface SupplierInitiation {
   id: string
@@ -48,9 +50,26 @@ interface SupplierInitiation {
   creditApplicationReason?: string
 }
 
+interface SupplierAwaitingApproval {
+  id: string
+  supplierCode: string
+  companyName: string
+  contactPerson: string
+  contactEmail: string
+  status: string
+  createdAt: string
+  initiator: {
+    name: string
+    email: string
+  } | null
+  purchaseType: string | null
+  creditApplication: boolean
+}
+
 export default function ApprovalsPage() {
   const { data: session, status } = useSession()
   const [initiations, setInitiations] = useState<SupplierInitiation[]>([])
+  const [suppliersAwaitingApproval, setSuppliersAwaitingApproval] = useState<SupplierAwaitingApproval[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedInitiation, setSelectedInitiation] = useState<SupplierInitiation | null>(null)
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false)
@@ -59,6 +78,7 @@ export default function ApprovalsPage() {
   const [approvalComments, setApprovalComments] = useState('')
   const [submittingApproval, setSubmittingApproval] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+  const [activeTab, setActiveTab] = useState<'initiations' | 'suppliers'>('initiations')
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -71,8 +91,12 @@ export default function ApprovalsPage() {
   useEffect(() => {
     if (status === 'authenticated') {
       fetchInitiations()
+      // Fetch suppliers awaiting final approval if user is PM or Admin
+      if (session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') {
+        fetchSuppliersAwaitingApproval()
+      }
     }
-  }, [status])
+  }, [status, session])
 
   const fetchInitiations = async () => {
     // Don't fetch if not authenticated
@@ -104,6 +128,19 @@ export default function ApprovalsPage() {
       console.error('❌ Error fetching initiations:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSuppliersAwaitingApproval = async () => {
+    try {
+      const response = await fetch('/api/suppliers/awaiting-final-approval')
+      const data = await response.json()
+      
+      if (Array.isArray(data)) {
+        setSuppliersAwaitingApproval(data)
+      }
+    } catch (error) {
+      console.error('❌ Error fetching suppliers awaiting approval:', error)
     }
   }
 
@@ -282,7 +319,7 @@ export default function ApprovalsPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900">Approvals</h1>
-          <p className="text-slate-600 mt-2">Review and approve supplier initiation requests</p>
+          <p className="text-slate-600 mt-2">Review and approve supplier initiation requests and final approvals</p>
           {/* Debug: Show current user */}
           {session && (
             <div className="mt-2 text-sm text-gray-500">
@@ -555,7 +592,80 @@ export default function ApprovalsPage() {
               </Card>
             ))
           )}
-        </div>
+            </div>
+          </TabsContent>
+
+          {(session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && (
+            <TabsContent value="suppliers" className="mt-6">
+              {/* Suppliers Awaiting Final Approval */}
+              <div className="space-y-4">
+                {suppliersAwaitingApproval.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500">
+                    No suppliers awaiting final approval
+                  </div>
+                ) : (
+                  suppliersAwaitingApproval.map((supplier) => (
+                    <Card key={supplier.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Clock className="h-5 w-5 text-orange-500" />
+                            <div>
+                              <h3 className="font-semibold text-slate-900">{supplier.companyName}</h3>
+                              <p className="text-sm text-slate-600">
+                                Supplier Code: {supplier.supplierCode}
+                              </p>
+                              <p className="text-sm text-slate-600">
+                                Contact: {supplier.contactPerson} ({supplier.contactEmail})
+                              </p>
+                              {supplier.initiator && (
+                                <p className="text-sm text-slate-500 mt-1">
+                                  Initiated by: {supplier.initiator.name}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Badge className="bg-orange-500 text-white">
+                              Awaiting Final Approval
+                            </Badge>
+                            {supplier.creditApplication && (
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                                Credit Application Required
+                              </Badge>
+                            )}
+                            <Link href={`/admin/supplier-submissions/${supplier.id}`}>
+                              <Button variant="outline" size="sm">
+                                <Eye className="h-4 w-4 mr-2" />
+                                Review & Approve
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-slate-200">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-slate-500">Purchase Type:</span>
+                              <span className="ml-2 font-medium text-slate-700">
+                                {supplier.purchaseType || 'N/A'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">Requested:</span>
+                              <span className="ml-2 font-medium text-slate-700">
+                                {new Date(supplier.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </TabsContent>
+          )}
+        </Tabs>
 
         {/* Approval Dialog */}
         <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
