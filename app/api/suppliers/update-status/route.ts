@@ -36,7 +36,10 @@ export async function POST(request: NextRequest) {
     // Get supplier with onboarding data before updating
     const supplierBeforeUpdate = await prisma.supplier.findUnique({
       where: { id: supplierId },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        airtableData: true,
         onboarding: {
           include: {
             initiation: {
@@ -108,8 +111,9 @@ export async function POST(request: NextRequest) {
     if (status === 'APPROVED') {
       try {
         // Get signed credit application file name if available
+        // Note: airtableData is on the Supplier model, not SupplierOnboarding
         const signedCreditAppFileName = signedCreditApplicationFileName || 
-          (onboarding?.airtableData as any)?.signedCreditApplication?.fileName || null
+          (supplierBeforeUpdate?.airtableData as any)?.signedCreditApplication?.fileName || null
         
         // Send email to supplier
         await sendApprovalEmail(supplier, signedCreditAppFileName)

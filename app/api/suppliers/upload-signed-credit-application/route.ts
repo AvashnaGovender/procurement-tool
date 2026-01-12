@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
         id: true,
         supplierCode: true,
         status: true,
+        airtableData: true,
         onboarding: {
           include: {
             initiation: {
@@ -121,7 +122,8 @@ export async function POST(request: NextRequest) {
     await writeFile(filePath, buffer)
 
     // Update supplier's airtableData to include signed credit application info
-    const currentAirtableData = supplier.onboarding?.airtableData || {}
+    // Note: airtableData is on the Supplier model, not SupplierOnboarding
+    const currentAirtableData = (supplier.airtableData as any) || {}
     const updatedAirtableData = {
       ...currentAirtableData,
       signedCreditApplication: {
@@ -131,11 +133,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update the onboarding record
-    await prisma.supplierOnboarding.update({
-      where: { supplierId: supplier.id },
+    // Update the supplier record with signed credit application info
+    await prisma.supplier.update({
+      where: { id: supplier.id },
       data: {
-        airtableData: updatedAirtableData
+        airtableData: updatedAirtableData as any
       }
     })
 
