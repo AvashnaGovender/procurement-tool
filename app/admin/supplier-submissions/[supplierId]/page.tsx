@@ -493,25 +493,43 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
           })
         })
 
-        const data = await response.json()
+        // Check if response is ok
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error occurred' }))
+          setErrorMessage(`Failed to approve supplier: ${errorData.error || 'Unknown error'}`)
+          setErrorDialogOpen(true)
+          return
+        }
+
+        const data = await response.json().catch((parseError) => {
+          console.error('Error parsing response:', parseError)
+          // Even if parsing fails, the status might have been updated
+          // Refresh and show a generic success message
+          fetchSupplier()
+          setSuccessMessage(`Supplier approval request processed. Please refresh the page to see the updated status.`)
+          setSuccessDialogOpen(true)
+          return null
+        })
+        
+        if (!data) return // Error already handled above
         
         if (data.success) {
+          // Refresh supplier data first
+          await fetchSupplier()
+          setSignedCreditApplicationFile(null)
+          
           // Check if email was sent successfully
           if (data.emailError) {
-            setErrorMessage(`Supplier approved successfully, but failed to send email: ${data.emailError}. Please contact the supplier manually.`)
-            setErrorDialogOpen(true)
+            // Approval succeeded but email failed - show warning with option to resend
+            setSuccessMessage(`Supplier approved successfully!\n\n⚠️ Warning: Failed to send approval email: ${data.emailError}\n\nYou can use the "Resend Approval Email" button to send the email manually.`)
+            setSuccessDialogOpen(true)
           } else {
-            setShowCompletion(true)
+            // Everything succeeded
+            setSuccessMessage(`Supplier approved successfully!\n\nAn approval email has been sent to ${supplier?.contactEmail}`)
+            setSuccessDialogOpen(true)
           }
-          
-          // Refresh supplier data
-          await fetchSupplier()
-          setSuccessMessage(`Supplier approved successfully!\n\nAn approval email has been sent to ${supplier?.contactEmail}`)
-          setSuccessDialogOpen(true)
-          setSignedCreditApplicationFile(null)
-          await fetchSupplier()
         } else {
-          setErrorMessage(`Failed to approve supplier: ${data.error}`)
+          setErrorMessage(`Failed to approve supplier: ${data.error || 'Unknown error'}`)
           setErrorDialogOpen(true)
         }
       } else {
@@ -537,8 +555,22 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       }
     } catch (error) {
       console.error('Error in approval process:', error)
-      setErrorMessage('Failed to process request. Please try again.')
-      setErrorDialogOpen(true)
+      // Check if the error is a network error or parsing error
+      // If the status was updated but we can't parse the response, show a different message
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      
+      // If it's a network error, the approval might not have gone through
+      // If it's a parsing error, the approval might have succeeded
+      if (errorMessage.includes('JSON') || errorMessage.includes('parse')) {
+        // Likely a parsing error - approval might have succeeded
+        await fetchSupplier()
+        setSuccessMessage(`Approval request processed. The supplier status may have been updated. Please check the supplier details.`)
+        setSuccessDialogOpen(true)
+      } else {
+        // Network or other error - approval likely failed
+        setErrorMessage(`Failed to process approval request: ${errorMessage}. Please try again.`)
+        setErrorDialogOpen(true)
+      }
     } finally {
       setApproveDialogOpen(false)
     }
