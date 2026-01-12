@@ -306,7 +306,209 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     }))
   }
 
+  // Get list of unverified mandatory documents
+  const getUnverifiedMandatoryDocuments = (): Array<{ key: string, name: string }> => {
+    if (!supplier?.airtableData?.allVersions || !supplier.onboarding) {
+      return []
+    }
+
+    // Get purchase type and credit application
+    let purchaseType: PurchaseType = 'REGULAR'
+    let creditApplication = false
+    
+    if (supplier.onboarding.initiation) {
+      purchaseType = supplier.onboarding.initiation.purchaseType as PurchaseType || 'REGULAR'
+      creditApplication = supplier.onboarding.initiation.creditApplication || false
+    }
+
+    // Get mandatory documents
+    const mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication)
+    
+    // Get all uploaded files from all versions
+    const allUploadedFiles: Record<string, string[]> = {}
+    supplier.airtableData.allVersions.forEach((version: any) => {
+      const versionFiles = version.uploadedFiles || {}
+      Object.entries(versionFiles).forEach(([category, files]) => {
+        if (!allUploadedFiles[category]) {
+          allUploadedFiles[category] = []
+        }
+        const fileArray = files as string[]
+        fileArray.forEach((file: string) => {
+          if (!allUploadedFiles[category].includes(file)) {
+            allUploadedFiles[category].push(file)
+          }
+        })
+      })
+    })
+
+    const docNames: Record<string, string> = {
+      'companyRegistration': 'Company Registration',
+      'bankConfirmation': 'Bank Confirmation Letter',
+      'bbbeeAccreditation': 'B-BBEE Certificate',
+      'nda': 'Non-Disclosure Agreement (NDA)',
+      'creditApplication': 'Credit Application Form',
+      'taxClearance': 'Tax Clearance Certificate or Letter of Good Standing'
+    }
+
+    const unverified: Array<{ key: string, name: string }> = []
+
+    // Check each mandatory document
+    for (const docKey of mandatoryDocKeys) {
+      if (docKey === 'taxClearance') {
+        // For tax clearance, check if either taxClearance OR goodStanding is verified
+        const hasTaxClearance = allUploadedFiles.taxClearance && allUploadedFiles.taxClearance.length > 0
+        const hasGoodStanding = allUploadedFiles.goodStanding && allUploadedFiles.goodStanding.length > 0
+        
+        if (hasTaxClearance) {
+          const hasVerifiedTaxClearance = supplier.airtableData.allVersions.some((version: any) => {
+            const files = version.uploadedFiles?.taxClearance || []
+            return files.some((file: string) => {
+              const verificationKey = `${version.version}-taxClearance-${file}`
+              return documentVerifications[verificationKey] === true
+            })
+          })
+          if (!hasVerifiedTaxClearance) {
+            unverified.push({ key: 'taxClearance', name: docNames['taxClearance'] })
+          }
+        } else if (hasGoodStanding) {
+          const hasVerifiedGoodStanding = supplier.airtableData.allVersions.some((version: any) => {
+            const files = version.uploadedFiles?.goodStanding || []
+            return files.some((file: string) => {
+              const verificationKey = `${version.version}-goodStanding-${file}`
+              return documentVerifications[verificationKey] === true
+            })
+          })
+          if (!hasVerifiedGoodStanding) {
+            unverified.push({ key: 'taxClearance', name: docNames['taxClearance'] })
+          }
+        } else {
+          unverified.push({ key: 'taxClearance', name: docNames['taxClearance'] })
+        }
+      } else {
+        // For other mandatory documents
+        const files = allUploadedFiles[docKey] || []
+        if (files.length === 0) {
+          unverified.push({ key: docKey, name: docNames[docKey] || docKey })
+        } else {
+          const hasVerifiedFile = supplier.airtableData.allVersions.some((version: any) => {
+            const versionFiles = version.uploadedFiles?.[docKey] || []
+            return versionFiles.some((file: string) => {
+              const verificationKey = `${version.version}-${docKey}-${file}`
+              return documentVerifications[verificationKey] === true
+            })
+          })
+          
+          if (!hasVerifiedFile) {
+            unverified.push({ key: docKey, name: docNames[docKey] || docKey })
+          }
+        }
+      }
+    }
+
+    return unverified
+  }
+
+  // Check if all mandatory documents are verified
+  const areAllMandatoryDocumentsVerified = (): boolean => {
+    return getUnverifiedMandatoryDocuments().length === 0
+  }
+    if (!supplier?.airtableData?.allVersions || !supplier.onboarding) {
+      return false
+    }
+
+    // Get purchase type and credit application
+    let purchaseType: PurchaseType = 'REGULAR'
+    let creditApplication = false
+    
+    if (supplier.onboarding.initiation) {
+      purchaseType = supplier.onboarding.initiation.purchaseType as PurchaseType || 'REGULAR'
+      creditApplication = supplier.onboarding.initiation.creditApplication || false
+    }
+
+    // Get mandatory documents
+    const mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication)
+    
+    // Get all uploaded files from all versions
+    const allUploadedFiles: Record<string, string[]> = {}
+    supplier.airtableData.allVersions.forEach((version: any) => {
+      const versionFiles = version.uploadedFiles || {}
+      Object.entries(versionFiles).forEach(([category, files]) => {
+        if (!allUploadedFiles[category]) {
+          allUploadedFiles[category] = []
+        }
+        const fileArray = files as string[]
+        fileArray.forEach((file: string) => {
+          if (!allUploadedFiles[category].includes(file)) {
+            allUploadedFiles[category].push(file)
+          }
+        })
+      })
+    })
+
+    // Check each mandatory document
+    for (const docKey of mandatoryDocKeys) {
+      if (docKey === 'taxClearance') {
+        // For tax clearance, check if either taxClearance OR goodStanding is verified
+        const hasTaxClearance = allUploadedFiles.taxClearance && allUploadedFiles.taxClearance.length > 0
+        const hasGoodStanding = allUploadedFiles.goodStanding && allUploadedFiles.goodStanding.length > 0
+        
+        if (hasTaxClearance) {
+          // Check if at least one taxClearance file is verified
+          const hasVerifiedTaxClearance = supplier.airtableData.allVersions.some((version: any) => {
+            const files = version.uploadedFiles?.taxClearance || []
+            return files.some((file: string) => {
+              const verificationKey = `${version.version}-taxClearance-${file}`
+              return documentVerifications[verificationKey] === true
+            })
+          })
+          if (!hasVerifiedTaxClearance) return false
+        } else if (hasGoodStanding) {
+          // Check if at least one goodStanding file is verified
+          const hasVerifiedGoodStanding = supplier.airtableData.allVersions.some((version: any) => {
+            const files = version.uploadedFiles?.goodStanding || []
+            return files.some((file: string) => {
+              const verificationKey = `${version.version}-goodStanding-${file}`
+              return documentVerifications[verificationKey] === true
+            })
+          })
+          if (!hasVerifiedGoodStanding) return false
+        } else {
+          // Neither exists, so it's missing
+          return false
+        }
+      } else {
+        // For other mandatory documents, check if the category exists and has at least one verified file
+        const files = allUploadedFiles[docKey] || []
+        if (files.length === 0) {
+          // Document doesn't exist
+          return false
+        }
+        
+        // Check if at least one file in this category is verified
+        const hasVerifiedFile = supplier.airtableData.allVersions.some((version: any) => {
+          const versionFiles = version.uploadedFiles?.[docKey] || []
+          return versionFiles.some((file: string) => {
+            const verificationKey = `${version.version}-${docKey}-${file}`
+            return documentVerifications[verificationKey] === true
+          })
+        })
+        
+        if (!hasVerifiedFile) {
+          return false
+        }
+      }
+    }
+
+    return true
+  }
+
   const handleApproveClick = () => {
+    // Check if all mandatory documents are verified
+    if (!areAllMandatoryDocumentsVerified()) {
+      setErrorMessage('Please verify all mandatory documents before requesting final approval.')
+      setErrorDialogOpen(true)
+      return
+    }
     setApproveDialogOpen(true)
   }
 
@@ -2187,10 +2389,40 @@ Procurement Team`
                   <div className="flex flex-col gap-4">
                     {/* Show "Request Final Approval" if current user is the initiator and status is not AWAITING_FINAL_APPROVAL */}
                     {supplier.onboarding?.initiation?.initiatedById === session?.user?.id && supplier.status !== 'AWAITING_FINAL_APPROVAL' && (
-                      <Button onClick={handleApproveClick}>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Request Final Approval
-                      </Button>
+                      <>
+                        {!areAllMandatoryDocumentsVerified() && (
+                          <Alert className="bg-yellow-50 border-yellow-300">
+                            <AlertCircle className="h-5 w-5 text-yellow-600" />
+                            <AlertDescription className="text-yellow-800">
+                              <div className="space-y-2">
+                                <div>
+                                  <strong>Action Required:</strong> Please verify all mandatory documents before requesting final approval.
+                                </div>
+                                <div className="text-sm mt-2">
+                                  <strong>Unverified mandatory documents:</strong>
+                                  <ul className="list-disc list-inside mt-1 space-y-1">
+                                    {getUnverifiedMandatoryDocuments().map((doc, idx) => (
+                                      <li key={idx}>{doc.name}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                                <div className="text-sm mt-2">
+                                  Go to the <strong>Documents</strong> tab to verify each mandatory document by checking the "Verified" checkbox next to each document.
+                                </div>
+                              </div>
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        <Button 
+                          onClick={handleApproveClick}
+                          disabled={!areAllMandatoryDocumentsVerified()}
+                          title={!areAllMandatoryDocumentsVerified() ? 'Please verify all mandatory documents first' : 'Request final approval'}
+                          className={!areAllMandatoryDocumentsVerified() ? 'opacity-50 cursor-not-allowed' : ''}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Request Final Approval
+                        </Button>
+                      </>
                     )}
                     
                     {/* Show "Approve Supplier" if current user is PM and status is AWAITING_FINAL_APPROVAL */}

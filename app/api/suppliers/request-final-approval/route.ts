@@ -63,6 +63,106 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if all mandatory documents are verified
+    const { getMandatoryDocuments } = await import('@/lib/document-requirements')
+    const purchaseType = supplier.onboarding?.initiation?.purchaseType || 'REGULAR'
+    const creditApplication = supplier.onboarding?.initiation?.creditApplication || false
+    const mandatoryDocKeys = getMandatoryDocuments(purchaseType as any, creditApplication)
+
+    // Get all document verifications for this supplier
+    const verifications = await prisma.documentVerification.findMany({
+      where: {
+        supplierId: supplierId,
+        isVerified: true
+      }
+    })
+
+    // Get all uploaded files from all versions
+    const allUploadedFiles: Record<string, string[]> = {}
+    if (supplier.airtableData?.allVersions) {
+      supplier.airtableData.allVersions.forEach((version: any) => {
+        const versionFiles = version.uploadedFiles || {}
+        Object.entries(versionFiles).forEach(([category, files]) => {
+          if (!allUploadedFiles[category]) {
+            allUploadedFiles[category] = []
+          }
+          const fileArray = files as string[]
+          fileArray.forEach((file: string) => {
+            if (!allUploadedFiles[category].includes(file)) {
+              allUploadedFiles[category].push(file)
+            }
+          })
+        })
+      })
+    }
+
+    // Check each mandatory document
+    const unverifiedMandatoryDocs: string[] = []
+    for (const docKey of mandatoryDocKeys) {
+      if (docKey === 'taxClearance') {
+        // For tax clearance, check if either taxClearance OR goodStanding is verified
+        const hasTaxClearance = allUploadedFiles.taxClearance && allUploadedFiles.taxClearance.length > 0
+        const hasGoodStanding = allUploadedFiles.goodStanding && allUploadedFiles.goodStanding.length > 0
+        
+        if (hasTaxClearance) {
+          const hasVerifiedTaxClearance = verifications.some(v => 
+            v.category === 'taxClearance' && v.isVerified
+          )
+          if (!hasVerifiedTaxClearance) {
+            unverifiedMandatoryDocs.push('Tax Clearance Certificate or Letter of Good Standing')
+          }
+        } else if (hasGoodStanding) {
+          const hasVerifiedGoodStanding = verifications.some(v => 
+            v.category === 'goodStanding' && v.isVerified
+          )
+          if (!hasVerifiedGoodStanding) {
+            unverifiedMandatoryDocs.push('Tax Clearance Certificate or Letter of Good Standing')
+          }
+        } else {
+          unverifiedMandatoryDocs.push('Tax Clearance Certificate or Letter of Good Standing')
+        }
+      } else {
+        // For other mandatory documents
+        const files = allUploadedFiles[docKey] || []
+        if (files.length === 0) {
+          // Document doesn't exist
+          const docNames: Record<string, string> = {
+            'companyRegistration': 'Company Registration',
+            'bankConfirmation': 'Bank Confirmation Letter',
+            'bbbeeAccreditation': 'B-BBEE Certificate',
+            'nda': 'Non-Disclosure Agreement (NDA)',
+            'creditApplication': 'Credit Application Form'
+          }
+          unverifiedMandatoryDocs.push(docNames[docKey] || docKey)
+        } else {
+          // Check if at least one file in this category is verified
+          const hasVerifiedFile = verifications.some(v => 
+            v.category === docKey && v.isVerified
+          )
+          if (!hasVerifiedFile) {
+            const docNames: Record<string, string> = {
+              'companyRegistration': 'Company Registration',
+              'bankConfirmation': 'Bank Confirmation Letter',
+              'bbbeeAccreditation': 'B-BBEE Certificate',
+              'nda': 'Non-Disclosure Agreement (NDA)',
+              'creditApplication': 'Credit Application Form'
+            }
+            unverifiedMandatoryDocs.push(docNames[docKey] || docKey)
+          }
+        }
+      }
+    }
+
+    if (unverifiedMandatoryDocs.length > 0) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Please verify all mandatory documents before requesting final approval. The following documents need to be verified: ${unverifiedMandatoryDocs.join(', ')}. Go to the Documents tab and check the "Verified" checkbox for each mandatory document.` 
+        },
+        { status: 400 }
+      )
+    }
+
     // Check if final approval was already requested (status is AWAITING_FINAL_APPROVAL and timeline shows final approval request)
     if (supplier.status === 'AWAITING_FINAL_APPROVAL' && supplier.onboarding) {
       const recentTimeline = await prisma.onboardingTimeline.findFirst({
