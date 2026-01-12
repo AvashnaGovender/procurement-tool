@@ -66,8 +66,8 @@ export async function POST(request: NextRequest) {
     // Check if all mandatory documents are verified
     const { getMandatoryDocuments } = await import('@/lib/document-requirements')
     const purchaseType = supplier.onboarding?.initiation?.purchaseType || 'REGULAR'
-    const creditApplication = supplier.onboarding?.initiation?.creditApplication || false
-    const mandatoryDocKeys = getMandatoryDocuments(purchaseType as any, creditApplication)
+    const creditApplicationStatus = supplier.onboarding?.initiation?.creditApplication || false
+    const mandatoryDocKeys = getMandatoryDocuments(purchaseType as any, creditApplicationStatus)
 
     // Get all document verifications for this supplier
     const verifications = await prisma.documentVerification.findMany({
@@ -204,12 +204,11 @@ export async function POST(request: NextRequest) {
 
     const pm = procurementManagers[0]
 
-    // Get credit application status and documents
-    const creditApplication = supplier.onboarding?.initiation?.creditApplication || false
+    // Get credit application documents
     let creditApplicationFiles: Array<{ version: number, fileName: string }> = []
     
     // Find credit application documents from all versions
-    if (creditApplication && supplier.airtableData?.allVersions) {
+    if (creditApplicationStatus && supplier.airtableData?.allVersions) {
       supplier.airtableData.allVersions.forEach((version: any) => {
         const versionFiles = version.uploadedFiles || {}
         if (versionFiles.creditApplication && Array.isArray(versionFiles.creditApplication)) {
@@ -229,7 +228,7 @@ export async function POST(request: NextRequest) {
         supplier,
         pm,
         supplier.onboarding?.initiation?.initiatedBy || null,
-        creditApplication,
+        creditApplicationStatus,
         creditApplicationFiles
       )
     } catch (emailError) {
