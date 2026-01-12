@@ -614,8 +614,8 @@ export default function ApprovalsPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))
-          )}
+                ))
+              )}
             </div>
           </TabsContent>
 
