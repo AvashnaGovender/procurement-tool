@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
     
     // Create supplier and onboarding record in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Generate alphanumeric sequential supplier code
-      const supplierCode = await generateSupplierCode()
+      // Generate alphanumeric sequential supplier code within the transaction to prevent race conditions
+      const supplierCode = await generateSupplierCode(tx)
       
       // Create supplier
       const supplier = await tx.supplier.create({

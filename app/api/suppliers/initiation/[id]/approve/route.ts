@@ -213,38 +213,47 @@ export async function POST(
         // This prevents duplicate emails if the approval endpoint is called multiple times
         if (initiationDetails && !initiationDetails.emailSent && !initiationDetails.onboarding) {
           console.log('📧 Both approvals complete - proceeding with supplier creation and email...')
-          // Create a supplier record with AWAITING_DOCS status
-          const supplier = await prisma.supplier.create({
-            data: {
-              supplierCode: await generateSupplierCode(), // Generate alphanumeric sequential supplier code
-              supplierName: initiationDetails.supplierName,
-              contactEmail: initiationDetails.supplierEmail,
-              companyName: initiationDetails.supplierName,
-              contactPerson: initiationDetails.supplierContactPerson,
-              businessType: 'OTHER', // Default, will be updated when supplier submits
-              sector: initiationDetails.productServiceCategory, // Store the category from initiation
-              status: 'PENDING',
-              createdById: initiationDetails.initiatedById
-            }
-          })
-
+          
           // Determine required documents based on purchase type and credit application
           const requiredDocuments = getRequiredDocuments(initiationDetails.purchaseType, initiationDetails.creditApplication)
           
-          // Create onboarding record linked to the supplier
-          await prisma.supplierOnboarding.create({
-            data: {
-              supplierId: supplier.id,
-              initiationId: initiationId,
-              contactName: initiationDetails.supplierContactPerson,
-              contactEmail: initiationDetails.supplierEmail,
-              businessType: 'OTHER',
-              sector: initiationDetails.productServiceCategory,
-              currentStep: 'PENDING_SUPPLIER_RESPONSE',
-              overallStatus: 'AWAITING_RESPONSE',
-              initiatedById: initiationDetails.initiatedById,
-              requiredDocuments: requiredDocuments
-            }
+          // Generate supplier code and create supplier + onboarding in a transaction to prevent race conditions
+          const { supplier, onboarding } = await prisma.$transaction(async (tx) => {
+            // Generate alphanumeric sequential supplier code within the transaction
+            const supplierCode = await generateSupplierCode(tx)
+            
+            // Create a supplier record with AWAITING_DOCS status
+            const newSupplier = await tx.supplier.create({
+              data: {
+                supplierCode,
+                supplierName: initiationDetails.supplierName,
+                contactEmail: initiationDetails.supplierEmail,
+                companyName: initiationDetails.supplierName,
+                contactPerson: initiationDetails.supplierContactPerson,
+                businessType: 'OTHER', // Default, will be updated when supplier submits
+                sector: initiationDetails.productServiceCategory, // Store the category from initiation
+                status: 'PENDING',
+                createdById: initiationDetails.initiatedById
+              }
+            })
+
+            // Create onboarding record linked to the supplier
+            const newOnboarding = await tx.supplierOnboarding.create({
+              data: {
+                supplierId: newSupplier.id,
+                initiationId: initiationId,
+                contactName: initiationDetails.supplierContactPerson,
+                contactEmail: initiationDetails.supplierEmail,
+                businessType: 'OTHER',
+                sector: initiationDetails.productServiceCategory,
+                currentStep: 'PENDING_SUPPLIER_RESPONSE',
+                overallStatus: 'AWAITING_RESPONSE',
+                initiatedById: initiationDetails.initiatedById,
+                requiredDocuments: requiredDocuments
+              }
+            })
+            
+            return { supplier: newSupplier, onboarding: newOnboarding }
           })
 
           // Send email to supplier using existing email functionality

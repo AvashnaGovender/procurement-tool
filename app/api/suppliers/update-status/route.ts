@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         status: true,
+        supplierCode: true,
         airtableData: true,
         onboarding: {
           include: {
@@ -67,6 +68,17 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+
+    // Check if supplier exists
+    if (!supplierBeforeUpdate) {
+      console.error(`❌ Supplier not found: ${supplierId}`)
+      return NextResponse.json(
+        { success: false, error: 'Supplier not found' },
+        { status: 404 }
+      )
+    }
+
+    console.log(`✅ Supplier found: ${supplierBeforeUpdate.supplierCode} (Status: ${supplierBeforeUpdate.status})`)
 
     // Authorization check: Only PM can approve suppliers awaiting final approval
     if (status === 'APPROVED' && supplierBeforeUpdate?.status === 'AWAITING_FINAL_APPROVAL') {
@@ -95,13 +107,37 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const supplier = await prisma.supplier.update({
-      where: { id: supplierId },
-      data: { 
-        status,
-        approvedAt: status === 'APPROVED' ? new Date() : null
+    // Update supplier status (supplier should already exist, we're not creating a new one)
+    let supplier
+    try {
+      supplier = await prisma.supplier.update({
+        where: { id: supplierId },
+        data: { 
+          status,
+          approvedAt: status === 'APPROVED' ? new Date() : null
+        }
+      })
+      console.log(`✅ Supplier status updated: ${supplier.supplierCode} -> ${status}`)
+    } catch (updateError: any) {
+      console.error('❌ Error updating supplier:', updateError)
+      console.error('   Error code:', updateError.code)
+      console.error('   Error message:', updateError.message)
+      console.error('   Error meta:', JSON.stringify(updateError.meta, null, 2))
+      
+      // Check if it's a unique constraint error on supplierCode (shouldn't happen on update, but just in case)
+      if (updateError.code === 'P2002' && updateError.meta?.target?.includes('supplierCode')) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: `Supplier code conflict: A supplier with code "${supplierBeforeUpdate.supplierCode}" already exists. This should not happen during an update. Please contact support.` 
+          },
+          { status: 409 }
+        )
       }
-    })
+      
+      // Re-throw other errors to be caught by outer catch
+      throw updateError
+    }
 
     // Update onboarding record if it exists
     const onboarding = await prisma.supplierOnboarding.findUnique({
@@ -215,12 +251,56 @@ export async function POST(request: NextRequest) {
       emailSent: emailSent,
       emailError: emailError ? emailError.message : null
     })
-  } catch (error) {
-    console.error('Error updating supplier status:', error)
+  } catch (error: any) {
+    console.error('❌ Error updating supplier status:', error)
+    console.error('   Error type:', error?.constructor?.name)
+    console.error('   Error code:', error?.code)
+    console.error('   Error message:', error?.message)
+    console.error('   Error meta:', JSON.stringify(error?.meta, null, 2))
+    console.error('   Error stack:', error?.stack)
+    
+    // Check if it's a Prisma unique constraint error
+    if (error?.code === 'P2002') {
+      const field = error?.meta?.target?.[0] || 'unknown field'
+      const fieldValue = error?.meta?.target?.includes('supplierCode') 
+        ? 'supplierCode' 
+        : field
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Database constraint violation: A record with this ${fieldValue} already exists. This may indicate a duplicate entry or a race condition.`,
+          errorCode: error.code,
+          errorDetails: process.env.NODE_ENV === 'development' ? {
+            target: error.meta?.target,
+            constraint: error.meta?.constraint
+          } : undefined
+        },
+        { status: 409 }
+      )
+    }
+    
+    // Check if it's a Prisma record not found error
+    if (error?.code === 'P2025') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Supplier record not found. It may have been deleted.',
+          errorCode: error.code
+        },
+        { status: 404 }
+      )
+    }
+    
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to update supplier status'
+        error: error?.message || 'Failed to update supplier status',
+        errorCode: error?.code,
+        errorDetails: process.env.NODE_ENV === 'development' ? {
+          message: error?.message,
+          code: error?.code,
+          stack: error?.stack
+        } : undefined
       },
       { status: 500 }
     )
