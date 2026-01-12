@@ -111,6 +111,8 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [editData, setEditData] = useState<Partial<Supplier>>({})
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState("details")
+  const [signedCreditApplicationFile, setSignedCreditApplicationFile] = useState<File | null>(null)
+  const [uploadingSignedCreditApp, setUploadingSignedCreditApp] = useState(false)
 
   // AI Insights state
   const [aiProcessing, setAiProcessing] = useState(false)
@@ -435,13 +437,59 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       const isPmApproving = session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL'
       
       if (isPmApproving) {
+        // Check if credit application is required
+        const creditApplicationRequired = supplier?.onboarding?.initiation?.creditApplication || false
+        
+        // If credit application is required, check if signed file is uploaded
+        if (creditApplicationRequired && !signedCreditApplicationFile) {
+          setErrorMessage('Please upload the signed Credit Application document before approving. The signed document will be sent to the supplier.')
+          setErrorDialogOpen(true)
+          return
+        }
+
+        // Upload signed credit application if provided
+        let signedCreditAppFileName = null
+        if (creditApplicationRequired && signedCreditApplicationFile) {
+          setUploadingSignedCreditApp(true)
+          try {
+            const formData = new FormData()
+            formData.append('file', signedCreditApplicationFile)
+            formData.append('supplierId', supplier?.id || '')
+            
+            const uploadResponse = await fetch('/api/suppliers/upload-signed-credit-application', {
+              method: 'POST',
+              body: formData
+            })
+            
+            const uploadData = await uploadResponse.json()
+            
+            if (!uploadData.success) {
+              setErrorMessage(`Failed to upload signed credit application: ${uploadData.error}`)
+              setErrorDialogOpen(true)
+              setUploadingSignedCreditApp(false)
+              return
+            }
+            
+            signedCreditAppFileName = uploadData.fileName
+          } catch (uploadError) {
+            console.error('Error uploading signed credit application:', uploadError)
+            setErrorMessage('Failed to upload signed credit application. Please try again.')
+            setErrorDialogOpen(true)
+            setUploadingSignedCreditApp(false)
+            return
+          } finally {
+            setUploadingSignedCreditApp(false)
+          }
+        }
+
         // PM is approving the supplier
         const response = await fetch('/api/suppliers/update-status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             supplierId: supplier?.id, 
-            status: 'APPROVED'
+            status: 'APPROVED',
+            signedCreditApplicationFileName: signedCreditAppFileName
           })
         })
 
@@ -451,6 +499,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
           setShowCompletion(true)
           setSuccessMessage(`Supplier approved successfully!\n\nAn approval email has been sent to ${supplier?.contactEmail}`)
           setSuccessDialogOpen(true)
+          setSignedCreditApplicationFile(null)
           await fetchSupplier()
         } else {
           setErrorMessage(`Failed to approve supplier: ${data.error}`)
@@ -2466,16 +2515,71 @@ Procurement Team`
                 <div><strong>Status:</strong> {supplier?.status}</div>
               </div>
             </div>
+            
+            {/* Credit Application Upload for PM */}
+            {session?.user?.role === 'PROCUREMENT_MANAGER' && 
+             supplier?.status === 'AWAITING_FINAL_APPROVAL' && 
+             supplier?.onboarding?.initiation?.creditApplication && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h4 className="font-medium text-yellow-900 mb-2 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Required: Upload Signed Credit Application
+                </h4>
+                <p className="text-sm text-yellow-800 mb-3">
+                  A Credit Application was required for this supplier. Please upload the signed Credit Application document. 
+                  This document will be sent to the supplier upon approval.
+                </p>
+                <div className="space-y-2">
+                  <Input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        if (file.type !== 'application/pdf') {
+                          setErrorMessage('Only PDF files are accepted for the Credit Application.')
+                          setErrorDialogOpen(true)
+                          e.target.value = ''
+                          return
+                        }
+                        setSignedCreditApplicationFile(file)
+                      }
+                    }}
+                    className="text-sm"
+                  />
+                  {signedCreditApplicationFile && (
+                    <p className="text-xs text-green-700">
+                      ✓ Selected: {signedCreditApplicationFile.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setApproveDialogOpen(false)
+              setSignedCreditApplicationFile(null)
+            }}>
               Cancel
             </Button>
-            <Button onClick={confirmApprove}>
-              {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
-                ? 'Approve Supplier' 
-                : 'Request Final Approval'}
+            <Button 
+              onClick={confirmApprove}
+              disabled={uploadingSignedCreditApp}
+            >
+              {uploadingSignedCreditApp ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
+                    ? 'Approve Supplier' 
+                    : 'Request Final Approval'}
+                </>
+              )}
             </Button>
           </div>
         </DialogContent>
