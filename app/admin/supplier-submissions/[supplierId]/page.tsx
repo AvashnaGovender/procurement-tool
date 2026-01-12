@@ -433,8 +433,8 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
 
   const confirmApprove = async () => {
     try {
-      // Check if user is PM approving, or initiator requesting final approval
-      const isPmApproving = session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL'
+      // Check if user is PM/Admin approving, or initiator requesting final approval
+      const isPmApproving = (session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && supplier?.status === 'AWAITING_FINAL_APPROVAL'
       
       if (isPmApproving) {
         // Check if credit application is required
@@ -2455,8 +2455,8 @@ Procurement Team`
                       </>
                     )}
                     
-                    {/* Show "Approve Supplier" if current user is PM and status is AWAITING_FINAL_APPROVAL */}
-                    {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status === 'AWAITING_FINAL_APPROVAL' && (
+                    {/* Show "Approve Supplier" if current user is PM/Admin and status is AWAITING_FINAL_APPROVAL */}
+                    {(session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && supplier.status === 'AWAITING_FINAL_APPROVAL' && (
                       <Button onClick={handleApproveClick} className="bg-green-600 hover:bg-green-700">
                         <CheckCircle className="h-4 w-4 mr-2" />
                         Approve Supplier
@@ -2474,8 +2474,8 @@ Procurement Team`
                       </Alert>
                     )}
                     
-                    {/* Show message if PM and not AWAITING_FINAL_APPROVAL */}
-                    {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status !== 'AWAITING_FINAL_APPROVAL' && (
+                    {/* Show message if PM/Admin and not AWAITING_FINAL_APPROVAL */}
+                    {(session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && supplier.status !== 'AWAITING_FINAL_APPROVAL' && (
                       <Alert>
                         <AlertDescription>
                           Waiting for initiator to request final approval.
@@ -2576,12 +2576,12 @@ Procurement Team`
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-green-600">
-              {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
+              {(session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
                 ? 'Approve Supplier' 
                 : 'Request Final Approval'}
             </DialogTitle>
             <DialogDescription>
-              {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
+              {(session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
                 ? 'Are you sure you want to approve this supplier? An approval email will be automatically sent to the supplier.'
                 : 'Are you sure you want to request final approval for this supplier? An email will be automatically sent to the Procurement Manager for final approval.'}
             </DialogDescription>
@@ -2597,8 +2597,8 @@ Procurement Team`
               </div>
             </div>
             
-            {/* Credit Application Upload for PM */}
-            {session?.user?.role === 'PROCUREMENT_MANAGER' && 
+            {/* Credit Application Upload for PM/Admin */}
+            {(session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && 
              supplier?.status === 'AWAITING_FINAL_APPROVAL' && 
              supplier?.onboarding?.initiation?.creditApplication && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -2656,7 +2656,7 @@ Procurement Team`
                 </>
               ) : (
                 <>
-                  {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
+                  {(session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
                     ? 'Approve Supplier' 
                     : 'Request Final Approval'}
                 </>

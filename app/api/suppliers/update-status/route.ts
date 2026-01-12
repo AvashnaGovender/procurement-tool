@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import nodemailer from 'nodemailer'
 import fs from 'fs'
@@ -6,8 +8,22 @@ import path from 'path'
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized. Please log in.' },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
     const { supplierId, status, rejectionReason, signedCreditApplicationFileName } = body
+    
+    console.log(`🔐 Update Status Authorization Check:`)
+    console.log(`   User: ${session.user.email} (Role: ${session.user.role})`)
+    console.log(`   Requested Status: ${status}`)
+    console.log(`   Supplier ID: ${supplierId}`)
 
     if (!supplierId || !status) {
       return NextResponse.json(
@@ -52,8 +68,20 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // If PM is approving, check if signed credit application is required and uploaded
+    // Authorization check: Only PM can approve suppliers awaiting final approval
     if (status === 'APPROVED' && supplierBeforeUpdate?.status === 'AWAITING_FINAL_APPROVAL') {
+      // Check if user is Procurement Manager or Admin
+      if (session.user.role !== 'PROCUREMENT_MANAGER' && session.user.role !== 'ADMIN') {
+        console.log(`❌ Authorization failed: User role ${session.user.role} is not authorized to approve suppliers`)
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Unauthorized. Only Procurement Managers can approve suppliers awaiting final approval.' 
+          },
+          { status: 403 }
+        )
+      }
+      
       const creditApplicationRequired = supplierBeforeUpdate.onboarding?.initiation?.creditApplication || false
       
       if (creditApplicationRequired && !signedCreditApplicationFileName) {
