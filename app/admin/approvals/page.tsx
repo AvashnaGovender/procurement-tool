@@ -314,15 +314,15 @@ export default function ApprovalsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Approvals</h1>
-          <p className="text-slate-600 mt-2">Review and approve supplier initiation requests and final approvals</p>
+          <h1 className="text-3xl font-bold text-foreground">Approvals</h1>
+          <p className="text-muted-foreground mt-2">Review and approve supplier initiation requests and final approvals</p>
           {/* Debug: Show current user */}
           {session && (
-            <div className="mt-2 text-sm text-gray-500">
+            <div className="mt-2 text-sm text-muted-foreground">
               Logged in as: {session.user.email} ({session.user.role})
             </div>
           )}
@@ -353,7 +353,7 @@ export default function ApprovalsPage() {
 
           <TabsContent value="initiations" className="mt-6">
             {/* Search */}
-            <Card className="mb-6 bg-white border-slate-200">
+            <Card className="mb-6">
               <CardContent className="pt-6">
                 <div className="flex gap-4">
                   <div className="flex-1">
@@ -361,7 +361,6 @@ export default function ApprovalsPage() {
                       placeholder="Search by supplier name, requester, or category..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
                     />
                   </div>
                 </div>
@@ -375,7 +374,7 @@ export default function ApprovalsPage() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
               ) : filteredInitiations.length === 0 ? (
-                <div className="text-center py-12 text-slate-500">
+                <div className="text-center py-12 text-muted-foreground">
                   No initiation requests found
                 </div>
               ) : (
@@ -386,8 +385,8 @@ export default function ApprovalsPage() {
                     <div className="flex items-center gap-3">
                       {getStatusIcon(initiation.status)}
                       <div>
-                        <h3 className="font-semibold text-slate-900">{initiation.supplierName}</h3>
-                        <p className="text-sm text-slate-600">
+                        <h3 className="font-semibold text-foreground">{initiation.supplierName}</h3>
+                        <p className="text-sm text-muted-foreground">
                           Requested by {initiation.requesterName}
                         </p>
                       </div>
@@ -406,8 +405,8 @@ export default function ApprovalsPage() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                     <div>
-                      <p className="text-sm font-medium text-slate-600">Business Unit{Array.isArray(initiation.businessUnit) && initiation.businessUnit.length > 1 ? 's' : ''}</p>
-                      <p className="text-sm">
+                      <p className="text-sm font-medium text-muted-foreground">Business Unit{Array.isArray(initiation.businessUnit) && initiation.businessUnit.length > 1 ? 's' : ''}</p>
+                      <p className="text-sm text-foreground">
                         {Array.isArray(initiation.businessUnit) 
                           ? initiation.businessUnit.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')
                           : (initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
@@ -417,52 +416,52 @@ export default function ApprovalsPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-600">Contact Person</p>
-                      <p className="text-sm">{initiation.supplierContactPerson || 'N/A'}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Contact Person</p>
+                      <p className="text-sm text-foreground">{initiation.supplierContactPerson || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-600">Email</p>
-                      <p className="text-sm">{initiation.supplierEmail}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Email</p>
+                      <p className="text-sm text-foreground">{initiation.supplierEmail}</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-600">Category</p>
-                      <p className="text-sm">{initiation.productServiceCategory}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Category</p>
+                      <p className="text-sm text-foreground">{initiation.productServiceCategory}</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                     <div>
-                      <p className="text-sm font-medium text-slate-600">Purchase Type</p>
-                      <p className="text-sm">
+                      <p className="text-sm font-medium text-muted-foreground">Purchase Type</p>
+                      <p className="text-sm text-foreground">
                         {initiation.purchaseType === 'REGULAR' ? 'Regular Purchase' : initiation.purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
                         {initiation.annualPurchaseValue && ` (R${initiation.annualPurchaseValue.toLocaleString()})`}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-600">Credit Application</p>
-                      <p className="text-sm">
+                      <p className="text-sm font-medium text-muted-foreground">Credit Application</p>
+                      <p className="text-sm text-foreground">
                         {initiation.creditApplication ? 'Yes' : 'No'}
                         {!initiation.creditApplication && initiation.creditApplicationReason && (
-                          <span className="text-xs text-slate-500 block mt-1">
+                          <span className="text-xs text-muted-foreground block mt-1">
                             {initiation.creditApplicationReason}
                           </span>
                         )}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-600">Submitted</p>
-                      <p className="text-sm">
+                      <p className="text-sm font-medium text-muted-foreground">Submitted</p>
+                      <p className="text-sm text-foreground">
                         {new Date(initiation.submittedAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
 
                   <div className="mb-4">
-                    <p className="text-sm font-medium text-slate-600">Relationship Declaration</p>
-                    <p className="text-sm text-slate-700 mt-1">{initiation.relationshipDeclaration}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Relationship Declaration</p>
+                    <p className="text-sm text-foreground mt-1">{initiation.relationshipDeclaration}</p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-3 bg-slate-50 rounded-lg">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-3 bg-muted rounded-lg">
                     <div className="flex items-center gap-2">
                       {initiation.processReadUnderstood ? (
                         <CheckCircle className="h-4 w-4 text-green-500" />
@@ -483,58 +482,58 @@ export default function ApprovalsPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
-                      <p className="text-sm font-medium text-slate-600">Manager Approval</p>
+                      <p className="text-sm font-medium text-muted-foreground">Manager Approval</p>
                       <div className="flex items-center gap-2 mb-1">
                         {getStatusIcon(initiation.managerApproval?.status || 'PENDING')}
-                        <span className="text-sm">
+                        <span className="text-sm text-foreground">
                           {initiation.managerApproval?.status || 'PENDING'}
                         </span>
                       </div>
                       {initiation.managerApproval?.status === 'REJECTED' && initiation.managerApproval?.comments && (
-                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                          <p className="text-xs font-medium text-red-900 mb-1">Rejection Reason:</p>
-                          <p className="text-xs text-red-800">{initiation.managerApproval.comments}</p>
+                        <div className="mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded">
+                          <p className="text-xs font-medium text-destructive mb-1">Rejection Reason:</p>
+                          <p className="text-xs text-destructive/90">{initiation.managerApproval.comments}</p>
                         </div>
                       )}
                       {initiation.managerApproval?.status === 'APPROVED' && initiation.managerApproval?.comments && (
-                        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
-                          <p className="text-xs font-medium text-green-900 mb-1">Comments:</p>
-                          <p className="text-xs text-green-800">{initiation.managerApproval.comments}</p>
+                        <div className="mt-2 p-2 bg-green-500/10 dark:bg-green-500/20 border border-green-500/20 rounded">
+                          <p className="text-xs font-medium text-green-600 dark:text-green-400 mb-1">Comments:</p>
+                          <p className="text-xs text-green-700 dark:text-green-300">{initiation.managerApproval.comments}</p>
                         </div>
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-600">Procurement Approval</p>
+                      <p className="text-sm font-medium text-muted-foreground">Procurement Approval</p>
                       <div className="flex items-center gap-2 mb-1">
                         {getStatusIcon(initiation.procurementApproval?.status || 'PENDING')}
-                        <span className="text-sm">
+                        <span className="text-sm text-foreground">
                           {initiation.procurementApproval?.status || 'PENDING'}
                         </span>
                       </div>
                       {initiation.procurementApproval?.status === 'REJECTED' && initiation.procurementApproval?.comments && (
-                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                          <p className="text-xs font-medium text-red-900 mb-1">Rejection Reason:</p>
-                          <p className="text-xs text-red-800">{initiation.procurementApproval.comments}</p>
+                        <div className="mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded">
+                          <p className="text-xs font-medium text-destructive mb-1">Rejection Reason:</p>
+                          <p className="text-xs text-destructive/90">{initiation.procurementApproval.comments}</p>
                         </div>
                       )}
                       {initiation.procurementApproval?.status === 'APPROVED' && initiation.procurementApproval?.comments && (
-                        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
-                          <p className="text-xs font-medium text-green-900 mb-1">Comments:</p>
-                          <p className="text-xs text-green-800">{initiation.procurementApproval.comments}</p>
+                        <div className="mt-2 p-2 bg-green-500/10 dark:bg-green-500/20 border border-green-500/20 rounded">
+                          <p className="text-xs font-medium text-green-600 dark:text-green-400 mb-1">Comments:</p>
+                          <p className="text-xs text-green-700 dark:text-green-300">{initiation.procurementApproval.comments}</p>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="mb-4 pt-4 border-t">
-                    <p className="text-sm font-medium text-slate-600">Reason for Onboarding Supplier:</p>
-                    <p className="text-sm text-slate-700 mt-1 line-clamp-2">{initiation.onboardingReason}</p>
+                  <div className="mb-4 pt-4 border-t border-border">
+                    <p className="text-sm font-medium text-muted-foreground">Reason for Onboarding Supplier:</p>
+                    <p className="text-sm text-foreground mt-1 line-clamp-2">{initiation.onboardingReason}</p>
                   </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t">
-                    <div className="text-sm text-slate-600">
+                  <div className="flex items-center justify-between pt-4 border-t border-border">
+                    <div className="text-sm text-muted-foreground">
                       <p className="font-medium">Approval Status:</p>
-                      <p className="text-slate-800">{getApprovalStatus(initiation)}</p>
+                      <p className="text-foreground">{getApprovalStatus(initiation)}</p>
                     </div>
                     
                     <div className="flex gap-2">
@@ -624,7 +623,7 @@ export default function ApprovalsPage() {
               {/* Suppliers Awaiting Final Approval */}
               <div className="space-y-4">
                 {suppliersAwaitingApproval.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500">
+                  <div className="text-center py-12 text-muted-foreground">
                     No suppliers awaiting final approval
                   </div>
                 ) : (
@@ -635,15 +634,15 @@ export default function ApprovalsPage() {
                           <div className="flex items-center gap-3">
                             <Clock className="h-5 w-5 text-orange-500" />
                             <div>
-                              <h3 className="font-semibold text-slate-900">{supplier.companyName}</h3>
-                              <p className="text-sm text-slate-600">
+                              <h3 className="font-semibold text-foreground">{supplier.companyName}</h3>
+                              <p className="text-sm text-muted-foreground">
                                 Supplier Code: {supplier.supplierCode}
                               </p>
-                              <p className="text-sm text-slate-600">
+                              <p className="text-sm text-muted-foreground">
                                 Contact: {supplier.contactPerson} ({supplier.contactEmail})
                               </p>
                               {supplier.initiator && (
-                                <p className="text-sm text-slate-500 mt-1">
+                                <p className="text-sm text-muted-foreground mt-1">
                                   Initiated by: {supplier.initiator.name}
                                 </p>
                               )}
@@ -654,7 +653,7 @@ export default function ApprovalsPage() {
                               Awaiting Final Approval
                             </Badge>
                             {supplier.creditApplication && (
-                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                              <Badge variant="outline" className="bg-yellow-500/10 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-500/20">
                                 Credit Application Required
                               </Badge>
                             )}
@@ -666,17 +665,17 @@ export default function ApprovalsPage() {
                             </Link>
                           </div>
                         </div>
-                        <div className="mt-4 pt-4 border-t border-slate-200">
+                        <div className="mt-4 pt-4 border-t border-border">
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
-                              <span className="text-slate-500">Purchase Type:</span>
-                              <span className="ml-2 font-medium text-slate-700">
+                              <span className="text-muted-foreground">Purchase Type:</span>
+                              <span className="ml-2 font-medium text-foreground">
                                 {supplier.purchaseType || 'N/A'}
                               </span>
                             </div>
                             <div>
-                              <span className="text-slate-500">Requested:</span>
-                              <span className="ml-2 font-medium text-slate-700">
+                              <span className="text-muted-foreground">Requested:</span>
+                              <span className="ml-2 font-medium text-foreground">
                                 {new Date(supplier.createdAt).toLocaleDateString()}
                               </span>
                             </div>
@@ -709,21 +708,21 @@ export default function ApprovalsPage() {
             
             {selectedInitiation && (
               <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-2">
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-4">
-                  <h4 className="font-medium text-slate-900 mb-3">Complete Initiation Details:</h4>
+                <div className="bg-muted border border-border rounded-lg p-4 space-y-4">
+                  <h4 className="font-medium text-foreground mb-3">Complete Initiation Details:</h4>
                   
                   {/* Basic Information */}
                   <div>
-                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Supplier Information</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Supplier Information</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                       <div>
-                        <p><strong>Supplier Name:</strong> {selectedInitiation.supplierName}</p>
-                        <p><strong>Contact Person:</strong> {selectedInitiation.supplierContactPerson || 'N/A'}</p>
-                        <p><strong>Email:</strong> {selectedInitiation.supplierEmail}</p>
+                        <p className="text-foreground"><strong>Supplier Name:</strong> {selectedInitiation.supplierName}</p>
+                        <p className="text-foreground"><strong>Contact Person:</strong> {selectedInitiation.supplierContactPerson || 'N/A'}</p>
+                        <p className="text-foreground"><strong>Email:</strong> {selectedInitiation.supplierEmail}</p>
                       </div>
                       <div>
-                        <p><strong>Category:</strong> {selectedInitiation.productServiceCategory}</p>
-                        <p><strong>Business Unit{Array.isArray(selectedInitiation.businessUnit) && selectedInitiation.businessUnit.length > 1 ? 's' : ''}:</strong> {
+                        <p className="text-foreground"><strong>Category:</strong> {selectedInitiation.productServiceCategory}</p>
+                        <p className="text-foreground"><strong>Business Unit{Array.isArray(selectedInitiation.businessUnit) && selectedInitiation.businessUnit.length > 1 ? 's' : ''}:</strong> {
                           Array.isArray(selectedInitiation.businessUnit) 
                             ? selectedInitiation.businessUnit.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')
                             : (selectedInitiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
@@ -735,35 +734,35 @@ export default function ApprovalsPage() {
                   </div>
 
                   {/* Requester Information */}
-                  <div className="pt-3 border-t">
-                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Requester Information</p>
+                  <div className="pt-3 border-t border-border">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Requester Information</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                       <div>
-                        <p><strong>Requester:</strong> {selectedInitiation.requesterName}</p>
-                        <p><strong>Submitted:</strong> {new Date(selectedInitiation.submittedAt).toLocaleDateString()}</p>
+                        <p className="text-foreground"><strong>Requester:</strong> {selectedInitiation.requesterName}</p>
+                        <p className="text-foreground"><strong>Submitted:</strong> {new Date(selectedInitiation.submittedAt).toLocaleDateString()}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Purchase Information */}
-                  <div className="pt-3 border-t">
-                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Purchase Information</p>
+                  <div className="pt-3 border-t border-border">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Purchase Information</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                       <div>
-                        <p><strong>Purchase Type:</strong></p>
-                        <p className="text-slate-700">
+                        <p className="text-foreground"><strong>Purchase Type:</strong></p>
+                        <p className="text-foreground">
                           {selectedInitiation.purchaseType === 'REGULAR' && 'Regular Purchase'}
                           {selectedInitiation.purchaseType === 'ONCE_OFF' && 'Once-off Purchase'}
                           {selectedInitiation.purchaseType === 'SHARED_IP' && 'Shared IP'}
                         </p>
                         {selectedInitiation.purchaseType === 'REGULAR' && selectedInitiation.annualPurchaseValue && (
-                          <p className="mt-1"><strong>Annual Value:</strong> R{selectedInitiation.annualPurchaseValue.toLocaleString()}</p>
+                          <p className="mt-1 text-foreground"><strong>Annual Value:</strong> R{selectedInitiation.annualPurchaseValue.toLocaleString()}</p>
                         )}
                       </div>
                       <div>
-                        <p><strong>Credit Application:</strong> {selectedInitiation.creditApplication ? 'Yes' : 'No'}</p>
+                        <p className="text-foreground"><strong>Credit Application:</strong> {selectedInitiation.creditApplication ? 'Yes' : 'No'}</p>
                         {!selectedInitiation.creditApplication && selectedInitiation.creditApplicationReason && (
-                          <p className="mt-1 text-slate-600">
+                          <p className="mt-1 text-muted-foreground">
                             <strong>Reason:</strong> {selectedInitiation.creditApplicationReason}
                           </p>
                         )}
@@ -772,8 +771,8 @@ export default function ApprovalsPage() {
                   </div>
 
                   {/* Checklist */}
-                  <div className="pt-3 border-t">
-                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Checklist</p>
+                  <div className="pt-3 border-t border-border">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Checklist</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                       <div className="flex items-center gap-2">
                         {selectedInitiation.processReadUnderstood ? (
@@ -781,7 +780,7 @@ export default function ApprovalsPage() {
                         ) : (
                           <XCircle className="h-4 w-4 text-red-500" />
                         )}
-                        <span>Process Read & Understood</span>
+                        <span className="text-foreground">Process Read & Understood</span>
                       </div>
                       <div className="flex items-center gap-2">
                         {selectedInitiation.dueDiligenceCompleted ? (
@@ -789,21 +788,21 @@ export default function ApprovalsPage() {
                         ) : (
                           <XCircle className="h-4 w-4 text-red-500" />
                         )}
-                        <span>Due Diligence Completed</span>
+                        <span className="text-foreground">Due Diligence Completed</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Relationship Declaration */}
-                  <div className="pt-3 border-t">
-                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Relationship Declaration</p>
-                    <p className="text-sm text-slate-700">{selectedInitiation.relationshipDeclaration}</p>
+                  <div className="pt-3 border-t border-border">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Relationship Declaration</p>
+                    <p className="text-sm text-foreground">{selectedInitiation.relationshipDeclaration}</p>
                   </div>
 
                   {/* Onboarding Reason */}
-                  <div className="pt-3 border-t">
-                    <p className="text-xs font-semibold text-slate-600 uppercase mb-2">Reason for Onboarding</p>
-                    <p className="text-sm text-slate-700">{selectedInitiation.onboardingReason}</p>
+                  <div className="pt-3 border-t border-border">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Reason for Onboarding</p>
+                    <p className="text-sm text-foreground">{selectedInitiation.onboardingReason}</p>
                   </div>
                 </div>
                 

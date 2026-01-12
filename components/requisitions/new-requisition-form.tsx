@@ -258,7 +258,7 @@ export function NewRequisitionForm() {
                   </div>
                   <div>
                     <Label>Total</Label>
-                    <div className="mt-1 p-2 bg-gray-50 rounded-md text-sm font-medium">R{item.total.toFixed(2)}</div>
+                    <div className="mt-1 p-2 bg-muted rounded-md text-sm font-medium text-foreground">R{item.total.toFixed(2)}</div>
                   </div>
                 </div>
               </CardContent>
@@ -268,7 +268,7 @@ export function NewRequisitionForm() {
 
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <div className="flex justify-between items-center">
-            <span className="text-lg font-semibold text-gray-900">Total Amount:</span>
+            <span className="text-lg font-semibold text-foreground">Total Amount:</span>
             <span className="text-2xl font-bold text-primary">R{getTotalAmount().toFixed(2)}</span>
           </div>
         </div>

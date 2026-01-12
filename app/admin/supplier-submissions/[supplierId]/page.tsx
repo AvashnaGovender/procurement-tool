@@ -797,7 +797,7 @@ Procurement Team`
       case 'UNDER_REVIEW': return 'bg-yellow-500'
       case 'AWAITING_FINAL_APPROVAL': return 'bg-orange-500'
       case 'REJECTED': return 'bg-red-500'
-      case 'PENDING': return 'bg-gray-500'
+      case 'PENDING': return 'bg-muted text-muted-foreground'
       default: return 'bg-blue-500'
     }
   }
@@ -805,7 +805,7 @@ Procurement Team`
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
@@ -814,7 +814,7 @@ Procurement Team`
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">Supplier not found</p>
+          <p className="text-muted-foreground mb-4">Supplier not found</p>
           <Button onClick={() => router.push('/dashboard')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
@@ -825,7 +825,7 @@ Procurement Team`
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Completion Dialog */}
       <Dialog open={showCompletion} onOpenChange={setShowCompletion}>
         <DialogContent className="sm:max-w-lg">
@@ -842,22 +842,22 @@ Procurement Team`
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Card className="bg-green-50 border-green-200">
+              <Card className="bg-green-500/10 dark:bg-green-500/20 border-green-500/20">
                 <CardContent className="py-4 text-center">
-                  <div className="text-sm font-medium text-green-800">Database Entry</div>
-                  <div className="text-xs text-green-700">Supplier profile created</div>
+                  <div className="text-sm font-medium text-green-600 dark:text-green-400">Database Entry</div>
+                  <div className="text-xs text-green-700 dark:text-green-300">Supplier profile created</div>
                 </CardContent>
               </Card>
-              <Card className="bg-green-50 border-green-200">
+              <Card className="bg-green-500/10 dark:bg-green-500/20 border-green-500/20">
                 <CardContent className="py-4 text-center">
-                  <div className="text-sm font-medium text-green-800">Notification Sent</div>
-                  <div className="text-xs text-green-700">Approval email delivered</div>
+                  <div className="text-sm font-medium text-green-600 dark:text-green-400">Notification Sent</div>
+                  <div className="text-xs text-green-700 dark:text-green-300">Approval email delivered</div>
                 </CardContent>
               </Card>
-              <Card className="bg-green-50 border-green-200">
+              <Card className="bg-green-500/10 dark:bg-green-500/20 border-green-500/20">
                 <CardContent className="py-4 text-center">
-                  <div className="text-sm font-medium text-green-800">Documents Stored</div>
-                  <div className="text-xs text-green-700">All files archived securely</div>
+                  <div className="text-sm font-medium text-green-600 dark:text-green-400">Documents Stored</div>
+                  <div className="text-xs text-green-700 dark:text-green-300">All files archived securely</div>
                 </CardContent>
               </Card>
             </div>
@@ -869,7 +869,7 @@ Procurement Team`
         </DialogContent>
       </Dialog>
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="bg-card border-b border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -882,8 +882,8 @@ Procurement Team`
                 Back to Dashboard
               </Button>
               <div className="flex-1">
-                <h1 className="text-2xl font-bold text-gray-900">{supplier.companyName}</h1>
-                <p className="text-sm text-gray-600">Supplier Code: {supplier.supplierCode}</p>
+                <h1 className="text-2xl font-bold text-foreground">{supplier.companyName}</h1>
+                <p className="text-sm text-muted-foreground">Supplier Code: {supplier.supplierCode}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -956,7 +956,7 @@ Procurement Team`
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs text-gray-500 uppercase">Supplier Name</label>
+                    <label className="text-xs text-muted-foreground uppercase">Supplier Name</label>
                     {isEditing ? (
                       <Input
                         value={editData.supplierName || ''}

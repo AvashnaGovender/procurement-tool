@@ -196,7 +196,7 @@ export function DelegationManagement() {
 
   const getStatusBadge = (delegation: Delegation) => {
     if (!delegation.isActive) {
-      return <Badge variant="secondary" className="bg-gray-500 text-white">Deactivated</Badge>
+      return <Badge variant="secondary" className="bg-muted text-muted-foreground">Deactivated</Badge>
     }
     
     const now = new Date()
@@ -206,7 +206,7 @@ export function DelegationManagement() {
     if (start > now) {
       return <Badge variant="secondary" className="bg-blue-500 text-white">Scheduled</Badge>
     } else if (end < now) {
-      return <Badge variant="secondary" className="bg-gray-500 text-white">Expired</Badge>
+      return <Badge variant="secondary" className="bg-muted text-muted-foreground">Expired</Badge>
     } else {
       return <Badge className="bg-green-500 text-white">Active</Badge>
     }
@@ -376,11 +376,11 @@ export function DelegationManagement() {
         <TabsContent value="given" className="space-y-4 mt-6">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : givenDelegations.length === 0 ? (
             <Card>
-              <CardContent className="py-8 text-center text-gray-500">
+              <CardContent className="py-8 text-center text-muted-foreground">
                 No delegations created yet
               </CardContent>
             </Card>
@@ -394,11 +394,11 @@ export function DelegationManagement() {
                         <h4 className="font-semibold">{delegation.delegate?.name}</h4>
                         {getStatusBadge(delegation)}
                       </div>
-                      <p className="text-sm text-gray-600">{delegation.delegate?.email}</p>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-muted-foreground">{delegation.delegate?.email}</p>
+                      <p className="text-sm text-muted-foreground mt-1">
                         {delegation.delegate?.role} • {delegation.delegate?.department}
                       </p>
-                      <div className="flex items-center gap-4 mt-3 text-sm text-gray-600">
+                      <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
                           {format(new Date(delegation.startDate), 'PP')} - {format(new Date(delegation.endDate), 'PP')}
@@ -432,11 +432,11 @@ export function DelegationManagement() {
         <TabsContent value="received" className="space-y-4 mt-6">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : receivedDelegations.length === 0 ? (
             <Card>
-              <CardContent className="py-8 text-center text-gray-500">
+              <CardContent className="py-8 text-center text-muted-foreground">
                 No delegations received yet
               </CardContent>
             </Card>
@@ -454,7 +454,7 @@ export function DelegationManagement() {
                       <p className="text-sm text-gray-500 mt-1">
                         {delegation.delegator?.role} • {delegation.delegator?.department}
                       </p>
-                      <div className="flex items-center gap-4 mt-3 text-sm text-gray-600">
+                      <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
                           {format(new Date(delegation.startDate), 'PP')} - {format(new Date(delegation.endDate), 'PP')}

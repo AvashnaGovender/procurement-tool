@@ -379,7 +379,7 @@ Schauenburg Systems Procurement Team`
                 <Mail className="h-4 w-4 text-green-500" />
                 <span className="font-medium">Email Sent</span>
               </div>
-              <p className="text-sm text-gray-600">Onboarding email delivered to {contactEmail}</p>
+              <p className="text-sm text-muted-foreground">Onboarding email delivered to {contactEmail}</p>
               <Badge variant="outline" className="mt-2 bg-green-50 text-green-700">
                 Complete
               </Badge>
@@ -390,7 +390,7 @@ Schauenburg Systems Procurement Team`
                 <FileText className="h-4 w-4 text-yellow-500" />
                 <span className="font-medium">Form Completion</span>
               </div>
-              <p className="text-sm text-gray-600">Supplier registration form</p>
+              <p className="text-sm text-muted-foreground">Supplier registration form</p>
               <Badge variant="outline" className="mt-2 bg-yellow-50 text-yellow-700">
                 Pending
               </Badge>

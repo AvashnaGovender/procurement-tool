@@ -168,6 +168,38 @@ function SupplierOnboardingForm() {
     fetchExistingData()
   }, [onboardingToken])
 
+  // Fetch custom categories, banks, and account types on mount
+  useEffect(() => {
+    const fetchCustomOptions = async () => {
+      try {
+        // Fetch custom product/service categories
+        const categoriesResponse = await fetch('/api/custom-options?type=PRODUCT_SERVICE_CATEGORY')
+        const categoriesData = await categoriesResponse.json()
+        if (categoriesData.success) {
+          setCustomCategories(categoriesData.options || [])
+        }
+
+        // Fetch custom banks
+        const banksResponse = await fetch('/api/custom-options?type=BANK')
+        const banksData = await banksResponse.json()
+        if (banksData.success) {
+          setCustomBanks(banksData.options || [])
+        }
+
+        // Fetch custom account types
+        const accountTypesResponse = await fetch('/api/custom-options?type=ACCOUNT_TYPE')
+        const accountTypesData = await accountTypesResponse.json()
+        if (accountTypesData.success) {
+          setCustomAccountTypes(accountTypesData.options || [])
+        }
+      } catch (error) {
+        console.error('Error fetching custom options:', error)
+      }
+    }
+
+    fetchCustomOptions()
+  }, [])
+
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
@@ -420,23 +452,23 @@ function SupplierOnboardingForm() {
                   <CheckCircle className="h-16 w-16 text-green-600" />
                 </div>
               </div>
-              <h2 className="text-3xl font-bold text-gray-900">
+              <h2 className="text-3xl font-bold text-foreground">
                 {revisionNotes ? 'Application Updated!' : 'Thank You!'}
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-muted-foreground">
                 {revisionNotes 
                   ? 'Your updated supplier information has been submitted successfully.'
                   : 'Your supplier onboarding form has been submitted successfully.'
                 }
               </p>
-              <p className="text-gray-500">
+              <p className="text-muted-foreground">
                 {revisionNotes
                   ? 'Our procurement team will review your updates and contact you shortly.'
                   : 'Our procurement team will review your submission and contact you shortly.'
                 }
               </p>
               <div className="pt-4">
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-muted-foreground">
                   You will receive a confirmation email shortly.
                 </p>
               </div>
@@ -511,7 +543,7 @@ function SupplierOnboardingForm() {
                   <strong>{totalFiles} files uploaded</strong>
                   <div className="mt-2 space-y-1">
                     {Object.entries(files).filter(([_, fileList]) => fileList.length > 0).map(([category, fileList]) => (
-                      <div key={category} className="bg-gray-50 p-2 rounded">
+                      <div key={category} className="bg-muted p-2 rounded">
                         <strong className="capitalize">{category.replace(/([A-Z])/g, ' $1').trim()}:</strong> {fileList.length} file(s)
                       </div>
                     ))}
@@ -580,7 +612,7 @@ function SupplierOnboardingForm() {
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-            <p className="text-lg text-gray-600">Loading your application data...</p>
+            <p className="text-lg text-muted-foreground">Loading your application data...</p>
           </CardContent>
         </Card>
       </div>
@@ -601,7 +633,7 @@ function SupplierOnboardingForm() {
               className="object-contain"
             />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          <h1 className="text-4xl font-bold text-foreground mb-2">
             {revisionNotes ? 'Update Your Application' : 'Supplier Onboarding Form'}
           </h1>
           <p className="text-lg text-gray-600">
@@ -1431,11 +1463,11 @@ function SupplierOnboardingForm() {
                     {files[key]?.length > 0 && (
                       <div className="space-y-1">
                         {files[key].map((file, index) => (
-                          <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                          <div key={index} className="flex items-center justify-between bg-muted p-2 rounded">
                             <div className="flex items-center space-x-2">
-                              <FileIcon className="h-4 w-4 text-gray-500" />
-                              <span className="text-sm text-gray-700">{file.name}</span>
-                              <span className="text-xs text-gray-500">
+                              <FileIcon className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm text-foreground">{file.name}</span>
+                              <span className="text-xs text-muted-foreground">
                                 ({(file.size / 1024 / 1024).toFixed(2)} MB)
                               </span>
                             </div>
@@ -1508,10 +1540,10 @@ function SupplierOnboardingForm() {
 export default function SupplierOnboardingFormPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
-          <p className="text-slate-600">Loading supplier onboarding form...</p>
+          <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+          <p className="text-muted-foreground">Loading supplier onboarding form...</p>
         </div>
       </div>
     }>

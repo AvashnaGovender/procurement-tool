@@ -5,7 +5,7 @@ import Link from "next/link"
 
 export function DeliveryHeader() {
   return (
-    <header className="bg-white border-b border-gray-200">
+    <header className="bg-card border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-4">
@@ -15,8 +15,8 @@ export function DeliveryHeader() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Delivery & Lead Time Optimization</h1>
-              <p className="text-sm text-gray-600">Monitor and optimize delivery performance</p>
+              <h1 className="text-2xl font-bold text-foreground">Delivery & Lead Time Optimization</h1>
+              <p className="text-sm text-muted-foreground">Monitor and optimize delivery performance</p>
             </div>
           </div>
 

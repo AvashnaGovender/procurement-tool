@@ -58,20 +58,20 @@ export function EvaluationCriteria() {
             <div key={criteria.name} className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-medium text-gray-900">{criteria.name}</h4>
-                  <p className="text-sm text-gray-600">{criteria.description}</p>
+                  <h4 className="font-medium text-foreground">{criteria.name}</h4>
+                  <p className="text-sm text-muted-foreground">{criteria.description}</p>
                 </div>
                 <Badge variant="outline">{criteria.weight}%</Badge>
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Average Score: {criteria.avgScore}/5.0</span>
-                  <span className="text-gray-600">Benchmark: {criteria.benchmarkScore}/5.0</span>
+                  <span className="text-muted-foreground">Average Score: {criteria.avgScore}/5.0</span>
+                  <span className="text-muted-foreground">Benchmark: {criteria.benchmarkScore}/5.0</span>
                 </div>
                 <Progress value={(criteria.avgScore / 5) * 100} className="h-2" />
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">Weight: {criteria.weight}%</span>
+                  <span className="text-xs text-muted-foreground">Weight: {criteria.weight}%</span>
                   <Badge variant={criteria.trend === "up" ? "default" : "destructive"} className="text-xs">
                     {criteria.trend === "up" ? "↗ Improving" : "↘ Declining"}
                   </Badge>

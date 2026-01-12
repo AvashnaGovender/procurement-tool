@@ -57,7 +57,7 @@ export function LeadTimeAlerts() {
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
-                    <h4 className="font-medium text-gray-900">{alert.title}</h4>
+                    <h4 className="font-medium text-foreground">{alert.title}</h4>
                     <Badge
                       variant={
                         alert.severity === "high"
@@ -70,9 +70,9 @@ export function LeadTimeAlerts() {
                       {alert.severity}
                     </Badge>
                   </div>
-                  <p className="text-sm text-gray-600">{alert.description}</p>
+                  <p className="text-sm text-muted-foreground">{alert.description}</p>
                 </div>
-                <div className="flex items-center space-x-1 text-xs text-gray-500">
+                <div className="flex items-center space-x-1 text-xs text-muted-foreground">
                   {alert.severity === "high" ? (
                     <AlertTriangle className="h-3 w-3 text-red-500" />
                   ) : alert.severity === "medium" ? (
@@ -84,7 +84,7 @@ export function LeadTimeAlerts() {
                 </div>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Impact: {alert.impact}</span>
+                <span className="text-muted-foreground">Impact: {alert.impact}</span>
                 <span className="text-blue-600 font-medium">{alert.action}</span>
               </div>
             </div>

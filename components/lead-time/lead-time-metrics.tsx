@@ -63,7 +63,7 @@ export function LeadTimeMetrics() {
         return (
           <Card key={metric.title} className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">{metric.title}</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{metric.title}</CardTitle>
               <Icon className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>

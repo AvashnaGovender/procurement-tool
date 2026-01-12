@@ -232,7 +232,7 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
   return (
     <div className="space-y-6">
       {/* Navigation Header */}
-      <div className="flex items-center justify-between bg-slate-50 p-4 rounded-lg border">
+      <div className="flex items-center justify-between bg-muted p-4 rounded-lg border border-border">
         <div className="flex items-center gap-4">
           <Button 
             type="button"
@@ -255,7 +255,7 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
             Suppliers
           </Button>
         </div>
-        <div className="text-sm text-slate-600">
+        <div className="text-sm text-muted-foreground">
           Complete all fields to submit for approval
         </div>
       </div>
@@ -479,9 +479,9 @@ export function SupplierInitiationForm({ onSubmissionComplete }: SupplierInitiat
               id="requesterName"
               value={formData.requesterName}
               disabled
-              className="bg-gray-50 cursor-not-allowed"
+              className="bg-muted cursor-not-allowed"
             />
-            <p className="text-xs text-gray-500">Auto-filled from your account</p>
+            <p className="text-xs text-muted-foreground">Auto-filled from your account</p>
           </div>
 
           <div className="space-y-2">

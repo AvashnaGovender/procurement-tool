@@ -229,7 +229,7 @@ export default function SupplierSubmissionsPage() {
       case 'APPROVED': return 'bg-green-500'
       case 'UNDER_REVIEW': return 'bg-yellow-500'
       case 'REJECTED': return 'bg-red-500'
-      case 'PENDING': return 'bg-gray-500'
+      case 'PENDING': return 'bg-muted text-muted-foreground'
       case 'AWAITING DOCUMENTS': return 'bg-orange-500'
       default: return 'bg-blue-500'
     }
@@ -243,7 +243,7 @@ export default function SupplierSubmissionsPage() {
       case 'PROCUREMENT_APPROVED': return 'bg-blue-100 text-blue-800'
       case 'SUBMITTED': return 'bg-yellow-100 text-yellow-800'
       case 'REJECTED': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-muted text-muted-foreground'
     }
   }
 
@@ -260,7 +260,7 @@ export default function SupplierSubmissionsPage() {
       case 'REJECTED':
         return <XCircle className="h-4 w-4 text-red-500" />
       default:
-        return <Clock className="h-4 w-4 text-gray-500" />
+        return <Clock className="h-4 w-4 text-muted-foreground" />
     }
   }
 
@@ -304,7 +304,7 @@ export default function SupplierSubmissionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -316,8 +316,8 @@ export default function SupplierSubmissionsPage() {
                 </Link>
               </Button>
               <div>
-                <h1 className="text-3xl font-bold text-slate-900">Supplier Submissions</h1>
-                <p className="text-slate-600 mt-2">Review and manage supplier onboarding applications and initiations</p>
+                <h1 className="text-3xl font-bold text-foreground">Supplier Submissions</h1>
+                <p className="text-muted-foreground mt-2">Review and manage supplier onboarding applications and initiations</p>
               </div>
             </div>
             <Button onClick={() => { fetchSuppliers(); fetchInitiations(); }} variant="outline">
@@ -329,12 +329,12 @@ export default function SupplierSubmissionsPage() {
 
         {/* Main Tabs */}
         <Tabs defaultValue="initiations" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-8 bg-white border-slate-200">
-            <TabsTrigger value="initiations" className="flex items-center gap-2 text-slate-700 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg">
+          <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsTrigger value="initiations" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg">
               <ClipboardList className="h-4 w-4" />
               Supplier Initiations ({initiations.length})
             </TabsTrigger>
-            <TabsTrigger value="submissions" className="flex items-center gap-2 text-slate-700 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg">
+            <TabsTrigger value="submissions" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg">
               <Users className="h-4 w-4" />
               Supplier Submissions ({suppliers.length})
             </TabsTrigger>
@@ -342,20 +342,20 @@ export default function SupplierSubmissionsPage() {
 
           {/* Initiations Tab */}
           <TabsContent value="initiations" className="space-y-6">
-            <Card className="bg-white border-slate-200">
+            <Card>
               <CardHeader>
-                <CardTitle className="text-slate-900">Supplier Initiation Requests</CardTitle>
-                <CardDescription className="text-slate-600">
+                <CardTitle>Supplier Initiation Requests</CardTitle>
+                <CardDescription>
                   Review and approve supplier onboarding initiation requests
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {initiationsLoading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 ) : initiations.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500">
+                  <div className="text-center py-12 text-muted-foreground">
                     No initiation requests found
                   </div>
                 ) : (
@@ -367,8 +367,8 @@ export default function SupplierSubmissionsPage() {
                             <div className="flex items-center gap-3">
                               {getInitiationStatusIcon(initiation.status)}
                               <div>
-                                <h3 className="font-semibold text-slate-900">{initiation.supplierName}</h3>
-                                <p className="text-sm text-slate-600">
+                                <h3 className="font-semibold text-foreground">{initiation.supplierName}</h3>
+                                <p className="text-sm text-muted-foreground">
                                   Requested by {initiation.requesterName}
                                 </p>
                               </div>
@@ -380,8 +380,8 @@ export default function SupplierSubmissionsPage() {
                           
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                             <div>
-                              <p className="text-sm font-medium text-slate-600">Business Unit{Array.isArray(initiation.businessUnit) && initiation.businessUnit.length > 1 ? 's' : ''}</p>
-                              <p className="text-sm">
+                              <p className="text-sm font-medium text-muted-foreground">Business Unit{Array.isArray(initiation.businessUnit) && initiation.businessUnit.length > 1 ? 's' : ''}</p>
+                              <p className="text-sm text-foreground">
                                 {Array.isArray(initiation.businessUnit) 
                                   ? initiation.businessUnit.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')
                                   : (initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
@@ -391,15 +391,15 @@ export default function SupplierSubmissionsPage() {
                               </p>
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-slate-600">Purchase Type</p>
-                              <p className="text-sm">
+                              <p className="text-sm font-medium text-muted-foreground">Purchase Type</p>
+                              <p className="text-sm text-foreground">
                                 {initiation.purchaseType === 'REGULAR' ? 'Regular Purchase' : initiation.purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
                                 {initiation.annualPurchaseValue && ` (R${initiation.annualPurchaseValue.toLocaleString()})`}
                               </p>
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-slate-600">Submitted</p>
-                              <p className="text-sm">
+                              <p className="text-sm font-medium text-muted-foreground">Submitted</p>
+                              <p className="text-sm text-foreground">
                                 {new Date(initiation.submittedAt).toLocaleDateString()}
                               </p>
                             </div>
@@ -407,27 +407,27 @@ export default function SupplierSubmissionsPage() {
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
-                              <p className="text-sm font-medium text-slate-600">Manager Approval</p>
+                              <p className="text-sm font-medium text-muted-foreground">Manager Approval</p>
                               <div className="flex items-center gap-2">
                                 {getInitiationStatusIcon(initiation.managerApproval?.status || 'PENDING')}
-                                <span className="text-sm">
+                                <span className="text-sm text-foreground">
                                   {initiation.managerApproval?.status || 'PENDING'}
                                 </span>
                               </div>
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-slate-600">Procurement Approval</p>
+                              <p className="text-sm font-medium text-muted-foreground">Procurement Approval</p>
                               <div className="flex items-center gap-2">
                                 {getInitiationStatusIcon(initiation.procurementApproval?.status || 'PENDING')}
-                                <span className="text-sm">
+                                <span className="text-sm text-foreground">
                                   {initiation.procurementApproval?.status || 'PENDING'}
                                 </span>
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between pt-4 border-t">
-                            <div className="text-sm text-slate-600">
+                          <div className="flex items-center justify-between pt-4 border-t border-border">
+                            <div className="text-sm text-muted-foreground">
                               <p className="font-medium">Reason:</p>
                               <p className="line-clamp-2">{initiation.onboardingReason}</p>
                             </div>
@@ -475,58 +475,58 @@ export default function SupplierSubmissionsPage() {
           <TabsContent value="submissions" className="space-y-6">
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-              <Card className="cursor-pointer hover:shadow-md transition-shadow bg-white border-slate-200 hover:bg-slate-50" onClick={() => setStatusFilter('all')}>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow hover:bg-muted/50" onClick={() => setStatusFilter('all')}>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-slate-900">{statusCounts.all}</div>
-                    <div className="text-sm text-slate-600">Total Submissions</div>
+                    <div className="text-2xl font-bold text-foreground">{statusCounts.all}</div>
+                    <div className="text-sm text-muted-foreground">Total Submissions</div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow bg-white border-slate-200 hover:bg-slate-50" onClick={() => setStatusFilter('PENDING')}>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow hover:bg-muted/50" onClick={() => setStatusFilter('PENDING')}>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-slate-700">{statusCounts.PENDING}</div>
-                    <div className="text-sm text-slate-600">Pending</div>
+                    <div className="text-2xl font-bold text-foreground">{statusCounts.PENDING}</div>
+                    <div className="text-sm text-muted-foreground">Pending</div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow bg-white border-slate-200 hover:bg-slate-50" onClick={() => setStatusFilter('UNDER_REVIEW')}>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow hover:bg-muted/50" onClick={() => setStatusFilter('UNDER_REVIEW')}>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600">{statusCounts.UNDER_REVIEW}</div>
-                    <div className="text-sm text-slate-600">Under Review</div>
+                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-500">{statusCounts.UNDER_REVIEW}</div>
+                    <div className="text-sm text-muted-foreground">Under Review</div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow bg-white border-slate-200 hover:bg-slate-50" onClick={() => setStatusFilter('APPROVED')}>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow hover:bg-muted/50" onClick={() => setStatusFilter('APPROVED')}>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{statusCounts.APPROVED}</div>
-                    <div className="text-sm text-slate-600">Approved</div>
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-500">{statusCounts.APPROVED}</div>
+                    <div className="text-sm text-muted-foreground">Approved</div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow bg-white border-slate-200 hover:bg-slate-50" onClick={() => setStatusFilter('REJECTED')}>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow hover:bg-muted/50" onClick={() => setStatusFilter('REJECTED')}>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">{statusCounts.REJECTED}</div>
-                    <div className="text-sm text-slate-600">Rejected</div>
+                    <div className="text-2xl font-bold text-red-600 dark:text-red-500">{statusCounts.REJECTED}</div>
+                    <div className="text-sm text-muted-foreground">Rejected</div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow bg-white border-slate-200 hover:bg-slate-50" onClick={() => setStatusFilter('AWAITING_DOCUMENTS')}>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow hover:bg-muted/50" onClick={() => setStatusFilter('AWAITING_DOCUMENTS')}>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">{statusCounts.AWAITING_DOCUMENTS}</div>
-                    <div className="text-sm text-slate-600">Awaiting Docs</div>
+                    <div className="text-2xl font-bold text-orange-600 dark:text-orange-500">{statusCounts.AWAITING_DOCUMENTS}</div>
+                    <div className="text-sm text-muted-foreground">Awaiting Docs</div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
             {/* Filters */}
-            <Card className="bg-white border-slate-200">
+            <Card>
               <CardContent className="pt-6">
                 <div className="flex gap-4">
                   <div className="flex-1">
@@ -534,7 +534,6 @@ export default function SupplierSubmissionsPage() {
                       placeholder="Search by company name, email, or supplier code..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
                     />
                   </div>
                   {statusFilter !== 'all' && (
@@ -547,22 +546,22 @@ export default function SupplierSubmissionsPage() {
             </Card>
 
             {/* Suppliers Table */}
-            <Card className="bg-white border-slate-200">
+            <Card>
               <CardHeader>
-                <CardTitle className="text-slate-900">
+                <CardTitle>
                   {statusFilter !== 'all' ? `${statusFilter.replace('_', ' ')} Suppliers` : 'All Suppliers'}
                 </CardTitle>
-                <CardDescription className="text-slate-600">
+                <CardDescription>
                   Showing {filteredSuppliers.length} of {suppliers.length} submissions
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 ) : filteredSuppliers.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500">
+                  <div className="text-center py-12 text-muted-foreground">
                     No suppliers found
                   </div>
                 ) : (
@@ -570,7 +569,7 @@ export default function SupplierSubmissionsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead 
-                          className="cursor-pointer hover:bg-slate-100 select-none text-slate-700"
+                          className="cursor-pointer hover:bg-muted select-none"
                           onClick={() => handleSort('supplierCode')}
                         >
                           <div className="flex items-center gap-2">
@@ -579,7 +578,7 @@ export default function SupplierSubmissionsPage() {
                           </div>
                         </TableHead>
                         <TableHead 
-                          className="cursor-pointer hover:bg-slate-100 select-none text-slate-700"
+                          className="cursor-pointer hover:bg-muted select-none"
                           onClick={() => handleSort('companyName')}
                         >
                           <div className="flex items-center gap-2">
@@ -588,7 +587,7 @@ export default function SupplierSubmissionsPage() {
                           </div>
                         </TableHead>
                         <TableHead 
-                          className="cursor-pointer hover:bg-slate-100 select-none text-slate-700"
+                          className="cursor-pointer hover:bg-muted select-none"
                           onClick={() => handleSort('contactPerson')}
                         >
                           <div className="flex items-center gap-2">
@@ -597,7 +596,7 @@ export default function SupplierSubmissionsPage() {
                           </div>
                         </TableHead>
                         <TableHead 
-                          className="cursor-pointer hover:bg-slate-100 select-none text-slate-700"
+                          className="cursor-pointer hover:bg-muted select-none"
                           onClick={() => handleSort('contactEmail')}
                         >
                           <div className="flex items-center gap-2">
@@ -606,7 +605,7 @@ export default function SupplierSubmissionsPage() {
                           </div>
                         </TableHead>
                         <TableHead 
-                          className="cursor-pointer hover:bg-slate-100 select-none text-slate-700"
+                          className="cursor-pointer hover:bg-muted select-none"
                           onClick={() => handleSort('createdAt')}
                         >
                           <div className="flex items-center gap-2">
@@ -615,7 +614,7 @@ export default function SupplierSubmissionsPage() {
                           </div>
                         </TableHead>
                         <TableHead 
-                          className="cursor-pointer hover:bg-slate-100 select-none text-slate-700"
+                          className="cursor-pointer hover:bg-muted select-none"
                           onClick={() => handleSort('status')}
                         >
                           <div className="flex items-center gap-2">

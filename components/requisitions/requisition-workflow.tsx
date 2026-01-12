@@ -123,16 +123,16 @@ export function RequisitionWorkflow() {
                   <div key={step.id} className="flex flex-col items-center space-y-2">
                     <div className={`
                       flex items-center justify-center w-10 h-10 rounded-full border-2
-                      ${status === 'completed' ? 'bg-green-100 border-green-500 text-green-600' : 
-                        status === 'current' ? 'bg-blue-100 border-blue-500 text-blue-600' : 
-                        'bg-gray-100 border-gray-300 text-gray-400'}
+                      ${status === 'completed' ? 'bg-green-500/10 dark:bg-green-500/20 border-green-500 text-green-600 dark:text-green-400' : 
+                        status === 'current' ? 'bg-primary/10 dark:bg-primary/20 border-primary text-primary' : 
+                        'bg-muted border-border text-muted-foreground'}
                     `}>
                       <Icon className="h-5 w-5" />
                     </div>
                     <div className="text-center">
                       <p className={`text-xs font-medium ${
-                        status === 'current' ? 'text-blue-600' : 
-                        status === 'completed' ? 'text-green-600' : 'text-gray-500'
+                        status === 'current' ? 'text-primary' : 
+                        status === 'completed' ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'
                       }`}>
                         {step.label}
                       </p>
@@ -273,7 +273,7 @@ export function RequisitionWorkflow() {
                         <Input
                           value={`R${item.total.toFixed(2)}`}
                           readOnly
-                          className="bg-gray-50"
+                          className="bg-muted"
                         />
                       </div>
                       <Button
@@ -324,14 +324,14 @@ export function RequisitionWorkflow() {
                     <div className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <p className="font-medium">Department Manager</p>
-                        <p className="text-sm text-gray-600">John Smith</p>
+                        <p className="text-sm text-muted-foreground">John Smith</p>
                       </div>
                       <Badge variant="secondary">Pending</Badge>
                     </div>
-                    <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+                    <div className="flex items-center justify-between p-3 border rounded-lg bg-muted">
                       <div>
                         <p className="font-medium">Finance Manager</p>
-                        <p className="text-sm text-gray-600">Sarah Johnson</p>
+                        <p className="text-sm text-muted-foreground">Sarah Johnson</p>
                       </div>
                       <Badge variant="outline">Waiting</Badge>
                     </div>
@@ -414,9 +414,9 @@ export function RequisitionWorkflow() {
                     <Mail className="h-4 w-4 text-blue-600" />
                     <div className="flex-1">
                       <p className="text-sm font-medium">Email sent to supplier</p>
-                      <p className="text-xs text-gray-600">Purchase order and terms attached</p>
+                      <p className="text-xs text-muted-foreground">Purchase order and terms attached</p>
                     </div>
-                    <span className="text-xs text-gray-500">{new Date().toLocaleTimeString()}</span>
+                    <span className="text-xs text-muted-foreground">{new Date().toLocaleTimeString()}</span>
                   </div>
                 </div>
               </div>
@@ -445,11 +445,11 @@ export function RequisitionWorkflow() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-3 border rounded-lg">
                     <p className="font-medium">Delivery Confirmation</p>
-                    <p className="text-sm text-gray-600">Expected delivery date confirmation</p>
+                    <p className="text-sm text-muted-foreground">Expected delivery date confirmation</p>
                   </div>
                   <div className="p-3 border rounded-lg">
                     <p className="font-medium">Price Confirmation</p>
-                    <p className="text-sm text-gray-600">Final pricing and terms agreement</p>
+                    <p className="text-sm text-muted-foreground">Final pricing and terms agreement</p>
                   </div>
                 </div>
               </div>
