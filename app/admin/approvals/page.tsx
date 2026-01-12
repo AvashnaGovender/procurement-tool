@@ -328,34 +328,58 @@ export default function ApprovalsPage() {
           )}
         </div>
 
-        {/* Search */}
-        <Card className="mb-6 bg-white border-slate-200">
-          <CardContent className="pt-6">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search by supplier name, requester, or category..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Tabs for Initiations and Suppliers Awaiting Final Approval */}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'initiations' | 'suppliers')} className="mb-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="initiations">
+              Initiations
+              {initiations.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {initiations.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            {(session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && (
+              <TabsTrigger value="suppliers">
+                Final Approvals
+                {suppliersAwaitingApproval.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {suppliersAwaitingApproval.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            )}
+          </TabsList>
 
-        {/* Initiations List */}
-        <div className="space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : filteredInitiations.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">
-              No initiation requests found
-            </div>
-          ) : (
-            filteredInitiations.map((initiation) => (
+          <TabsContent value="initiations" className="mt-6">
+            {/* Search */}
+            <Card className="mb-6 bg-white border-slate-200">
+              <CardContent className="pt-6">
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="Search by supplier name, requester, or category..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Initiations List */}
+            <div className="space-y-4">
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : filteredInitiations.length === 0 ? (
+                <div className="text-center py-12 text-slate-500">
+                  No initiation requests found
+                </div>
+              ) : (
+                filteredInitiations.map((initiation) => (
               <Card key={initiation.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
