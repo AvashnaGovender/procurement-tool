@@ -20,9 +20,9 @@ export async function POST(request: NextRequest) {
     // Debug logging
     console.log('📤 Upload signed credit application - User:', session.user.email, 'Role:', session.user.role)
 
-    // Check if user is Procurement Manager or Admin
-    if (session.user.role !== 'PROCUREMENT_MANAGER' && session.user.role !== 'ADMIN') {
-      console.log('❌ Access denied - User role:', session.user.role, 'Expected: PROCUREMENT_MANAGER or ADMIN')
+    // Check if user is Procurement Manager (ADMIN cannot upload signed credit applications)
+    if (session.user.role !== 'PROCUREMENT_MANAGER') {
+      console.log('❌ Access denied - User role:', session.user.role, 'Expected: PROCUREMENT_MANAGER')
       return NextResponse.json(
         { success: false, error: 'Only Procurement Managers can upload signed credit applications' },
         { status: 403 }

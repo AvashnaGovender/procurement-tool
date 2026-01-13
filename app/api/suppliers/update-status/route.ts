@@ -82,8 +82,8 @@ export async function POST(request: NextRequest) {
 
     // Authorization check: Only PM can approve suppliers awaiting final approval
     if (status === 'APPROVED' && supplierBeforeUpdate?.status === 'AWAITING_FINAL_APPROVAL') {
-      // Check if user is Procurement Manager or Admin
-      if (session.user.role !== 'PROCUREMENT_MANAGER' && session.user.role !== 'ADMIN') {
+      // Check if user is Procurement Manager (ADMIN cannot approve final approvals)
+      if (session.user.role !== 'PROCUREMENT_MANAGER') {
         console.log(`❌ Authorization failed: User role ${session.user.role} is not authorized to approve suppliers`)
         return NextResponse.json(
           { 
