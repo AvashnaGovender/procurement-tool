@@ -445,6 +445,7 @@ model SupplierOnboarding {
   revisionRequested         Boolean                   @default(false)
   revisionNotes             String?                   @db.Text
   revisionRequestedAt       DateTime?
+  documentsToRevise         String[]                  @default([]) // Document categories that need revision (e.g., ["taxClearance", "bbbeeAccreditation"])
   
   // Completion
   approvalStatus            ApprovalStatus?

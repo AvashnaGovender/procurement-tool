@@ -24,9 +24,9 @@ export default function DocumentPreviewPage({
   const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt || '')
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-100">
+    <div className="h-screen w-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4 flex items-center justify-between flex-shrink-0">
+      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -36,10 +36,10 @@ export default function DocumentPreviewPage({
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <h1 className="text-lg font-semibold text-gray-900 truncate max-w-md">
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate max-w-md">
             {decodedFilename}
           </h1>
-          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+          <span className="text-xs text-gray-500 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
             {version.toUpperCase()}
           </span>
         </div>

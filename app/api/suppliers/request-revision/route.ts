@@ -7,7 +7,7 @@ import path from 'path'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { supplierId, revisionNotes } = body
+    const { supplierId, revisionNotes, documentsToRevise } = body
 
     if (!supplierId || !revisionNotes) {
       return NextResponse.json(
@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
           revisionRequestedAt: new Date(),
           currentStep: 'PENDING_SUPPLIER_RESPONSE',
           overallStatus: 'REVISION_NEEDED',
+          documentsToRevise: documentsToRevise || [],
         }
       })
 

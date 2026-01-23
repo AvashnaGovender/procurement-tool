@@ -659,13 +659,42 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     }
   }
 
-  const handleRevisionClick = (missingDocsList?: Array<{ name: string, icon: string }>, incorrectDocsList?: Array<{ version: number, category: string, fileName: string }>) => {
+  // Map document display names to category keys
+  const mapDocumentNameToCategory = (name: string): string | null => {
+    const nameLower = name.toLowerCase()
+    if (nameLower.includes('nda') || nameLower.includes('non-disclosure')) return 'nda'
+    if (nameLower.includes('tax clearance')) return 'taxClearance'
+    if (nameLower.includes('good standing')) return 'goodStanding'
+    if (nameLower.includes('bbbee') || nameLower.includes('b-bbee')) return 'bbbeeAccreditation'
+    if (nameLower.includes('bank confirmation')) return 'bankConfirmation'
+    if (nameLower.includes('vat')) return 'vatCertificate'
+    if (nameLower.includes('credit application')) return 'creditApplication'
+    if (nameLower.includes('cm29') || nameLower.includes('directors')) return 'cm29Directors'
+    if (nameLower.includes('shareholder')) return 'shareholderCerts'
+    if (nameLower.includes('proof of shareholding')) return 'proofOfShareholding'
+    if (nameLower.includes('bbbee scorecard')) return 'bbbeeScorecard'
+    if (nameLower.includes('health') && nameLower.includes('safety')) return 'healthSafety'
+    if (nameLower.includes('quality')) return 'qualityCert'
+    if (nameLower.includes('sector registration')) return 'sectorRegistrations'
+    if (nameLower.includes('organogram')) return 'organogram'
+    if (nameLower.includes('company profile')) return 'companyProfile'
+    return null
+  }
+
+  const handleRevisionClick = (missingDocsList?: Array<{ name: string, icon: string, key?: string }>, incorrectDocsList?: Array<{ version: number, category: string, fileName: string }>) => {
     setRevisionDialogOpen(true)
+    
+    // Extract document categories that need revision
+    const documentsToRevise: string[] = []
     
     // If incorrect documents are provided, pre-fill the revision notes
     if (incorrectDocsList && incorrectDocsList.length > 0) {
       const documentNames = incorrectDocsList.map(doc => {
         const categoryName = doc.category.replace(/([A-Z])/g, ' $1').trim()
+        // Add category to documentsToRevise if not already present
+        if (doc.category && !documentsToRevise.includes(doc.category)) {
+          documentsToRevise.push(doc.category)
+        }
         return `${categoryName}: ${doc.fileName}`
       })
       
@@ -692,6 +721,24 @@ Procurement Team`
     }
     // If missing documents are provided, pre-fill the revision notes
     else if (missingDocsList && missingDocsList.length > 0) {
+      // Extract categories from missing docs
+      missingDocsList.forEach(doc => {
+        // Use key if available, otherwise try to map from name
+        let category = doc.key || mapDocumentNameToCategory(doc.name)
+        
+        // Handle special case: taxOrGoodStanding means either taxClearance or goodStanding
+        if (category === 'taxOrGoodStanding') {
+          if (!documentsToRevise.includes('taxClearance')) {
+            documentsToRevise.push('taxClearance')
+          }
+          if (!documentsToRevise.includes('goodStanding')) {
+            documentsToRevise.push('goodStanding')
+          }
+        } else if (category && !documentsToRevise.includes(category)) {
+          documentsToRevise.push(category)
+        }
+      })
+      
       const preFilledNotes = `Dear ${supplier?.contactPerson || 'Supplier'},
 
 We have reviewed your submission and found that the following compulsory documents are missing:
@@ -713,6 +760,9 @@ Procurement Team`
     } else {
       setRevisionNotes("")
     }
+    
+    // Store documentsToRevise in a state variable for use in confirmRevision
+    ;(window as any).__revisionDocumentsToRevise = documentsToRevise
   }
 
   const confirmRevision = async () => {
@@ -729,12 +779,16 @@ Procurement Team`
 
     setRevisionSubmitting(true)
     try {
+      // Get documentsToRevise from window (set in handleRevisionClick)
+      const documentsToRevise = (window as any).__revisionDocumentsToRevise || []
+      
       const response = await fetch('/api/suppliers/request-revision', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           supplierId: supplier?.id, 
-          revisionNotes: revisionNotes.trim()
+          revisionNotes: revisionNotes.trim(),
+          documentsToRevise: documentsToRevise
         })
       })
 
@@ -746,6 +800,7 @@ Procurement Team`
         await fetchSupplier()
         setRevisionDialogOpen(false)
         setRevisionNotes("")
+        ;(window as any).__revisionDocumentsToRevise = []
       } else {
         setErrorMessage(`Failed to send revision request: ${data.error}`)
         setErrorDialogOpen(true)
@@ -862,13 +917,18 @@ Procurement Team`
   }
 
   const getStatusColor = (status: string) => {
+    // Check if this should be displayed as "AWAITING DOCUMENTS"
+    if (status === 'PENDING' && supplier?.onboarding && !supplier.onboarding.supplierFormSubmitted && supplier.onboarding.emailSent) {
+      return 'bg-orange-500 text-white'
+    }
+    
     switch (status) {
-      case 'APPROVED': return 'bg-green-500'
-      case 'UNDER_REVIEW': return 'bg-yellow-500'
-      case 'AWAITING_FINAL_APPROVAL': return 'bg-orange-500'
-      case 'REJECTED': return 'bg-red-500'
-      case 'PENDING': return 'bg-muted text-muted-foreground'
-      default: return 'bg-blue-500'
+      case 'APPROVED': return 'bg-green-500 text-white'
+      case 'UNDER_REVIEW': return 'bg-yellow-500 text-white'
+      case 'AWAITING_FINAL_APPROVAL': return 'bg-orange-500 text-white'
+      case 'REJECTED': return 'bg-red-500 text-white'
+      case 'PENDING': return 'bg-slate-500 text-white' // Changed from muted to slate-500 for better visibility
+      default: return 'bg-blue-500 text-white'
     }
   }
 
@@ -994,7 +1054,13 @@ Procurement Team`
                 </>
               )}
             <Badge className={`${getStatusColor(supplier.status)} text-white px-4 py-2`}>
-              {supplier.status.replace('_', ' ')}
+              {(() => {
+                // Check if this should be displayed as "AWAITING DOCUMENTS"
+                if (supplier.status === 'PENDING' && supplier.onboarding && !supplier.onboarding.supplierFormSubmitted && supplier.onboarding.emailSent) {
+                  return 'AWAITING DOCUMENTS'
+                }
+                return supplier.status.replace('_', ' ')
+              })()}
             </Badge>
             </div>
           </div>
@@ -1873,15 +1939,15 @@ Procurement Team`
                     return (
                   <Card 
                     key={versionIndex} 
-                    className={`${isLatestVersion ? 'border-blue-500 border-2' : ''} ${isOldVersion ? 'opacity-60 bg-gray-50' : ''}`}
+                    className={`${isLatestVersion ? 'border-blue-500 border-2' : ''} ${isOldVersion ? 'opacity-60 bg-gray-50 dark:bg-gray-800' : ''}`}
                   >
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-lg">
                           Version {versionData.version} {isLatestVersion && <Badge className="ml-2 bg-blue-500">Current</Badge>}
-                          {isOldVersion && <Badge variant="outline" className="ml-2 text-gray-500">Previous</Badge>}
+                          {isOldVersion && <Badge variant="outline" className="ml-2 text-gray-500 dark:text-gray-400">Previous</Badge>}
                         </CardTitle>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
                           {new Date(versionData.date).toLocaleString()}
                         </div>
                       </div>
@@ -1904,10 +1970,10 @@ Procurement Team`
                                 const isIncorrect = incorrectDocuments[verificationKey] || false
                           
                           return (
-                            <div key={index} className={`flex items-center justify-between p-3 rounded transition-colors ${isOldVersion ? 'bg-gray-100 opacity-75' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                            <div key={index} className={`flex items-center justify-between p-3 rounded transition-colors ${isOldVersion ? 'bg-gray-100 dark:bg-gray-800 opacity-75' : 'bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
                               <div className="flex items-center gap-3 flex-1">
-                                <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                                <span className="text-sm truncate">{file}</span>
+                                <FileText className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+                                <span className="text-sm truncate dark:text-gray-200">{file}</span>
                                 {isPdf && (
                                   <Badge variant="outline" className="ml-2">PDF</Badge>
                                 )}

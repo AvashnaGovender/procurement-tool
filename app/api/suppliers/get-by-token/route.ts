@@ -102,6 +102,7 @@ export async function GET(request: NextRequest) {
       uploadedFiles,
       revisionNotes: onboarding.revisionNotes,
       isRevision: onboarding.revisionRequested,
+      documentsToRevise: onboarding.documentsToRevise || [],
       purchaseType,
       creditApplication,
       requiredDocuments

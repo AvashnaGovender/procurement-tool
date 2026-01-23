@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
         await sendApprovalEmail(supplier, signedCreditAppFileName)
         emailSent = true
         
-        // Send email to initiator if onboarding exists
+        // Send email to initiator and manager if onboarding exists
         if (onboarding && onboarding.initiationId) {
           const initiation = await prisma.supplierInitiation.findUnique({
             where: { id: onboarding.initiationId },
@@ -196,16 +196,38 @@ export async function POST(request: NextRequest) {
                   name: true,
                   email: true
                 }
+              },
+              managerApproval: {
+                include: {
+                  approver: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true
+                    }
+                  }
+                }
               }
             }
           })
           
+          // Send email to initiator
           if (initiation && initiation.initiatedBy) {
             try {
               await sendInitiatorApprovalEmail(supplier, initiation.initiatedBy)
             } catch (initiatorEmailError) {
               console.error('Failed to send initiator email:', initiatorEmailError)
               // Don't fail if initiator email fails, but log it
+            }
+          }
+          
+          // Send email to manager who approved
+          if (initiation && initiation.managerApproval && initiation.managerApproval.approver) {
+            try {
+              await sendManagerApprovalEmail(supplier, initiation.managerApproval.approver)
+            } catch (managerEmailError) {
+              console.error('Failed to send manager email:', managerEmailError)
+              // Don't fail if manager email fails, but log it
             }
           }
           
@@ -1037,6 +1059,257 @@ async function sendInitiatorApprovalEmail(supplier: any, initiator: { name: stri
     console.log('✅ Initiator approval notification email sent successfully to:', initiator.email)
   } catch (error) {
     console.error('Error sending initiator approval notification email:', error)
+    throw error
+  }
+}
+
+async function sendManagerApprovalEmail(supplier: any, manager: { name: string, email: string }) {
+  try {
+    // Load SMTP configuration
+    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
+    const configData = fs.readFileSync(configPath, 'utf8')
+    const smtpConfig = JSON.parse(configData)
+
+    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
+      throw new Error('SMTP configuration not properly set up')
+    }
+
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      host: smtpConfig.host,
+      port: smtpConfig.port,
+      secure: smtpConfig.secure,
+      auth: {
+        user: smtpConfig.user,
+        pass: smtpConfig.pass
+      }
+    })
+
+    const supplierDetailUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-submissions/${supplier.id}`
+
+    // Create manager approval notification email content
+    const emailSubject = `Supplier Approved - Procurement Manager Approval Complete: ${supplier.companyName}`
+    const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { 
+      margin: 0; 
+      padding: 0; 
+      font-family: Arial, sans-serif; 
+      background-color: #f4f4f4; 
+    }
+    .email-container { 
+      max-width: 600px; 
+      margin: 0 auto; 
+      background-color: #ffffff; 
+    }
+    .header { 
+      background-color: #ffffff; 
+      padding: 40px 30px; 
+      text-align: center; 
+      border-bottom: 3px solid #1e40af; 
+    }
+    .logo { 
+      max-width: 150px; 
+      height: auto; 
+      margin-bottom: 20px; 
+    }
+    .header-text { 
+      color: #1e40af; 
+      font-size: 24px; 
+      font-weight: bold; 
+      margin: 0; 
+      line-height: 1.2; 
+    }
+    .content { 
+      padding: 40px 30px; 
+      color: #333333; 
+      line-height: 1.6; 
+    }
+    .greeting { 
+      font-size: 18px; 
+      font-weight: bold; 
+      color: #1e40af; 
+      margin-bottom: 20px; 
+    }
+    .success-badge {
+      background-color: #10b981;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+      margin: 30px 0;
+    }
+    .info-box { 
+      background-color: #eff6ff; 
+      border-left: 4px solid #3b82f6; 
+      padding: 20px; 
+      margin: 25px 0; 
+      border-radius: 4px; 
+    }
+    .info-box-title { 
+      font-weight: bold; 
+      color: #1e40af; 
+      margin-bottom: 10px; 
+      font-size: 16px; 
+    }
+    .info-item { 
+      margin: 8px 0; 
+      color: #374151; 
+    }
+    .cta-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      color: white;
+      padding: 15px 30px;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: bold;
+      text-align: center;
+      margin: 20px 0;
+    }
+    .footer { 
+      background-color: #f9fafb; 
+      padding: 30px; 
+      text-align: center; 
+      color: #6b7280; 
+      font-size: 14px; 
+      border-top: 1px solid #e5e7eb; 
+    }
+    .footer-link { 
+      color: #3b82f6; 
+      text-decoration: none; 
+    }
+    @media only screen and (max-width: 600px) {
+      .content { 
+        padding: 30px 20px; 
+      }
+      .header { 
+        padding: 30px 20px; 
+      }
+      .header-text { 
+        font-size: 20px; 
+      }
+      .greeting { 
+        font-size: 16px; 
+      }
+      .info-box { 
+        padding: 15px; 
+      }
+      .cta-button {
+        display: block;
+        margin: 20px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <img src="cid:logo" alt="Schauenburg Systems" class="logo" />
+      <p class="header-text">Supplier Approved - Final Approval Complete</p>
+    </div>
+    
+    <div class="content">
+      <p class="greeting">Dear ${manager.name},</p>
+      
+      <div class="success-badge">
+        ✅ Supplier Approved by Procurement Manager
+      </div>
+      
+      <p>
+        The supplier initiation request that you approved has now been <strong>approved by the Procurement Manager</strong> 
+        and the supplier onboarding process is complete.
+      </p>
+      
+      <div class="info-box">
+        <div class="info-box-title">Approved Supplier Details</div>
+        <div class="info-item"><strong>Company Name:</strong> ${supplier.companyName}</div>
+        <div class="info-item"><strong>Supplier Code:</strong> ${supplier.supplierCode}</div>
+        <div class="info-item"><strong>Contact Person:</strong> ${supplier.contactPerson}</div>
+        <div class="info-item"><strong>Contact Email:</strong> ${supplier.contactEmail}</div>
+        <div class="info-item"><strong>Status:</strong> <span style="color: #10b981; font-weight: bold;">APPROVED</span></div>
+      </div>
+      
+      <p>
+        <strong>Approval Summary:</strong>
+      </p>
+      <ul style="color: #374151; line-height: 1.8;">
+        <li>✅ Manager Approval: Completed (by you)</li>
+        <li>✅ Procurement Manager Approval: Completed</li>
+        <li>✅ Supplier Onboarding: Complete</li>
+        <li>✅ Supplier Email: Sent to supplier</li>
+      </ul>
+      
+      <p>
+        The supplier has been notified of their approval and is now active in the system, ready for procurement activities.
+      </p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 0 auto;">
+          <tr>
+            <td align="center" style="background-color: #3b82f6; border-radius: 8px; padding: 0;">
+              <a href="${supplierDetailUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff !important; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">View Supplier Details</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+      
+      <div style="text-align: center; margin: 20px 0;">
+        <p style="color: #6b7280; font-size: 14px; margin: 10px 0;">
+          Or copy and paste this link into your browser:
+        </p>
+        <p style="word-break: break-all; color: #3b82f6; font-size: 13px; padding: 10px; background-color: #f3f4f6; border-radius: 4px;">
+          ${supplierDetailUrl}
+        </p>
+      </div>
+      
+      <p style="margin-top: 30px;">
+        Best regards,<br/>
+        <strong>Schauenburg Systems Procurement Team</strong>
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>Schauenburg Systems</p>
+      <p>
+        <a href="${smtpConfig.companyWebsite}" class="footer-link">${smtpConfig.companyWebsite}</a>
+      </p>
+      <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
+        This is an automated notification from the Supplier Onboarding System.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+    `
+
+    // Send email
+    console.log('📧 Sending manager approval notification email to:', manager.email)
+    
+    await transporter.sendMail({
+      from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
+      to: manager.email,
+      subject: emailSubject,
+      html: emailHtml,
+      attachments: [
+        {
+          filename: 'logo.png',
+          path: path.join(process.cwd(), 'public', 'logo.png'),
+          cid: 'logo'
+        }
+      ]
+    })
+
+    console.log('✅ Manager approval notification email sent successfully to:', manager.email)
+  } catch (error) {
+    console.error('Error sending manager approval notification email:', error)
     throw error
   }
 }

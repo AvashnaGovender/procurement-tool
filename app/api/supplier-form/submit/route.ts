@@ -840,28 +840,8 @@ async function sendEmailNotifications(
     console.log('   Message ID:', adminResult.messageId)
     console.log('   Response:', adminResult.response)
 
-    // 2. Send auto-reply to supplier
-    const supplierEmail = {
-      from: `Schauenburg Systems Procurement Team <${smtpConfig.fromEmail}>`,
-      replyTo: recipientEmail, // Allow supplier to reply directly to the admin
-      to: supplierData.emailAddress,
-      subject: `Supplier Onboarding Submission Received - Schauenburg Systems`,
-      attachments: [
-        {
-          filename: 'logo.png',
-          path: join(process.cwd(), 'public', 'logo.png'),
-          cid: 'logo'
-        }
-      ],
-      html: `
-        <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-        <html xmlns="http://www.w3.org/1999/xhtml">
-        <head>
-          <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>Supplier Onboarding Confirmation</title>
-          <style type="text/css">
-            /* Reset styles for email clients */
+    // Supplier thank you email removed - suppliers only receive initial onboarding email and final approval email
+    console.log('📧 Skipping supplier thank you email (only initial and approval emails are sent)')
             body, table, td, p, a, li, blockquote {
               -webkit-text-size-adjust: 100%;
               -ms-text-size-adjust: 100%;
@@ -1134,22 +1114,8 @@ async function sendEmailNotifications(
                 </table>
               </td>
             </tr>
-          </table>
-        </body>
-        </html>
-      `
-    }
-
-    console.log('📧 Sending supplier auto-reply...')
-    console.log('Supplier email details:', {
-      from: supplierEmail.from,
-      to: supplierEmail.to,
-      replyTo: supplierEmail.replyTo,
-      subject: supplierEmail.subject
-    })
-    const supplierResult = await transporter.sendMail(supplierEmail)
-    console.log(`✅ Supplier auto-reply email sent (Reply-To: ${recipientEmail})`)
-    console.log('Supplier email result:', supplierResult)
+    // Supplier thank you email removed - suppliers only receive initial onboarding email and final approval email
+    console.log('📧 Skipping supplier thank you email (only initial and approval emails are sent)')
 
   } catch (error) {
     console.error('❌ Error sending emails:')

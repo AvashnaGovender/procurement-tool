@@ -231,7 +231,8 @@ export default function SupplierSubmissionsPage() {
       case 'UNDER_REVIEW': return 'bg-yellow-500'
       case 'REJECTED': return 'bg-red-500'
       case 'PENDING': return 'bg-gray-500'
-      case 'AWAITING DOCUMENTS': return 'bg-orange-500'
+      case 'AWAITING DOCUMENTS': return 'bg-orange-500 text-white'
+      case 'AWAITING_DOCUMENTS': return 'bg-orange-500 text-white'
       default: return 'bg-blue-500'
     }
   }
@@ -636,7 +637,7 @@ export default function SupplierSubmissionsPage() {
                           <TableCell className="text-slate-700">{supplier.contactEmail}</TableCell>
                           <TableCell className="text-slate-700">{new Date(supplier.createdAt).toLocaleDateString()}</TableCell>
                           <TableCell>
-                            <Badge className={`${getStatusColor(supplier.status)} text-white`}>
+                            <Badge className={`${getStatusColor(getStatusDisplay(supplier))} text-white`}>
                               {getStatusDisplay(supplier)}
                             </Badge>
                           </TableCell>

@@ -22,75 +22,39 @@ function SupplierOnboardingForm() {
   const [showPreview, setShowPreview] = useState(false)
   const [error, setError] = useState("")
   const [revisionNotes, setRevisionNotes] = useState<string | null>(null)
+  const [documentsToRevise, setDocumentsToRevise] = useState<string[]>([])
   const [existingFiles, setExistingFiles] = useState<{[key: string]: string[]}>({})
+  const [creditApplication, setCreditApplication] = useState(false)
   
   // Form state
   const [formData, setFormData] = useState({
-    // Basic Information (Fields 1-5)
+    // Basic Information (Fields 1-4)
     supplierName: "",
     contactPerson: "",
     nameOfBusiness: "",
     tradingName: "",
-    companyRegistrationNo: "",
     
-    // Address (Fields 6-7)
+    // Address (Fields 5-6)
     physicalAddress: "",
     postalAddress: "",
     
-    // Contact (Fields 8-9)
+    // Contact (Fields 7-8)
     contactNumber: "",
     emailAddress: "",
     
-    // Business Details (Fields 10-14)
+    // Business Details (Field 9)
     natureOfBusiness: "",
-    productsAndServices: "",
-    associatedCompany: "",
-    associatedCompanyRegistrationNo: "",
-    branchesContactNumbers: "",
     
-    // Banking Information (Fields 15-20)
-    bankAccountName: "",
-    bankName: "",
-    branchName: "",
-    branchNumber: "",
-    accountNumber: "",
-    typeOfAccount: "",
-    
-    // Responsible Person - Banking (Fields 21-23)
-    rpBanking: "",
-    rpBankingPhone: "",
-    rpBankingEmail: "",
-    
-    // Responsible Person - Quality Management (Fields 24-26)
-    rpQuality: "",
-    rpQualityPhone: "",
-    rpQualityEmail: "",
-    
-    // Responsible Person - SHE (Fields 27-29)
-    rpSHE: "",
-    rpSHEPhone: "",
-    rpSHEEmail: "",
-    
-    // BBBEE & Employment (Fields 30-31)
+    // BBBEE (Field 10)
     bbbeeStatus: "",
-    numberOfEmployees: "",
     
-    // Responsible Person - BBBEE (Fields 32-34)
-    rpBBBEE: "",
-    rpBBBEEPhone: "",
-    rpBBBEEEmail: "",
-    
-    // Other (Fields 35-39)
-    associatedCompanyBranchName: "",
-    qualityManagementCert: false,
-    sheCertification: false,
+    // Authorization (Field 11)
     authorizationAgreement: false,
     field39: "",
   })
 
   // File uploads state
   const [files, setFiles] = useState<{[key: string]: File[]}>({
-    companyRegistration: [],
     cm29Directors: [],
     shareholderCerts: [],
     proofOfShareholding: [],
@@ -123,8 +87,12 @@ function SupplierOnboardingForm() {
           // Pre-populate form with existing data
           setFormData(data.formData)
           setExistingFiles(data.uploadedFiles || {})
+          setCreditApplication(data.creditApplication || false)
           if (data.revisionNotes) {
             setRevisionNotes(data.revisionNotes)
+          }
+          if (data.documentsToRevise && Array.isArray(data.documentsToRevise)) {
+            setDocumentsToRevise(data.documentsToRevise)
           }
         } else {
           console.error('Failed to load existing data:', data.error)
@@ -176,12 +144,26 @@ function SupplierOnboardingForm() {
 
   const handlePreview = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate credit application document if required
+    if (creditApplication && (!files.creditApplication || files.creditApplication.length === 0)) {
+      setError("Credit Application Form is required when credit application is selected. Please upload the document.")
+      return
+    }
+    
     setShowPreview(true)
   }
 
   const handleSubmit = async () => {
     setLoading(true)
     setError("")
+
+    // Validate credit application document if required
+    if (creditApplication && (!files.creditApplication || files.creditApplication.length === 0)) {
+      setError("Credit Application Form is required when credit application is selected. Please upload the document.")
+      setLoading(false)
+      return
+    }
 
     try {
       // Create FormData for file upload
@@ -283,7 +265,6 @@ function SupplierOnboardingForm() {
                   <div><strong>Contact Person:</strong> {formData.contactPerson}</div>
                   <div><strong>Name of Business:</strong> {formData.nameOfBusiness}</div>
                   <div><strong>Trading Name:</strong> {formData.tradingName || 'N/A'}</div>
-                  <div className="col-span-2"><strong>Registration No:</strong> {formData.companyRegistrationNo}</div>
                 </div>
               </div>
 
@@ -303,19 +284,6 @@ function SupplierOnboardingForm() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div><strong>Nature of Business:</strong> {formData.natureOfBusiness}</div>
                   <div><strong>BBBEE Status:</strong> {formData.bbbeeStatus}</div>
-                  <div><strong>Number of Employees:</strong> {formData.numberOfEmployees}</div>
-                  <div className="col-span-2"><strong>Products/Services:</strong> {formData.productsAndServices}</div>
-                </div>
-              </div>
-
-              {/* Banking Information */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Banking Information</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><strong>Bank:</strong> {formData.bankName}</div>
-                  <div><strong>Account Name:</strong> {formData.bankAccountName}</div>
-                  <div><strong>Branch:</strong> {formData.branchName}</div>
-                  <div><strong>Account Number:</strong> {formData.accountNumber}</div>
                 </div>
               </div>
 
@@ -334,12 +302,10 @@ function SupplierOnboardingForm() {
                 </div>
               </div>
 
-              {/* Certifications */}
+              {/* Authorization */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">Certifications</h3>
+                <h3 className="text-lg font-semibold mb-3">Authorization</h3>
                 <div className="space-y-2 text-sm">
-                  <div>✓ Quality Management Certification: {formData.qualityManagementCert ? 'Yes' : 'No'}</div>
-                  <div>✓ SHE Certification: {formData.sheCertification ? 'Yes' : 'No'}</div>
                   <div>✓ Authorization Agreement: {formData.authorizationAgreement ? 'Agreed' : 'Not Agreed'}</div>
                 </div>
               </div>
@@ -439,13 +405,13 @@ function SupplierOnboardingForm() {
         )}
 
         {/* Document Re-upload Notice for Revisions */}
-        {revisionNotes && (
+        {revisionNotes && documentsToRevise.length > 0 && (
           <Alert className="mb-6 border-blue-500 bg-blue-50">
             <FileIcon className="h-5 w-5 text-blue-600" />
             <AlertDescription className="ml-2">
               <div className="font-semibold text-blue-900 mb-2">Document Upload Required</div>
               <div className="text-blue-800 text-sm">
-                Please upload all required documents again. Your previous documents have been archived 
+                Only the documents listed below need to be revised. Your previous documents have been archived 
                 and will be available to our procurement team for reference.
               </div>
             </AlertDescription>
@@ -453,6 +419,9 @@ function SupplierOnboardingForm() {
         )}
 
         <form onSubmit={handlePreview} className="space-y-6">
+          {/* Only show form fields if not in revision mode or if revision mode but no specific documents to revise */}
+          {(!revisionNotes || documentsToRevise.length === 0) && (
+            <>
           {/* Section 1: Basic Information */}
           <Card>
             <CardHeader>
@@ -498,16 +467,6 @@ function SupplierOnboardingForm() {
                     value={formData.tradingName}
                     onChange={(e) => handleInputChange('tradingName', e.target.value)}
                     placeholder="Trading as..."
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="companyRegistrationNo">Company Registration No. *</Label>
-                  <Input
-                    id="companyRegistrationNo"
-                    required
-                    value={formData.companyRegistrationNo}
-                    onChange={(e) => handleInputChange('companyRegistrationNo', e.target.value)}
-                    placeholder="e.g., 2024/07/806"
                   />
                 </div>
               </div>
@@ -593,340 +552,42 @@ function SupplierOnboardingForm() {
                   placeholder="e.g., AI Consulting, Manufacturing"
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 5: BBBEE */}
+          <Card>
+            <CardHeader>
+              <CardTitle>5. BBBEE</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="productsAndServices">Products and/or Services *</Label>
-                <Textarea
-                  id="productsAndServices"
+                <Label htmlFor="bbbeeStatus">BBBEE Status *</Label>
+                <Input
+                  id="bbbeeStatus"
                   required
-                  value={formData.productsAndServices}
-                  onChange={(e) => handleInputChange('productsAndServices', e.target.value)}
-                  placeholder="Describe your products and services"
-                  rows={4}
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="associatedCompany">Associated Company</Label>
-                  <Input
-                    id="associatedCompany"
-                    value={formData.associatedCompany}
-                    onChange={(e) => handleInputChange('associatedCompany', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="associatedCompanyRegistrationNo">Associated Company Registration No.</Label>
-                  <Input
-                    id="associatedCompanyRegistrationNo"
-                    value={formData.associatedCompanyRegistrationNo}
-                    onChange={(e) => handleInputChange('associatedCompanyRegistrationNo', e.target.value)}
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="branchesContactNumbers">Branches Contact Numbers</Label>
-                <Textarea
-                  id="branchesContactNumbers"
-                  value={formData.branchesContactNumbers}
-                  onChange={(e) => handleInputChange('branchesContactNumbers', e.target.value)}
-                  placeholder="List branch locations and contact numbers"
-                  rows={3}
+                  value={formData.bbbeeStatus}
+                  onChange={(e) => handleInputChange('bbbeeStatus', e.target.value)}
+                  placeholder="e.g., Level 1, Level 2"
                 />
               </div>
             </CardContent>
           </Card>
+          </>
+          )}
 
-          {/* Section 5: Banking Information */}
+          {/* Section 6: Document Uploads */}
           <Card>
             <CardHeader>
-              <CardTitle>5. Banking Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="bankAccountName">Bank Account Name *</Label>
-                  <Input
-                    id="bankAccountName"
-                    required
-                    value={formData.bankAccountName}
-                    onChange={(e) => handleInputChange('bankAccountName', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="bankName">Bank Name *</Label>
-                  <Input
-                    id="bankName"
-                    required
-                    value={formData.bankName}
-                    onChange={(e) => handleInputChange('bankName', e.target.value)}
-                    placeholder="e.g., FNB, Standard Bank"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="branchName">Branch Name *</Label>
-                  <Input
-                    id="branchName"
-                    required
-                    value={formData.branchName}
-                    onChange={(e) => handleInputChange('branchName', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="branchNumber">Branch Number *</Label>
-                  <Input
-                    id="branchNumber"
-                    required
-                    value={formData.branchNumber}
-                    onChange={(e) => handleInputChange('branchNumber', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="accountNumber">Account Number *</Label>
-                  <Input
-                    id="accountNumber"
-                    required
-                    value={formData.accountNumber}
-                    onChange={(e) => handleInputChange('accountNumber', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="typeOfAccount">Type of Account *</Label>
-                  <Input
-                    id="typeOfAccount"
-                    required
-                    value={formData.typeOfAccount}
-                    onChange={(e) => handleInputChange('typeOfAccount', e.target.value)}
-                    placeholder="e.g., Cheque, Savings"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Section 6: Responsible Persons */}
-          <Card>
-            <CardHeader>
-              <CardTitle>6. Responsible Persons</CardTitle>
-              <CardDescription>Contact details for key personnel</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Banking RP */}
-              <div className="border-b pb-4">
-                <h4 className="font-semibold mb-3">Banking</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="rpBanking">Name *</Label>
-                    <Input
-                      id="rpBanking"
-                      required
-                      value={formData.rpBanking}
-                      onChange={(e) => handleInputChange('rpBanking', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="rpBankingPhone">Phone *</Label>
-                    <Input
-                      id="rpBankingPhone"
-                      type="tel"
-                      required
-                      value={formData.rpBankingPhone}
-                      onChange={(e) => handleInputChange('rpBankingPhone', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="rpBankingEmail">Email *</Label>
-                    <Input
-                      id="rpBankingEmail"
-                      type="email"
-                      required
-                      value={formData.rpBankingEmail}
-                      onChange={(e) => handleInputChange('rpBankingEmail', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Quality Management RP */}
-              <div className="border-b pb-4">
-                <h4 className="font-semibold mb-3">Quality Management</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="rpQuality">Name</Label>
-                    <Input
-                      id="rpQuality"
-                      value={formData.rpQuality}
-                      onChange={(e) => handleInputChange('rpQuality', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="rpQualityPhone">Phone</Label>
-                    <Input
-                      id="rpQualityPhone"
-                      type="tel"
-                      value={formData.rpQualityPhone}
-                      onChange={(e) => handleInputChange('rpQualityPhone', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="rpQualityEmail">Email</Label>
-                    <Input
-                      id="rpQualityEmail"
-                      type="email"
-                      value={formData.rpQualityEmail}
-                      onChange={(e) => handleInputChange('rpQualityEmail', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SHE RP */}
-              <div className="border-b pb-4">
-                <h4 className="font-semibold mb-3">Safety, Health & Environment (SHE)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="rpSHE">Name</Label>
-                    <Input
-                      id="rpSHE"
-                      value={formData.rpSHE}
-                      onChange={(e) => handleInputChange('rpSHE', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="rpSHEPhone">Phone</Label>
-                    <Input
-                      id="rpSHEPhone"
-                      type="tel"
-                      value={formData.rpSHEPhone}
-                      onChange={(e) => handleInputChange('rpSHEPhone', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="rpSHEEmail">Email</Label>
-                    <Input
-                      id="rpSHEEmail"
-                      type="email"
-                      value={formData.rpSHEEmail}
-                      onChange={(e) => handleInputChange('rpSHEEmail', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* BBBEE RP */}
-              <div>
-                <h4 className="font-semibold mb-3">BBBEE</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="rpBBBEE">Name</Label>
-                    <Input
-                      id="rpBBBEE"
-                      value={formData.rpBBBEE}
-                      onChange={(e) => handleInputChange('rpBBBEE', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="rpBBBEEPhone">Phone</Label>
-                    <Input
-                      id="rpBBBEEPhone"
-                      type="tel"
-                      value={formData.rpBBBEEPhone}
-                      onChange={(e) => handleInputChange('rpBBBEEPhone', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="rpBBBEEEmail">Email</Label>
-                    <Input
-                      id="rpBBBEEEmail"
-                      type="email"
-                      value={formData.rpBBBEEEmail}
-                      onChange={(e) => handleInputChange('rpBBBEEEmail', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Section 7: BBBEE & Employment */}
-          <Card>
-            <CardHeader>
-              <CardTitle>7. BBBEE & Employment</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="bbbeeStatus">BBBEE Status *</Label>
-                  <Input
-                    id="bbbeeStatus"
-                    required
-                    value={formData.bbbeeStatus}
-                    onChange={(e) => handleInputChange('bbbeeStatus', e.target.value)}
-                    placeholder="e.g., Level 1, Level 2"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="numberOfEmployees">Number of Employees *</Label>
-                  <Input
-                    id="numberOfEmployees"
-                    type="number"
-                    required
-                    value={formData.numberOfEmployees}
-                    onChange={(e) => handleInputChange('numberOfEmployees', e.target.value)}
-                    placeholder="e.g., 50"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="associatedCompanyBranchName">Associated Company Branch Name</Label>
-                <Textarea
-                  id="associatedCompanyBranchName"
-                  value={formData.associatedCompanyBranchName}
-                  onChange={(e) => handleInputChange('associatedCompanyBranchName', e.target.value)}
-                  rows={2}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Section 8: Certifications */}
-          <Card>
-            <CardHeader>
-              <CardTitle>8. Certifications</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="qualityManagementCert"
-                  checked={formData.qualityManagementCert}
-                  onCheckedChange={(checked) => handleInputChange('qualityManagementCert', checked)}
-                />
-                <Label htmlFor="qualityManagementCert" className="font-normal">
-                  Quality Management Certification
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="sheCertification"
-                  checked={formData.sheCertification}
-                  onCheckedChange={(checked) => handleInputChange('sheCertification', checked)}
-                />
-                <Label htmlFor="sheCertification" className="font-normal">
-                  Safety, Health and Environment (SHE) Certification
-                </Label>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Section 9: Document Uploads */}
-          <Card>
-            <CardHeader>
-              <CardTitle>9. Required Documents</CardTitle>
+              <CardTitle>{revisionNotes && documentsToRevise.length > 0 ? 'Documents to Revise' : '6. Required Documents'}</CardTitle>
               <CardDescription>
-                Please upload all required documents.
+                {revisionNotes && documentsToRevise.length > 0 
+                  ? 'Please upload the documents that need revision as specified in the revision notes above.'
+                  : 'Please upload all required documents.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {[
-                { key: 'companyRegistration', label: 'Company Registration Documents *', required: true },
                 { key: 'cm29Directors', label: 'Copy of CM29 - List of Directors', required: false },
                 { key: 'shareholderCerts', label: 'Shareholder Certificates', required: false },
                 { key: 'proofOfShareholding', label: 'Proof of Shareholding', required: false },
@@ -937,15 +598,30 @@ function SupplierOnboardingForm() {
                 { key: 'bankConfirmation', label: 'Bank Confirmation Letter *', required: true },
                 { key: 'nda', label: 'Non-Disclosure Agreement (NDA) - Signed *', required: true },
                 { key: 'healthSafety', label: 'Health and Safety Policy', required: false },
-                { key: 'creditApplication', label: 'Credit Application Form', required: false },
+                { key: 'creditApplication', label: 'Credit Application Form', required: creditApplication },
                 { key: 'qualityCert', label: 'Quality Certification', required: false },
                 { key: 'goodStanding', label: 'Letter of Good Standing', required: false },
                 { key: 'sectorRegistrations', label: 'Sector Registrations', required: false },
                 { key: 'organogram', label: 'Updated Company Organogram', required: false },
                 { key: 'companyProfile', label: 'Company Profile', required: false },
-              ].map(({ key, label, required }) => (
+              ]
+              // Filter to show only documents that need revision if in revision mode
+              .filter(({ key }) => {
+                // If no revision requested, show all documents
+                if (!revisionNotes || documentsToRevise.length === 0) {
+                  return true
+                }
+                // If revision requested, only show documents that need revision
+                return documentsToRevise.includes(key)
+              })
+              .map(({ key, label, required }) => {
+                // Override required for creditApplication based on creditApplication state
+                const isRequired = key === 'creditApplication' ? creditApplication : required
+                const displayLabel = isRequired ? `${label.replace(' *', '')} *` : label
+                
+                return (
                 <div key={key} className="border rounded-lg p-4">
-                  <Label className="mb-2 block">{label}</Label>
+                  <Label className="mb-2 block">{displayLabel}</Label>
                   
                   {/* NDA Download Section */}
                   {key === 'nda' && (
@@ -1005,14 +681,15 @@ function SupplierOnboardingForm() {
                     )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </CardContent>
           </Card>
 
-          {/* Section 10: Authorization */}
+          {/* Section 7: Authorization */}
           <Card>
             <CardHeader>
-              <CardTitle>10. Authorization</CardTitle>
+              <CardTitle>7. Authorization</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-start space-x-2">
