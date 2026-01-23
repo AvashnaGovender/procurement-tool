@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { supplierId, status, rejectionReason, signedCreditApplicationFileName } = body
+    const { supplierId, status, rejectionReason, signedCreditApplicationFileName, creditController } = body
     
     console.log(`🔐 Update Status Authorization Check:`)
     console.log(`   User: ${session.user.email} (Role: ${session.user.role})`)
@@ -153,6 +153,7 @@ export async function POST(request: NextRequest) {
           rejectedAt: status === 'REJECTED' ? new Date() : null,
           rejectionReason: status === 'REJECTED' ? rejectionReason : null,
           completedAt: status === 'APPROVED' || status === 'REJECTED' ? new Date() : null,
+          creditController: status === 'APPROVED' && creditController ? creditController : undefined,
         }
       })
 
@@ -181,8 +182,20 @@ export async function POST(request: NextRequest) {
         const signedCreditAppFileName = signedCreditApplicationFileName || 
           (supplierBeforeUpdate?.airtableData as any)?.signedCreditApplication?.fileName || null
         
+        // Get onboarding record to access credit application token
+        const supplierWithOnboarding = await prisma.supplier.findUnique({
+          where: { id: supplier.id },
+          include: {
+            onboarding: {
+              select: {
+                creditApplicationToken: true
+              }
+            }
+          }
+        })
+        
         // Send email to supplier
-        await sendApprovalEmail(supplier, signedCreditAppFileName)
+        await sendApprovalEmail(supplierWithOnboarding || supplier, signedCreditAppFileName)
         emailSent = true
         
         // Send email to initiator and manager if onboarding exists
@@ -497,16 +510,32 @@ async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string 
       
       ${signedCreditAppFileName ? `
       <div class="info-box" style="background-color: #fef3c7; border-left: 4px solid #f59e0b; margin-top: 25px;">
-        <div class="info-box-title" style="color: #92400e;">Signed Credit Application Document</div>
+        <div class="info-box-title" style="color: #92400e;">Credit Application - Action Required</div>
         <p style="color: #78350f; margin: 10px 0;">
           Your Credit Application has been reviewed and signed by our Procurement Manager. 
-          Please download the signed document using the link below:
+          Please complete the following steps:
         </p>
+        <ol style="color: #78350f; margin: 15px 0; padding-left: 20px; line-height: 1.8;">
+          <li>Download the signed credit application document using the link below</li>
+          <li>Review and sign the document on behalf of your company</li>
+          <li>Complete the credit application form to upload the fully signed copy and provide credit account information</li>
+        </ol>
         <p style="margin: 15px 0;">
           <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/suppliers/documents/${supplier.supplierCode}/signedCreditApplication/${encodeURIComponent(signedCreditAppFileName)}" 
-             style="display: inline-block; background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+             style="display: inline-block; background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-right: 10px;">
             Download Signed Credit Application
           </a>
+          ${(() => {
+            // Get credit application token from onboarding
+            const onboarding = supplier.onboarding
+            if (onboarding?.creditApplicationToken) {
+              return `<a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/credit-application-form?token=${onboarding.creditApplicationToken}" 
+             style="display: inline-block; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+            Complete Credit Application Form
+          </a>`
+            }
+            return ''
+          })()}
         </p>
       </div>
       ` : ''}

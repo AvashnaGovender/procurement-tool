@@ -11,75 +11,22 @@ export async function GET(
     const { supplierId } = await params
     const supplier = await prisma.supplier.findUnique({
       where: { id: supplierId },
-      select: {
-        id: true,
-        supplierCode: true,
-        
-        // Basic Information
-        supplierName: true,
-        contactPerson: true,
-        companyName: true,
-        tradingName: true,
-        registrationNumber: true,
-        
-        // Address
-        physicalAddress: true,
-        postalAddress: true,
-        
-        // Contact
-        contactPhone: true,
-        contactEmail: true,
-        
-        // Business Details
-        natureOfBusiness: true,
-        productsAndServices: true,
-        associatedCompany: true,
-        associatedCompanyRegNo: true,
-        branchesContactNumbers: true,
-        
-        // Banking Information
-        bankAccountName: true,
-        bankName: true,
-        branchName: true,
-        branchNumber: true,
-        accountNumber: true,
-        typeOfAccount: true,
-        
-        // Responsible Person - Banking
-        rpBanking: true,
-        rpBankingPhone: true,
-        rpBankingEmail: true,
-        
-        // Responsible Person - Quality Management
-        rpQuality: true,
-        rpQualityPhone: true,
-        rpQualityEmail: true,
-        
-        // Responsible Person - SHE
-        rpSHE: true,
-        rpSHEPhone: true,
-        rpSHEEmail: true,
-        
-        // BBBEE & Employment
-        bbbeeLevel: true,
-        numberOfEmployees: true,
-        
-        // Responsible Person - BBBEE
-        rpBBBEE: true,
-        rpBBBEEPhone: true,
-        rpBBBEEEmail: true,
-        
-        // Other Fields
-        associatedCompanyBranchName: true,
-        qualityManagementCert: true,
-        sheCertification: true,
-        authorizationAgreement: true,
-        field39: true,
-        
-        // Status & Metadata
-        status: true,
-        createdAt: true,
-        airtableData: true,
+      include: {
+        onboarding: {
+          include: {
+            initiation: {
+              include: {
+                initiatedBy: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     })
 

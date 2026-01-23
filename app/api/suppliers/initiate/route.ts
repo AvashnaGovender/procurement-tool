@@ -45,6 +45,8 @@ export async function POST(request: NextRequest) {
       requesterName,
       relationshipDeclaration,
       purchaseType,
+      paymentMethod,
+      codReason,
       annualPurchaseValue,
       creditApplication,
       creditApplicationReason,
@@ -88,7 +90,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         success: false,
         error: 'Please select a purchase type',
-        message: 'Please select a valid purchase type (Regular Purchase, Once-off Purchase, or Shared IP)'
+        message: 'Please select a valid purchase type (Regular or Shared IP)'
+      }, { status: 400 })
+    }
+
+    // Validate payment method is selected
+    if (!paymentMethod || !['COD', 'AC'].includes(paymentMethod)) {
+      console.error('Validation failed - Invalid payment method:', paymentMethod)
+      return NextResponse.json({ 
+        success: false,
+        error: 'Please select a payment method',
+        message: 'Please select a valid payment method (COD or A/C)'
+      }, { status: 400 })
+    }
+
+    // Validate COD reason if COD is selected
+    if (paymentMethod === 'COD' && !codReason) {
+      console.error('Validation failed - COD reason required')
+      return NextResponse.json({ 
+        success: false,
+        error: 'COD reason required',
+        message: 'Please provide a reason for requiring COD payment'
       }, { status: 400 })
     }
 
@@ -109,6 +131,80 @@ export async function POST(request: NextRequest) {
         success: false,
         error: 'Please provide a reason for not requiring credit application',
         message: 'If credit application is not selected, please provide a reason'
+      }, { status: 400 })
+    }
+
+    // Check for duplicate suppliers
+    // 1. Check if supplier already exists in the Supplier table
+    const existingSupplier = await prisma.supplier.findFirst({
+      where: {
+        OR: [
+          { supplierName: { equals: supplierName, mode: 'insensitive' } },
+          { contactEmail: { equals: supplierEmail, mode: 'insensitive' } },
+          { companyName: { equals: supplierName, mode: 'insensitive' } }
+        ]
+      }
+    })
+
+    if (existingSupplier) {
+      console.error('Validation failed - Duplicate supplier found:', {
+        supplierName,
+        supplierEmail,
+        existingSupplierId: existingSupplier.id,
+        existingSupplierCode: existingSupplier.supplierCode
+      })
+      return NextResponse.json({ 
+        success: false,
+        error: 'Duplicate supplier',
+        message: `A supplier with the name "${supplierName}" or email "${supplierEmail}" already exists in the system (Supplier Code: ${existingSupplier.supplierCode}). Please use the existing supplier record instead.`
+      }, { status: 400 })
+    }
+
+    // 2. Check if there's an active initiation for this supplier (not DRAFT or REJECTED)
+    // Exclude the current initiation if we're updating an existing one
+    const activeInitiationWhere: any = {
+      AND: [
+        {
+          OR: [
+            { supplierName: { equals: supplierName, mode: 'insensitive' } },
+            { supplierEmail: { equals: supplierEmail, mode: 'insensitive' } }
+          ]
+        },
+        {
+          status: {
+            notIn: ['DRAFT', 'REJECTED']
+          }
+        }
+      ]
+    }
+
+    // If updating an existing initiation, exclude it from the duplicate check
+    if (id) {
+      activeInitiationWhere.AND.push({
+        id: { not: id }
+      })
+    }
+
+    const activeInitiation = await prisma.supplierInitiation.findFirst({
+      where: activeInitiationWhere,
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    if (activeInitiation) {
+      console.error('Validation failed - Active initiation found for supplier:', {
+        supplierName,
+        supplierEmail,
+        existingInitiationId: activeInitiation.id,
+        existingStatus: activeInitiation.status
+      })
+      
+      const statusDisplay = activeInitiation.status.replace(/_/g, ' ')
+      return NextResponse.json({ 
+        success: false,
+        error: 'Duplicate initiation',
+        message: `An active supplier initiation already exists for "${supplierName}" with status: ${statusDisplay}. Please wait for the current initiation to be completed or rejected before creating a new one.`
       }, { status: 400 })
     }
 
@@ -180,9 +276,12 @@ export async function POST(request: NextRequest) {
           requesterName,
           relationshipDeclaration,
           purchaseType: purchaseType as 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP',
+          paymentMethod: paymentMethod || null,
+          codReason: paymentMethod === 'COD' ? codReason : null,
           annualPurchaseValue: annualPurchaseValue ? parseFloat(annualPurchaseValue) : null,
           creditApplication,
           creditApplicationReason: creditApplication ? null : creditApplicationReason,
+          regularPurchase: purchaseType === 'REGULAR',
           onceOffPurchase: purchaseType === 'ONCE_OFF',
           onboardingReason,
           status: 'SUBMITTED',
@@ -205,9 +304,12 @@ export async function POST(request: NextRequest) {
           requesterName,
           relationshipDeclaration,
           purchaseType: purchaseType as 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP',
+          paymentMethod: paymentMethod || null,
+          codReason: paymentMethod === 'COD' ? codReason : null,
           annualPurchaseValue: annualPurchaseValue ? parseFloat(annualPurchaseValue) : null,
           creditApplication,
           creditApplicationReason: creditApplication ? null : creditApplicationReason,
+          regularPurchase: purchaseType === 'REGULAR',
           onceOffPurchase: purchaseType === 'ONCE_OFF',
           onboardingReason,
           initiatedById: session.user.id,
@@ -304,7 +406,7 @@ A new supplier initiation request has been submitted and requires your approval.
 <strong>Request Details:</strong>
 - <strong>Supplier:</strong> ${supplierName}
 - <strong>Email:</strong> ${supplierEmail}
-- <strong>Business Unit(s):</strong> ${businessUnits.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')}
+- <strong>Business Unit(s):</strong> ${businessUnits.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ')}
 - <strong>Product/Service Category:</strong> ${productServiceCategory}
 - <strong>Requested by:</strong> ${requesterName}
 - <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
@@ -351,7 +453,7 @@ A new supplier initiation request has been submitted and requires approval.
 <strong>Request Details:</strong>
 - <strong>Supplier:</strong> ${supplierName}
 - <strong>Email:</strong> ${supplierEmail}
-- <strong>Business Unit(s):</strong> ${businessUnits.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')}
+- <strong>Business Unit(s):</strong> ${businessUnits.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ')}
 - <strong>Product/Service Category:</strong> ${productServiceCategory}
 - <strong>Requested by:</strong> ${requesterName}
 - <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}

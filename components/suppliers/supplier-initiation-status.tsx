@@ -126,8 +126,8 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
               <h4 className="font-medium text-sm text-gray-600">Business Unit</h4>
               <p className="text-lg">
                 {initiationData.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                  ? 'Schauenburg Systems 200' 
-                  : 'Schauenburg (Pty) Ltd 300'
+                  ? 'Schauenburg Systems (Pty) Ltd 300' 
+                  : 'Schauenburg (Pty) Ltd 200'
                 }
               </p>
             </div>
@@ -136,7 +136,7 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
           <div className="flex items-center gap-2">
             <span className="font-medium text-sm text-gray-600">Overall Status:</span>
             <Badge className={getStatusColor(initiationData.status)}>
-              {initiationData.status.replace('_', ' ')}
+              {initiationData.status.replace(/_/g, ' ')}
             </Badge>
           </div>
         </CardContent>

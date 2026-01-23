@@ -27,8 +27,10 @@ export function RootLayoutWrapper({ children }: RootLayoutWrapperProps) {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {children}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <div className="flex-1 overflow-y-auto">
+          {children}
+        </div>
       </div>
     </div>
   )

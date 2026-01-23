@@ -258,6 +258,9 @@ model Supplier {
   @@index([status])
   @@index([businessType])
   @@index([airtableRecordId])
+  @@index([supplierName])
+  @@index([contactEmail])
+  @@index([companyName])
   @@map("suppliers")
 }
 
@@ -308,6 +311,8 @@ model SupplierInitiation {
   creditApplication          Boolean                   @default(false)
   creditApplicationReason   String?
   onceOffPurchase           Boolean                   @default(false)
+  paymentMethod             String?                   // 'COD' or 'AC' (Account)
+  codReason                 String?                   @db.Text // Reason required if COD is selected
   onboardingReason          String                    @db.Text
   
   // Status and Workflow
@@ -335,6 +340,8 @@ model SupplierInitiation {
 
   @@index([status])
   @@index([initiatedById])
+  @@index([supplierName])
+  @@index([supplierEmail])
   @@map("supplier_initiations")
 }
 
@@ -439,6 +446,15 @@ model SupplierOnboarding {
   reviewNotes               String?                   @db.Text
   reviewedById              String?
   reviewedBy                User?                     @relation("OnboardingReviewer", fields: [reviewedById], references: [id])
+  
+  // Credit Controller Assignment
+  creditController          String?                   // Assigned credit controller name
+  
+  // Credit Application Form
+  creditApplicationToken    String?                   @unique // Token for supplier to access credit application form
+  creditApplicationFormSubmitted Boolean               @default(false)
+  creditApplicationFormSubmittedAt DateTime?
+  creditApplicationInfo    String?                   @db.Text // Additional information provided by supplier
   
   // Revisions
   revisionCount             Int                       @default(0)

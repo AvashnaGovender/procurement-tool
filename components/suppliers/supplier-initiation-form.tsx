@@ -38,11 +38,12 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     requesterName: session?.user?.name || "",
     relationshipDeclaration: "",
     relationshipDeclarationOther: "",
-    regularPurchase: false,
+    purchaseType: "", // "REGULAR" or "SHARED_IP"
+    paymentMethod: "", // "COD" or "AC"
+    codReason: "",
     annualPurchaseValue: "",
     creditApplication: false,
     creditApplicationReason: "",
-    onceOffPurchase: false,
     onboardingReason: ""
   })
 
@@ -79,8 +80,9 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
             : draft.businessUnit
 
           // Determine purchase type from draft
-          const isRegular = draft.purchaseType === 'REGULAR' || draft.regularPurchase
-          const isOnceOff = draft.purchaseType === 'ONCE_OFF' || draft.onceOffPurchase
+          const purchaseType = draft.purchaseType || (draft.regularPurchase ? 'REGULAR' : (draft.onceOffPurchase ? 'ONCE_OFF' : 'SHARED_IP'))
+          // Convert ONCE_OFF to SHARED_IP for new structure
+          const normalizedPurchaseType = purchaseType === 'ONCE_OFF' ? 'SHARED_IP' : (purchaseType === 'REGULAR' ? 'REGULAR' : 'SHARED_IP')
           
           setFormData({
             businessUnit: businessUnit || "",
@@ -93,11 +95,12 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
             requesterName: draft.requesterName || session?.user?.name || "",
             relationshipDeclaration: draft.relationshipDeclaration || "",
             relationshipDeclarationOther: draft.relationshipDeclarationOther || "",
-            regularPurchase: isRegular,
+            purchaseType: normalizedPurchaseType,
+            paymentMethod: draft.paymentMethod || "",
+            codReason: draft.codReason || "",
             annualPurchaseValue: draft.annualPurchaseValue || "",
             creditApplication: draft.creditApplication || false,
             creditApplicationReason: draft.creditApplicationReason || "",
-            onceOffPurchase: isOnceOff,
             onboardingReason: draft.onboardingReason || ""
           })
         }
@@ -159,11 +162,14 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         requesterName: formData.requesterName,
         relationshipDeclaration: relationshipDeclarationValue,
         relationshipDeclarationOther: formData.relationshipDeclarationOther,
-        purchaseType: formData.regularPurchase ? 'REGULAR' : (formData.onceOffPurchase ? 'ONCE_OFF' : 'SHARED_IP'),
+        purchaseType: formData.purchaseType || 'REGULAR',
+        paymentMethod: formData.paymentMethod,
+        codReason: formData.paymentMethod === 'COD' ? formData.codReason : null,
         annualPurchaseValue: annualPurchaseValueNumber,
         creditApplication: formData.creditApplication,
         creditApplicationReason: formData.creditApplicationReason,
-        onceOffPurchase: formData.onceOffPurchase,
+        regularPurchase: formData.purchaseType === 'REGULAR',
+        onceOffPurchase: false,
         onboardingReason: formData.onboardingReason
       }
 
@@ -234,11 +240,14 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         productServiceCategory: formData.productServiceCategory,
         requesterName: formData.requesterName,
         relationshipDeclaration: relationshipDeclarationValue,
-        purchaseType: formData.regularPurchase ? 'REGULAR' : (formData.onceOffPurchase ? 'ONCE_OFF' : 'SHARED_IP'),
+        purchaseType: formData.purchaseType || 'REGULAR',
+        paymentMethod: formData.paymentMethod,
+        codReason: formData.paymentMethod === 'COD' ? formData.codReason : null,
         annualPurchaseValue: annualPurchaseValueNumber,
         creditApplication: formData.creditApplication,
         creditApplicationReason: formData.creditApplicationReason,
-        onceOffPurchase: formData.onceOffPurchase,
+        regularPurchase: formData.purchaseType === 'REGULAR',
+        onceOffPurchase: false, // No longer used, but keep for backward compatibility
         onboardingReason: formData.onboardingReason
       }
 
@@ -256,7 +265,9 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
       } else {
         const errorData = await response.json()
         console.error('API Error:', errorData)
-        alert(`Failed to submit initiation: ${errorData.error || 'Unknown error'}`)
+        // Show more detailed error message if available
+        const errorMessage = errorData.message || errorData.error || 'Unknown error'
+        alert(`Failed to submit initiation: ${errorMessage}`)
       }
     } catch (error) {
       console.error('Error submitting initiation:', error)
@@ -274,12 +285,14 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
       ? !!formData.relationshipDeclarationOther 
       : !!formData.relationshipDeclaration
     const hasSupplierInfo = !!formData.supplierName && !!formData.supplierEmail && !!formData.supplierContactPerson && !!formData.productServiceCategory && !!formData.requesterName && hasRelationshipDeclaration
-    const hasPurchaseType = formData.regularPurchase || formData.onceOffPurchase
-    const hasAnnualValue = !formData.regularPurchase || (formData.regularPurchase && !!formData.annualPurchaseValue)
+    const hasPurchaseType = !!formData.purchaseType // Must be REGULAR or SHARED_IP
+    const hasPaymentMethod = !!formData.paymentMethod // Must be COD or AC
+    const hasCodReason = formData.paymentMethod !== 'COD' || !!formData.codReason // COD requires reason
+    const hasAnnualValue = formData.purchaseType !== 'REGULAR' || !!formData.annualPurchaseValue // Regular requires annual value
     const hasCreditReason = formData.creditApplication || (!formData.creditApplication && formData.creditApplicationReason)
     const hasOnboardingReason = !!formData.onboardingReason
 
-    return hasBusinessUnit && hasChecklist && hasSupplierInfo && hasPurchaseType && hasAnnualValue && hasCreditReason && hasOnboardingReason
+    return hasBusinessUnit && hasChecklist && hasSupplierInfo && hasPurchaseType && hasPaymentMethod && hasCodReason && hasAnnualValue && hasCreditReason && hasOnboardingReason
   }
 
   if (loadingDraft) {
@@ -355,8 +368,8 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                 <SelectValue placeholder="Select Business Unit" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="SCHAUENBURG_SYSTEMS_200">Schauenburg Systems 200</SelectItem>
-                <SelectItem value="SCHAUENBURG_PTY_LTD_300">Schauenburg (Pty) Ltd 300</SelectItem>
+                <SelectItem value="SCHAUENBURG_PTY_LTD_300">Schauenburg (Pty) Ltd 200</SelectItem>
+                <SelectItem value="SCHAUENBURG_SYSTEMS_200">Schauenburg Systems (Pty) Ltd 300</SelectItem>
               </SelectContent>
             </Select>
             {!formData.businessUnit && (
@@ -556,19 +569,37 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="regularPurchase"
-              checked={formData.regularPurchase}
-              onCheckedChange={(checked) => handleInputChange('regularPurchase', checked)}
-            />
-            <Label htmlFor="regularPurchase" className={!formData.regularPurchase && !formData.onceOffPurchase ? "text-red-600" : ""}>
-              Regular Purchase *
-            </Label>
+          {/* Purchase Type Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="purchaseType">Purchase Type *</Label>
+            <Select 
+              value={formData.purchaseType} 
+              onValueChange={(value) => {
+                handleInputChange('purchaseType', value)
+                // Clear payment method when purchase type changes
+                handleInputChange('paymentMethod', "")
+                handleInputChange('codReason', "")
+              }}
+            >
+              <SelectTrigger 
+                id="purchaseType"
+                className={!formData.purchaseType ? "border-red-300" : ""}
+              >
+                <SelectValue placeholder="Select purchase type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="REGULAR">Regular</SelectItem>
+                <SelectItem value="SHARED_IP">Shared IP</SelectItem>
+              </SelectContent>
+            </Select>
+            {!formData.purchaseType && (
+              <p className="text-sm text-red-600">Please select a purchase type</p>
+            )}
           </div>
 
-          {formData.regularPurchase && (
-            <div className="ml-6 space-y-2">
+          {/* Annual Purchase Value - Only for Regular */}
+          {formData.purchaseType === 'REGULAR' && (
+            <div className="space-y-2">
               <Label htmlFor="annualPurchaseValue">Annual Purchase Value (R) *</Label>
               <Select 
                 value={formData.annualPurchaseValue} 
@@ -576,7 +607,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
               >
                 <SelectTrigger 
                   id="annualPurchaseValue"
-                  className={formData.regularPurchase && !formData.annualPurchaseValue ? "border-red-300" : ""}
+                  className={!formData.annualPurchaseValue ? "border-red-300" : ""}
                 >
                   <SelectValue placeholder="Select annual purchase value range" />
                 </SelectTrigger>
@@ -587,12 +618,64 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                   <SelectItem value="1M+">R1,000,000+</SelectItem>
                 </SelectContent>
               </Select>
-              {formData.regularPurchase && !formData.annualPurchaseValue && (
+              {!formData.annualPurchaseValue && (
                 <p className="text-sm text-red-600">Please select an annual purchase value range</p>
               )}
             </div>
           )}
 
+          {/* Payment Method - Required for both Regular and Shared IP */}
+          {formData.purchaseType && (
+            <div className="space-y-2">
+              <Label htmlFor="paymentMethod">Payment Method *</Label>
+              <Select 
+                value={formData.paymentMethod} 
+                onValueChange={(value) => {
+                  handleInputChange('paymentMethod', value)
+                  // Clear COD reason if switching away from COD
+                  if (value !== 'COD') {
+                    handleInputChange('codReason', "")
+                  }
+                }}
+              >
+                <SelectTrigger 
+                  id="paymentMethod"
+                  className={!formData.paymentMethod ? "border-red-300" : ""}
+                >
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="AC">A/C (Account)</SelectItem>
+                  <SelectItem value="COD">COD (Cash on Delivery)</SelectItem>
+                </SelectContent>
+              </Select>
+              {!formData.paymentMethod && (
+                <p className="text-sm text-red-600">Please select a payment method</p>
+              )}
+            </div>
+          )}
+
+          {/* COD Reason - Required if COD is selected */}
+          {formData.paymentMethod === 'COD' && (
+            <div className="space-y-2">
+              <Label htmlFor="codReason">Reason for COD *</Label>
+              <Textarea
+                id="codReason"
+                value={formData.codReason}
+                onChange={(e) => handleInputChange('codReason', e.target.value)}
+                placeholder="Provide reason for requiring COD payment"
+                rows={3}
+                className={!formData.codReason ? "border-red-300" : ""}
+              />
+              {!formData.codReason && (
+                <p className="text-sm text-red-600">Please provide a reason for requiring COD payment</p>
+              )}
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Credit Application */}
           <div className="flex items-center space-x-2">
             <Checkbox 
               id="creditApplication"
@@ -617,21 +700,6 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                 <p className="text-sm text-red-600">Please provide a reason for not requiring credit application</p>
               )}
             </div>
-          )}
-
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="onceOffPurchase"
-              checked={formData.onceOffPurchase}
-              onCheckedChange={(checked) => handleInputChange('onceOffPurchase', checked)}
-            />
-            <Label htmlFor="onceOffPurchase" className={!formData.regularPurchase && !formData.onceOffPurchase ? "text-red-600" : ""}>
-              Once-off Purchase *
-            </Label>
-          </div>
-          
-          {!formData.regularPurchase && !formData.onceOffPurchase && (
-            <p className="text-sm text-red-600">Please select at least one purchase type (Regular or Once-off)</p>
           )}
 
           <Separator />

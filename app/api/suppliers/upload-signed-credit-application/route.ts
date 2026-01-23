@@ -5,6 +5,7 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { randomBytes } from 'crypto'
 
 export async function POST(request: NextRequest) {
   try {
@@ -121,6 +122,9 @@ export async function POST(request: NextRequest) {
 
     await writeFile(filePath, buffer)
 
+    // Generate unique token for credit application form
+    const creditApplicationToken = randomBytes(32).toString('hex')
+
     // Update supplier's airtableData to include signed credit application info
     // Note: airtableData is on the Supplier model, not SupplierOnboarding
     const currentAirtableData = (supplier.airtableData as any) || {}
@@ -140,6 +144,16 @@ export async function POST(request: NextRequest) {
         airtableData: updatedAirtableData as any
       }
     })
+
+    // Update onboarding record with credit application token
+    if (supplier.onboarding) {
+      await prisma.supplierOnboarding.update({
+        where: { id: supplier.onboarding.id },
+        data: {
+          creditApplicationToken: creditApplicationToken
+        }
+      })
+    }
 
     return NextResponse.json({
       success: true,

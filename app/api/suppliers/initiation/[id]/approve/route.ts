@@ -185,7 +185,7 @@ Your supplier initiation request has been rejected by the Manager.
 <strong>Supplier Details:</strong>
 - <strong>Supplier Name:</strong> ${initiationDetails.supplierName}
 - <strong>Email:</strong> ${initiationDetails.supplierEmail}
-- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
+- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200')}
 - <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
 - <strong>Requested by:</strong> ${initiationDetails.requesterName}
 
@@ -263,7 +263,7 @@ A supplier initiation request has been approved by the Manager and now requires 
 <strong>Request Details:</strong>
 - <strong>Supplier:</strong> ${initiationDetails.supplierName}
 - <strong>Email:</strong> ${initiationDetails.supplierEmail}
-- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
+- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200')}
 - <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
 - <strong>Requested by:</strong> ${initiationDetails.requesterName}
 - <strong>Purchase Type:</strong> ${initiationDetails.purchaseType === 'REGULAR' ? 'Regular Purchase' : initiationDetails.purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
@@ -338,7 +338,7 @@ A supplier initiation request has been approved by the Manager and now requires 
 <strong>Request Details:</strong>
 - <strong>Supplier:</strong> ${initiationDetails.supplierName}
 - <strong>Email:</strong> ${initiationDetails.supplierEmail}
-- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
+- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200')}
 - <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
 - <strong>Requested by:</strong> ${initiationDetails.requesterName}
 - <strong>Purchase Type:</strong> ${initiationDetails.purchaseType === 'REGULAR' ? 'Regular Purchase' : initiationDetails.purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
@@ -432,7 +432,7 @@ Your supplier initiation request has been rejected by the Procurement Manager.
 <strong>Supplier Details:</strong>
 - <strong>Supplier Name:</strong> ${initiationDetails.supplierName}
 - <strong>Email:</strong> ${initiationDetails.supplierEmail}
-- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
+- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200')}
 - <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
 - <strong>Requested by:</strong> ${initiationDetails.requesterName}
 
@@ -474,7 +474,7 @@ A supplier initiation request that you approved has been rejected by the Procure
 <strong>Supplier Details:</strong>
 - <strong>Supplier Name:</strong> ${initiationDetails.supplierName}
 - <strong>Email:</strong> ${initiationDetails.supplierEmail}
-- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
+- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200')}
 - <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
 - <strong>Requested by:</strong> ${initiationDetails.requesterName}
 
@@ -622,7 +622,7 @@ Thank you for your interest in becoming a supplier partner with Schauenburg Syst
 Your onboarding request has been reviewed and approved. We're excited to begin working with you!
 
 <strong>Your Request Details:</strong>
-- Business Unit: ${initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300'}
+- Business Unit: ${initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200'}
 - Product/Service Category: ${initiationDetails.productServiceCategory}
 - Purchase Type: ${initiationDetails.regularPurchase ? 'Regular Purchase' : ''}${initiationDetails.regularPurchase && initiationDetails.onceOffPurchase ? ', ' : ''}${initiationDetails.onceOffPurchase ? 'Once-off Purchase' : ''}
 ${initiationDetails.annualPurchaseValue ? `- Annual Purchase Value: R${initiationDetails.annualPurchaseValue.toLocaleString()}` : ''}
@@ -678,7 +678,7 @@ Great news! The supplier initiation request you submitted has been approved by b
 <strong>Supplier Details:</strong>
 - <strong>Supplier Name:</strong> ${initiationDetails.supplierName}
 - <strong>Email:</strong> ${initiationDetails.supplierEmail}
-- <strong>Business Unit:</strong> ${initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300'}
+- <strong>Business Unit:</strong> ${initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200'}
 - <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
 
 The supplier has been sent an email with instructions to complete their onboarding documentation. You can track the progress of this supplier onboarding in the Supplier Submissions dashboard.

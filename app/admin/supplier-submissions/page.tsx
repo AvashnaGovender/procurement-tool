@@ -271,7 +271,7 @@ export default function SupplierSubmissionsPage() {
     
     // Show proper status based on workflow stage
     if (!onboarding) {
-      return status.replace('_', ' ')
+      return status.replace(/_/g, ' ')
     }
 
     // If form not submitted yet, show "Awaiting Documents"
@@ -289,7 +289,7 @@ export default function SupplierSubmissionsPage() {
       return `UNDER REVIEW (Rev ${onboarding.revisionCount})`
     }
 
-    return status.replace('_', ' ')
+    return status.replace(/_/g, ' ')
   }
 
   const statusCounts = {
@@ -306,7 +306,7 @@ export default function SupplierSubmissionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-8">
+    <div className="bg-slate-100 p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -376,7 +376,7 @@ export default function SupplierSubmissionsPage() {
                               </div>
                             </div>
                             <Badge className={getInitiationStatusColor(initiation.status)}>
-                              {initiation.status.replace('_', ' ')}
+                              {initiation.status.replace(/_/g, ' ')}
                             </Badge>
                           </div>
                           
@@ -385,8 +385,8 @@ export default function SupplierSubmissionsPage() {
                               <p className="text-sm font-medium text-slate-600">Business Unit</p>
                               <p className="text-sm">
                                 {initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                                  ? 'Schauenburg Systems 200' 
-                                  : 'Schauenburg (Pty) Ltd 300'
+                                  ? 'Schauenburg Systems (Pty) Ltd 300' 
+                                  : 'Schauenburg (Pty) Ltd 200'
                                 }
                               </p>
                             </div>
@@ -552,7 +552,7 @@ export default function SupplierSubmissionsPage() {
             <Card className="bg-white border-slate-200">
               <CardHeader>
                 <CardTitle className="text-slate-900">
-                  {statusFilter !== 'all' ? `${statusFilter.replace('_', ' ')} Suppliers` : 'All Suppliers'}
+                  {statusFilter !== 'all' ? `${statusFilter.replace(/_/g, ' ')} Suppliers` : 'All Suppliers'}
                 </CardTitle>
                 <CardDescription className="text-slate-600">
                   Showing {filteredSuppliers.length} of {suppliers.length} submissions
@@ -698,7 +698,7 @@ export default function SupplierSubmissionsPage() {
                     <strong>Requested by:</strong> {initiationToDelete.requesterName}
                   </p>
                   <p className="text-sm text-red-800">
-                    <strong>Status:</strong> {initiationToDelete.status.replace('_', ' ')}
+                    <strong>Status:</strong> {initiationToDelete.status.replace(/_/g, ' ')}
                   </p>
                 </div>
               )}

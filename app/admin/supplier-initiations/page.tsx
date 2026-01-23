@@ -8,7 +8,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { CheckCircle, XCircle, Clock, User, Building2, DollarSign, AlertCircle, Trash2, Eye, Home } from "lucide-react"
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table"
+import { CheckCircle, XCircle, Clock, User, Building2, DollarSign, AlertCircle, Trash2, Eye, Home, ChevronDown, ChevronRight } from "lucide-react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { SupplierInitiationStatus } from "@/components/suppliers/supplier-initiation-status"
@@ -52,6 +60,17 @@ export default function SupplierInitiationsPage() {
   const [deleting, setDeleting] = useState(false)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [viewInitiation, setViewInitiation] = useState<SupplierInitiation | null>(null)
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+
+  const toggleRow = (id: string) => {
+    const newExpanded = new Set(expandedRows)
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id)
+    } else {
+      newExpanded.add(id)
+    }
+    setExpandedRows(newExpanded)
+  }
 
   useEffect(() => {
     fetchInitiations()
@@ -192,8 +211,195 @@ export default function SupplierInitiationsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4">
-        {initiations.map((initiation) => (
+      <Card>
+        <CardContent className="pt-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          ) : initiations.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              No initiation requests found
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12"></TableHead>
+                  <TableHead>Supplier Name</TableHead>
+                  <TableHead>Requester</TableHead>
+                  <TableHead>Business Unit</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Submitted</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {initiations.map((initiation) => {
+                  const isExpanded = expandedRows.has(initiation.id)
+                  return (
+                    <>
+                      <TableRow 
+                        key={initiation.id} 
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => toggleRow(initiation.id)}
+                      >
+                        <TableCell>
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium">{initiation.supplierName}</TableCell>
+                        <TableCell>{initiation.requesterName}</TableCell>
+                        <TableCell>
+                          {initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
+                            ? 'Schauenburg Systems (Pty) Ltd 300' 
+                            : 'Schauenburg (Pty) Ltd 200'
+                          }
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(initiation.status.replace(/_/g, ' '))}>
+                            {initiation.status.replace(/_/g, ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{new Date(initiation.submittedAt).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setViewInitiation(initiation)
+                                setViewDialogOpen(true)
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                            {canApprove(initiation) && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedInitiation(initiation)
+                                    setApprovalAction('reject')
+                                    setApprovalDialogOpen(true)
+                                  }}
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Reject
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedInitiation(initiation)
+                                    setApprovalAction('approve')
+                                    setApprovalDialogOpen(true)
+                                  }}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Approve
+                                </Button>
+                              </>
+                            )}
+                            {['SUBMITTED', 'MANAGER_APPROVED', 'PROCUREMENT_APPROVED', 'REJECTED'].includes(initiation.status) && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  setInitiationToDelete(initiation)
+                                  setDeleteDialogOpen(true)
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Delete
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="bg-gray-50 p-6">
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                  <Label className="text-sm font-medium text-gray-600">Purchase Type</Label>
+                                  <p className="text-sm">
+                                    {initiation.regularPurchase && 'Regular Purchase'}
+                                    {initiation.regularPurchase && initiation.onceOffPurchase && ', '}
+                                    {initiation.onceOffPurchase && 'Once-off Purchase'}
+                                    {initiation.annualPurchaseValue && ` (R${initiation.annualPurchaseValue.toLocaleString()})`}
+                                  </p>
+                                </div>
+                                <div>
+                                  <Label className="text-sm font-medium text-gray-600">Manager Approval</Label>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    {getStatusIcon(initiation.managerApproval?.status || 'PENDING')}
+                                    <span className="text-sm">
+                                      {initiation.managerApproval?.status || 'PENDING'}
+                                    </span>
+                                  </div>
+                                  {initiation.managerApproval?.approver && (
+                                    <p className="text-xs text-gray-500">by {initiation.managerApproval.approver}</p>
+                                  )}
+                                  {initiation.managerApproval?.status === 'REJECTED' && initiation.managerApproval?.comments && (
+                                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                                      <p className="text-xs font-medium text-red-900 mb-1">Rejection Reason:</p>
+                                      <p className="text-xs text-red-800">{initiation.managerApproval.comments}</p>
+                                    </div>
+                                  )}
+                                  {initiation.managerApproval?.status === 'APPROVED' && initiation.managerApproval?.comments && (
+                                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                                      <p className="text-xs font-medium text-green-900 mb-1">Comments:</p>
+                                      <p className="text-xs text-green-800">{initiation.managerApproval.comments}</p>
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <Label className="text-sm font-medium text-gray-600">Procurement Approval</Label>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    {getStatusIcon(initiation.procurementApproval?.status || 'PENDING')}
+                                    <span className="text-sm">
+                                      {initiation.procurementApproval?.status || 'PENDING'}
+                                    </span>
+                                  </div>
+                                  {initiation.procurementApproval?.approver && (
+                                    <p className="text-xs text-gray-500">by {initiation.procurementApproval.approver}</p>
+                                  )}
+                                  {initiation.procurementApproval?.status === 'REJECTED' && initiation.procurementApproval?.comments && (
+                                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                                      <p className="text-xs font-medium text-red-900 mb-1">Rejection Reason:</p>
+                                      <p className="text-xs text-red-800">{initiation.procurementApproval.comments}</p>
+                                    </div>
+                                  )}
+                                  {initiation.procurementApproval?.status === 'APPROVED' && initiation.procurementApproval?.comments && (
+                                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                                      <p className="text-xs font-medium text-green-900 mb-1">Comments:</p>
+                                      <p className="text-xs text-green-800">{initiation.procurementApproval.comments}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="pt-4 border-t">
+                                <Label className="text-sm font-medium text-gray-600 mb-2">Reason for Onboarding:</Label>
+                                <p className="text-sm text-gray-700">{initiation.onboardingReason}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
           <Card key={initiation.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -217,8 +423,8 @@ export default function SupplierInitiationsPage() {
                   <Label className="text-sm font-medium text-gray-600">Business Unit</Label>
                   <p className="text-sm">
                     {initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                      ? 'Schauenburg Systems 200' 
-                      : 'Schauenburg (Pty) Ltd 300'
+                      ? 'Schauenburg Systems (Pty) Ltd 300' 
+                      : 'Schauenburg (Pty) Ltd 200'
                     }
                   </p>
                 </div>

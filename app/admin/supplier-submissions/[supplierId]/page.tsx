@@ -16,7 +16,8 @@ import {
   Loader2, 
   ArrowLeft,
   CheckCircle, 
-  XCircle, 
+  XCircle,
+  X,
   Clock, 
   FileText, 
   Mail, 
@@ -33,6 +34,9 @@ import {
 } from "lucide-react"
 import { workerClient } from "@/lib/worker-client"
 import { getMandatoryDocuments, type PurchaseType } from "@/lib/document-requirements"
+import { assignCreditController, getCreditControllers } from "@/lib/credit-controller-assignment"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 
 interface Supplier {
   id: string
@@ -98,6 +102,9 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [companyNameConfirm, setCompanyNameConfirm] = useState("")
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+  const [initiatorRevisionDialogOpen, setInitiatorRevisionDialogOpen] = useState(false)
+  const [initiatorRevisionNotes, setInitiatorRevisionNotes] = useState("")
+  const [initiatorRevisionSubmitting, setInitiatorRevisionSubmitting] = useState(false)
   const [rejectReason, setRejectReason] = useState("")
   const [revisionDialogOpen, setRevisionDialogOpen] = useState(false)
   const [revisionNotes, setRevisionNotes] = useState("")
@@ -113,6 +120,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [activeTab, setActiveTab] = useState("details")
   const [signedCreditApplicationFile, setSignedCreditApplicationFile] = useState<File | null>(null)
   const [uploadingSignedCreditApp, setUploadingSignedCreditApp] = useState(false)
+  const [creditController, setCreditController] = useState<string>("")
 
   // AI Insights state
   const [aiProcessing, setAiProcessing] = useState(false)
@@ -243,6 +251,23 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       
       if (data.success) {
         setSupplier(data.supplier)
+        
+        // Calculate and set credit controller if not already set
+        if (data.supplier?.onboarding) {
+          const onboarding = data.supplier.onboarding
+          const initiation = onboarding.initiation
+          
+          // Use existing credit controller if set, otherwise calculate it
+          if (onboarding.creditController) {
+            setCreditController(onboarding.creditController)
+          } else if (initiation?.businessUnit && initiation?.supplierName) {
+            const calculatedController = assignCreditController(
+              initiation.businessUnit,
+              initiation.supplierName
+            )
+            setCreditController(calculatedController)
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching supplier:', error)
@@ -431,6 +456,54 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     setRejectReason("")
   }
 
+  const handleInitiatorRevisionClick = () => {
+    setInitiatorRevisionDialogOpen(true)
+    setInitiatorRevisionNotes("")
+  }
+
+  const confirmInitiatorRevision = async () => {
+    if (!initiatorRevisionNotes.trim()) {
+      setErrorMessage('Revision notes are required. Please specify what needs to be revised.')
+      setErrorDialogOpen(true)
+      return
+    }
+
+    if (initiatorRevisionSubmitting) {
+      return
+    }
+
+    setInitiatorRevisionSubmitting(true)
+    try {
+      const response = await fetch('/api/suppliers/request-initiator-revision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          supplierId: supplier?.id, 
+          revisionNotes: initiatorRevisionNotes.trim()
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        setSuccessMessage(`Revision request sent to initiator successfully!\n\nAn email has been sent to the initiator. The supplier has NOT been notified.`)
+        setSuccessDialogOpen(true)
+        await fetchSupplier()
+        setInitiatorRevisionDialogOpen(false)
+        setInitiatorRevisionNotes("")
+      } else {
+        setErrorMessage(`Failed to send revision request: ${data.error}`)
+        setErrorDialogOpen(true)
+      }
+    } catch (error) {
+      console.error('Error requesting initiator revision:', error)
+      setErrorMessage('Failed to send revision request. Please try again.')
+      setErrorDialogOpen(true)
+    } finally {
+      setInitiatorRevisionSubmitting(false)
+    }
+  }
+
   const confirmApprove = async () => {
     try {
       // Check if user is PM approving, or initiator requesting final approval
@@ -482,6 +555,13 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
           }
         }
 
+        // Validate credit controller is selected
+        if (!creditController) {
+          setErrorMessage('Please select a credit controller before approving.')
+          setErrorDialogOpen(true)
+          return
+        }
+
         // PM is approving the supplier
         const response = await fetch('/api/suppliers/update-status', {
           method: 'POST',
@@ -489,7 +569,8 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
           body: JSON.stringify({ 
             supplierId: supplier?.id, 
             status: 'APPROVED',
-            signedCreditApplicationFileName: signedCreditAppFileName
+            signedCreditApplicationFileName: signedCreditAppFileName,
+            creditController: creditController
           })
         })
 
@@ -934,7 +1015,7 @@ Procurement Team`
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="h-full flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
@@ -942,7 +1023,7 @@ Procurement Team`
 
   if (!supplier) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="h-full flex items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">Supplier not found</p>
           <Button onClick={() => router.push('/dashboard')}>
@@ -955,7 +1036,7 @@ Procurement Team`
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       {/* Completion Dialog */}
       <Dialog open={showCompletion} onOpenChange={setShowCompletion}>
         <DialogContent className="sm:max-w-lg">
@@ -1059,7 +1140,7 @@ Procurement Team`
                 if (supplier.status === 'PENDING' && supplier.onboarding && !supplier.onboarding.supplierFormSubmitted && supplier.onboarding.emailSent) {
                   return 'AWAITING DOCUMENTS'
                 }
-                return supplier.status.replace('_', ' ')
+                return supplier.status.replace(/_/g, ' ')
               })()}
             </Badge>
             </div>
@@ -2521,12 +2602,55 @@ Procurement Team`
                       </>
                     )}
                     
-                    {/* Show "Approve Supplier" if current user is PM and status is AWAITING_FINAL_APPROVAL */}
+                    {/* Show "Approve Supplier", "Reject Supplier", and "Request Revision from Initiator" buttons if current user is PM and status is AWAITING_FINAL_APPROVAL */}
                     {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status === 'AWAITING_FINAL_APPROVAL' && (
-                      <Button onClick={handleApproveClick} className="bg-green-600 hover:bg-green-700">
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Approve Supplier
-                      </Button>
+                      <div className="space-y-4">
+                        {/* Credit Controller Assignment */}
+                        <div className="space-y-2 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                          <Label htmlFor="creditController" className="text-sm font-medium">
+                            Credit Controller *
+                          </Label>
+                          <Select
+                            value={creditController}
+                            onValueChange={setCreditController}
+                          >
+                            <SelectTrigger id="creditController" className="w-full">
+                              <SelectValue placeholder="Select credit controller" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getCreditControllers().map((controller) => (
+                                <SelectItem key={controller} value={controller}>
+                                  {controller}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {supplier.onboarding?.initiation?.businessUnit && supplier.onboarding?.initiation?.supplierName
+                              ? `Auto-assigned based on business unit ${Array.isArray(supplier.onboarding.initiation.businessUnit) ? supplier.onboarding.initiation.businessUnit[0] : supplier.onboarding.initiation.businessUnit} and supplier name "${supplier.onboarding.initiation.supplierName}". You can edit if needed.`
+                              : 'Select the credit controller for this supplier.'}
+                          </p>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          <Button 
+                            onClick={handleApproveClick} 
+                            className="bg-green-600 hover:bg-green-700"
+                            disabled={!creditController}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Approve Supplier
+                          </Button>
+                          <Button onClick={handleRejectClick} variant="destructive" className="bg-red-600 hover:bg-red-700">
+                            <X className="h-4 w-4 mr-2" />
+                            Reject Supplier
+                          </Button>
+                          <Button onClick={handleInitiatorRevisionClick} variant="outline" className="border-orange-500 text-orange-700 hover:bg-orange-50">
+                            <Edit className="h-4 w-4 mr-2" />
+                            Request Revision from Initiator
+                          </Button>
+                        </div>
+                      </div>
                     )}
                     
                     {/* Show message if user is not initiator and status is not AWAITING_FINAL_APPROVAL */}
@@ -2772,6 +2896,81 @@ Procurement Team`
             </Button>
             <Button variant="destructive" onClick={confirmReject}>
               Reject Supplier
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Initiator Revision Request Dialog */}
+      <Dialog open={initiatorRevisionDialogOpen} onOpenChange={setInitiatorRevisionDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="text-orange-600">Request Revision from Initiator</DialogTitle>
+            <DialogDescription>
+              Request the initiator to review and update the supplier initiation. The supplier will NOT be notified.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <h4 className="font-medium text-orange-900 mb-2">Supplier Information:</h4>
+              <div className="text-sm text-orange-800 space-y-1">
+                <div><strong>Company:</strong> {supplier?.companyName}</div>
+                <div><strong>Email:</strong> {supplier?.contactEmail}</div>
+                <div><strong>Status:</strong> {supplier?.status}</div>
+                <div><strong>Initiator:</strong> {supplier?.onboarding?.initiation?.initiatedBy?.name || 'Unknown'}</div>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2">⚠️ Important Note:</h4>
+              <p className="text-sm text-blue-800">
+                This revision request will be sent to the <strong>initiator only</strong>. The supplier will 
+                <strong> NOT</strong> be notified. This allows the initiator to review and correct the initiation 
+                details before the supplier is involved in the process.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Revision Notes:
+              </label>
+              <p className="text-xs text-gray-600 mb-2">
+                Please specify what needs to be reviewed or corrected in the supplier initiation.
+              </p>
+              <Textarea
+                placeholder="Please specify what needs to be reviewed or corrected..."
+                value={initiatorRevisionNotes}
+                onChange={(e) => setInitiatorRevisionNotes(e.target.value)}
+                className="border-orange-300 focus:border-orange-500 min-h-[300px]"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2 flex-shrink-0 pt-4 border-t">
+            <Button 
+              variant="outline" 
+              onClick={() => setInitiatorRevisionDialogOpen(false)}
+              disabled={initiatorRevisionSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmInitiatorRevision}
+              disabled={!initiatorRevisionNotes.trim() || initiatorRevisionSubmitting}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {initiatorRevisionSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Request Revision from Initiator
+                </>
+              )}
             </Button>
           </div>
         </DialogContent>
