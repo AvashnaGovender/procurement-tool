@@ -127,8 +127,8 @@ export function SpendTrends() {
                     <div className="flex items-start space-x-3">
                       <Icon className={`h-5 w-5 mt-0.5 ${insight.color}`} />
                       <div className="flex-1">
-                        <h4 className="font-medium text-foreground text-sm mb-1">{insight.title}</h4>
-                        <p className="text-xs text-muted-foreground">{insight.description}</p>
+                        <h4 className="font-medium text-gray-900 text-sm mb-1">{insight.title}</h4>
+                        <p className="text-xs text-gray-600">{insight.description}</p>
                       </div>
                     </div>
                   </div>
@@ -136,18 +136,18 @@ export function SpendTrends() {
               })}
 
               <div className="pt-4 border-t">
-                <h4 className="font-medium text-foreground text-sm mb-3">Quick Stats</h4>
+                <h4 className="font-medium text-gray-900 text-sm mb-3">Quick Stats</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Avg Monthly Spend</span>
+                    <span className="text-gray-600">Avg Monthly Spend</span>
                     <span className="font-medium">$1.18M</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Highest Category</span>
+                    <span className="text-gray-600">Highest Category</span>
                     <span className="font-medium">IT Equipment</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Cost Savings Rate</span>
+                    <span className="text-gray-600">Cost Savings Rate</span>
                     <span className="font-medium text-green-600">12.7%</span>
                   </div>
                 </div>

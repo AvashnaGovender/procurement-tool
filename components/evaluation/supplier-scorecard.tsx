@@ -82,7 +82,7 @@ export function SupplierScorecard() {
       <CardContent>
         <div className="space-y-6">
           {supplierScores.map((supplier) => (
-            <div key={supplier.name} className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+            <div key={supplier.name} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10">

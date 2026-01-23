@@ -38,8 +38,12 @@ function SupplierOnboardingContent() {
   // Update tab from URL params after mount (client-side only)
   useEffect(() => {
     const tab = searchParams.get('tab')
+    const draftId = searchParams.get('draftId')
     if (tab === 'review') {
       setMainTab('review')
+    }
+    if (draftId) {
+      setInitiationId(draftId)
     }
   }, [searchParams])
 
@@ -173,6 +177,7 @@ function SupplierOnboardingContent() {
                   </Card>
                   
                   <SupplierInitiationForm
+                    draftId={searchParams.get('draftId') || undefined}
                     onSubmissionComplete={(id) => {
                       setInitiationId(id)
                       setShowInitiationForm(false)

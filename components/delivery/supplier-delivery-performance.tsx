@@ -87,7 +87,7 @@ export function SupplierDeliveryPerformance() {
       <CardContent>
         <div className="space-y-4">
           {supplierPerformance.map((supplier) => (
-            <div key={supplier.name} className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+            <div key={supplier.name} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-8 w-8">
@@ -100,12 +100,12 @@ export function SupplierDeliveryPerformance() {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h4 className="font-medium text-foreground text-sm">{supplier.name}</h4>
+                    <h4 className="font-medium text-gray-900 text-sm">{supplier.name}</h4>
                     <div className="flex items-center space-x-2 mt-1">
                       <Badge variant={getRatingColor(supplier.rating)} className="text-xs">
                         {supplier.rating.replace("-", " ")}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">{supplier.deliveries} deliveries</span>
+                      <span className="text-xs text-gray-500">{supplier.deliveries} deliveries</span>
                     </div>
                   </div>
                 </div>
@@ -124,7 +124,7 @@ export function SupplierDeliveryPerformance() {
                   <div className="flex items-center justify-between text-sm mb-1">
                     <div className="flex items-center space-x-1">
                       <CheckCircle className="h-3 w-3 text-green-500" />
-                      <span className="text-muted-foreground">On-Time Delivery</span>
+                      <span className="text-gray-600">On-Time Delivery</span>
                     </div>
                     <span className="font-medium">{supplier.onTimeDelivery}%</span>
                   </div>
@@ -133,7 +133,7 @@ export function SupplierDeliveryPerformance() {
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <div className="flex items-center space-x-1 text-muted-foreground mb-1">
+                    <div className="flex items-center space-x-1 text-gray-600 mb-1">
                       <Clock className="h-3 w-3" />
                       <span>Avg Lead Time</span>
                     </div>
@@ -147,7 +147,7 @@ export function SupplierDeliveryPerformance() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-muted-foreground mb-1">Performance</div>
+                    <div className="text-gray-600 mb-1">Performance</div>
                     <div className="font-medium">
                       {supplier.avgLeadTime <= supplier.targetLeadTime ? "✓ On Target" : "⚠ Over Target"}
                     </div>

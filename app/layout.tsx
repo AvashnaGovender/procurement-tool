@@ -5,6 +5,7 @@ import './globals.css'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/theme-provider'
 import { SessionProvider } from '@/components/providers/session-provider'
+import { RootLayoutWrapper } from '@/components/layout/root-layout-wrapper'
 
 export const metadata: Metadata = {
   title: 'Procurement Manager - Schauenburg Systems',
@@ -27,7 +28,9 @@ export default function RootLayout({
             disableTransitionOnChange
             themes={['light', 'dark', 'system', 'original']}
           >
-            {children}
+            <RootLayoutWrapper>
+              {children}
+            </RootLayoutWrapper>
             <Toaster />
           </ThemeProvider>
         </SessionProvider>

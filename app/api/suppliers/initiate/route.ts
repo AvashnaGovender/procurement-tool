@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     const {
+      id, // Optional: if provided, update existing draft
       businessUnit,
       processReadUnderstood,
       dueDiligenceCompleted,
@@ -131,33 +132,95 @@ export async function POST(request: NextRequest) {
 
     console.log('Current user:', currentUser.email, 'Manager:', currentUser.manager?.email || 'None')
 
-    // Create the supplier initiation
-    console.log('Creating supplier initiation...')
-    const initiation = await prisma.supplierInitiation.create({
-      data: {
-        businessUnit: businessUnits,
-        processReadUnderstood,
-        dueDiligenceCompleted,
-        supplierName,
-        supplierEmail,
-        supplierContactPerson,
-        productServiceCategory,
-        requesterName,
-        relationshipDeclaration,
-        purchaseType: purchaseType as 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP',
-        annualPurchaseValue: annualPurchaseValue ? parseFloat(annualPurchaseValue) : null,
-        creditApplication,
-        creditApplicationReason: creditApplication ? null : creditApplicationReason,
-        onboardingReason,
-        initiatedById: session.user.id,
-        status: 'SUBMITTED'
-      }
-    })
-    console.log('Initiation created:', initiation.id)
+    // If ID is provided, update existing draft (only if it's a DRAFT or REJECTED status)
+    let initiation
+    if (id) {
+      const existingInitiation = await prisma.supplierInitiation.findUnique({
+        where: { id }
+      })
 
-    // Create approval records for the user's assigned manager and a procurement manager
+      if (!existingInitiation) {
+        return NextResponse.json({ 
+          success: false,
+          error: 'Initiation not found',
+          message: 'The initiation you are trying to submit does not exist.'
+        }, { status: 404 })
+      }
+
+      // Only allow submitting if it's a draft or rejected
+      if (existingInitiation.status !== 'DRAFT' && existingInitiation.status !== 'REJECTED') {
+        return NextResponse.json({ 
+          success: false,
+          error: 'Cannot submit',
+          message: 'This initiation has already been submitted and can only be resubmitted if it was rejected.'
+        }, { status: 403 })
+      }
+
+      // Ensure user owns this initiation
+      if (existingInitiation.initiatedById !== session.user.id) {
+        return NextResponse.json({ 
+          success: false,
+          error: 'Unauthorized',
+          message: 'You can only submit your own initiations.'
+        }, { status: 403 })
+      }
+
+      // Update existing initiation to SUBMITTED
+      console.log('Updating existing initiation to SUBMITTED...')
+      initiation = await prisma.supplierInitiation.update({
+        where: { id },
+        data: {
+          businessUnit: businessUnits,
+          processReadUnderstood,
+          dueDiligenceCompleted,
+          supplierName,
+          supplierEmail,
+          supplierContactPerson,
+          productServiceCategory,
+          requesterName,
+          relationshipDeclaration,
+          purchaseType: purchaseType as 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP',
+          annualPurchaseValue: annualPurchaseValue ? parseFloat(annualPurchaseValue) : null,
+          creditApplication,
+          creditApplicationReason: creditApplication ? null : creditApplicationReason,
+          onceOffPurchase: purchaseType === 'ONCE_OFF',
+          onboardingReason,
+          status: 'SUBMITTED',
+          submittedAt: new Date()
+        }
+      })
+      console.log('Initiation updated and submitted:', initiation.id)
+    } else {
+      // Create new supplier initiation
+      console.log('Creating supplier initiation...')
+      initiation = await prisma.supplierInitiation.create({
+        data: {
+          businessUnit: businessUnits,
+          processReadUnderstood,
+          dueDiligenceCompleted,
+          supplierName,
+          supplierEmail,
+          supplierContactPerson,
+          productServiceCategory,
+          requesterName,
+          relationshipDeclaration,
+          purchaseType: purchaseType as 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP',
+          annualPurchaseValue: annualPurchaseValue ? parseFloat(annualPurchaseValue) : null,
+          creditApplication,
+          creditApplicationReason: creditApplication ? null : creditApplicationReason,
+          onceOffPurchase: purchaseType === 'ONCE_OFF',
+          onboardingReason,
+          initiatedById: session.user.id,
+          status: 'SUBMITTED',
+          submittedAt: new Date()
+        }
+      })
+      console.log('Initiation created:', initiation.id)
+    }
+
+    // Create approval record for the user's assigned manager
+    // NOTE: Procurement approval will be created only after manager approves (sequential workflow)
     let assignedManager = null
-    let assignedProcurementManager = null
 
     // Use the user's assigned manager if they have one
     // NOTE: The assigned manager doesn't need to have the "MANAGER" role
@@ -201,34 +264,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Find an active procurement manager
-    const procurementManagers = await prisma.user.findMany({
-      where: {
-        role: 'PROCUREMENT_MANAGER',
-        isActive: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: 1
-    })
-
-    if (procurementManagers.length > 0) {
-      assignedProcurementManager = procurementManagers[0]
-      console.log('Using procurement manager:', assignedProcurementManager.email)
-      
-      await prisma.procurementApproval.create({
-        data: {
-          initiationId: initiation.id,
-          approverId: procurementManagers[0].id,
-          status: 'PENDING'
-        }
-      })
-    } else {
-      console.warn('⚠️ No procurement manager found for approval!')
-    }
-
-    // Check for active delegations
+    // Check for active delegations for manager
     const now = new Date()
     const managerDelegations = assignedManager ? await prisma.userDelegation.findMany({
       where: {
@@ -251,31 +287,8 @@ export async function POST(request: NextRequest) {
         }
       }
     }) : []
-    
-    const procurementDelegations = assignedProcurementManager ? await prisma.userDelegation.findMany({
-      where: {
-        delegatorId: assignedProcurementManager.id,
-        isActive: true,
-        startDate: { lte: now },
-        endDate: { gte: now },
-        OR: [
-          { delegationType: 'ALL_APPROVALS' },
-          { delegationType: 'PROCUREMENT_APPROVALS' }
-        ]
-      },
-      include: {
-        delegate: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      }
-    }) : []
 
     console.log(`📋 Manager has ${managerDelegations.length} active delegation(s)`)
-    console.log(`📋 Procurement Manager has ${procurementDelegations.length} active delegation(s)`)
 
     // Send approval emails to managers
     try {
@@ -373,104 +386,7 @@ Schauenburg Systems Procurement System
         console.log('Delegate email result:', delegateEmailResult)
       }
       
-      // Procurement approval email
-      const procurementEmailContent = `
-Dear Procurement Manager,
-
-A new supplier initiation request has been submitted and requires your approval.
-
-<strong>Request Details:</strong>
-- <strong>Supplier:</strong> ${supplierName}
-- <strong>Email:</strong> ${supplierEmail}
-- <strong>Business Unit(s):</strong> ${businessUnits.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')}
-- <strong>Product/Service Category:</strong> ${productServiceCategory}
-- <strong>Requested by:</strong> ${requesterName}
-- <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
-${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> R${parseFloat(annualPurchaseValue).toLocaleString()}` : ''}
-- <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}
-
-<strong>Reason for Onboarding:</strong>
-${onboardingReason}
-
-Please click the button below to review and approve this request:
-
-<div style="text-align: center; margin: 30px 0;">
-  <a href="${approvalsUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">Review & Approve Request</a>
-</div>
-
-Or copy this link to your browser: ${approvalsUrl}
-
-Best regards,
-Schauenburg Systems Procurement System
-      `.trim()
-      
-      // Send procurement approval email to assigned procurement manager
-      if (assignedProcurementManager) {
-        console.log('📧 Sending procurement approval email to:', assignedProcurementManager.email)
-        const procurementEmailResult = await sendEmail({
-          to: assignedProcurementManager.email,
-          subject: 'Supplier Approval Required - New Onboarding Request',
-          content: procurementEmailContent,
-          supplierName: supplierName,
-          businessType: productServiceCategory
-        })
-        console.log('Procurement email result:', procurementEmailResult)
-        
-        if (procurementEmailResult.success) {
-          console.log('✅ Procurement approval email sent successfully')
-        } else {
-          console.error('❌ Failed to send procurement approval email:', procurementEmailResult.message)
-        }
-      }
-      
-      // Send procurement approval email to delegates
-      for (const delegation of procurementDelegations) {
-        const delegateEmailContent = `
-Dear ${delegation.delegate.name},
-
-You are receiving this email because ${assignedProcurementManager?.name || 'a procurement manager'} has delegated their approval authority to you.
-
-A new supplier initiation request has been submitted and requires approval.
-
-<strong>Request Details:</strong>
-- <strong>Supplier:</strong> ${supplierName}
-- <strong>Email:</strong> ${supplierEmail}
-- <strong>Business Unit(s):</strong> ${businessUnits.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')}
-- <strong>Product/Service Category:</strong> ${productServiceCategory}
-- <strong>Requested by:</strong> ${requesterName}
-- <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
-${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> R${parseFloat(annualPurchaseValue).toLocaleString()}` : ''}
-- <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}
-
-<strong>Reason for Onboarding:</strong>
-${onboardingReason}
-
-<strong>Note:</strong> You are acting as a delegate for ${assignedProcurementManager?.name || 'the procurement manager'}.
-
-Please click the button below to review and approve this request:
-
-<div style="text-align: center; margin: 30px 0;">
-  <a href="${approvalsUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">Review & Approve Request</a>
-</div>
-
-Or copy this link to your browser: ${approvalsUrl}
-
-Best regards,
-Schauenburg Systems Procurement System
-        `.trim()
-        
-        console.log('📧 Sending procurement approval email to delegate:', delegation.delegate.email)
-        const delegateEmailResult = await sendEmail({
-          to: delegation.delegate.email,
-          subject: 'Supplier Approval Required - New Onboarding Request (Delegated)',
-          content: delegateEmailContent,
-          supplierName: supplierName,
-          businessType: productServiceCategory
-        })
-        console.log('Delegate email result:', delegateEmailResult)
-      }
-      
-      console.log('✅ Approval notification emails processed')
+      console.log('✅ Manager approval notification emails processed')
     } catch (emailError) {
       console.error('❌ Error sending approval emails:', emailError)
       // Don't fail the entire process if email fails

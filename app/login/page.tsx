@@ -28,11 +28,8 @@ function LoginForm() {
     setError("")
 
     try {
-      // Normalize email to lowercase for case-insensitive login
-      const normalizedEmail = email.toLowerCase().trim()
-      
       const result = await signIn("credentials", {
-        email: normalizedEmail,
+        email,
         password,
         redirect: false,
       })
@@ -60,7 +57,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-slate-100 flex">
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-500 via-blue-600 to-slate-300 p-12 flex-col justify-between relative overflow-hidden">
         {/* Background Pattern */}
@@ -110,8 +107,8 @@ function LoginForm() {
           </div>
 
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-foreground mb-2">Welcome</h2>
-            <p className="text-muted-foreground">Sign in to your account to continue</p>
+            <h2 className="text-3xl font-bold text-slate-800 mb-2">Welcome</h2>
+            <p className="text-slate-600">Sign in to your account to continue</p>
           </div>
 
           {error && (
@@ -123,32 +120,32 @@ function LoginForm() {
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email" className="font-medium">Email Address</Label>
+              <Label htmlFor="email" className="text-slate-700 font-medium">Email Address</Label>
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
                 <Input
                   id="email"
                   type="email"
                   placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-12 h-12 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                  className="pl-12 h-12 bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="font-medium">Password</Label>
+              <Label htmlFor="password" className="text-slate-700 font-medium">Password</Label>
               <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
                 <Input
                   id="password"
                   type="password"
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-12 h-12 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                  className="pl-12 h-12 bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   required
                 />
               </div>
@@ -185,23 +182,23 @@ function LoginForm() {
       {/* Forgot Password Modal */}
       {showForgotPassword && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-lg p-6 w-full max-w-md border border-border">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md border border-slate-300">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-foreground">Reset Password</h3>
+              <h3 className="text-lg font-semibold text-slate-800">Reset Password</h3>
               <button
                 onClick={() => setShowForgotPassword(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="text-slate-500 hover:text-slate-800 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4">
-              <p className="text-muted-foreground text-sm leading-relaxed">
+              <p className="text-slate-600 text-sm leading-relaxed">
                 To reset your password, please contact your system administrator. They will be able to help you regain access to your account.
               </p>
-              <div className="bg-muted rounded-md p-4 border border-border">
-                <p className="text-foreground text-sm font-medium mb-2">Contact Information:</p>
-                <p className="text-primary text-sm">admin@schauenburg.co.za</p>
+              <div className="bg-slate-100 rounded-md p-4 border border-slate-200">
+                <p className="text-slate-700 text-sm font-medium mb-2">Contact Information:</p>
+                <p className="text-blue-600 text-sm">admin@schauenburg.co.za</p>
               </div>
               <div className="flex justify-end">
                 <Button

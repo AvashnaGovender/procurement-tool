@@ -274,7 +274,6 @@ enum BusinessType {
 enum SupplierStatus {
   PENDING
   UNDER_REVIEW
-  AWAITING_FINAL_APPROVAL
   APPROVED
   REJECTED
   SUSPENDED
@@ -288,8 +287,8 @@ enum SupplierStatus {
 model SupplierInitiation {
   id                        String                    @id @default(cuid())
   
-  // Business Unit Selection (can select multiple)
-  businessUnit              BusinessUnit[]
+  // Business Unit Selection
+  businessUnit              BusinessUnit
   
   // Checklist Items
   processReadUnderstood     Boolean                   @default(false)
@@ -304,15 +303,16 @@ model SupplierInitiation {
   relationshipDeclaration   String
   
   // Purchase Information
-  purchaseType              PurchaseType
+  regularPurchase           Boolean                   @default(false)
   annualPurchaseValue        Float?
   creditApplication          Boolean                   @default(false)
   creditApplicationReason   String?
+  onceOffPurchase           Boolean                   @default(false)
   onboardingReason          String                    @db.Text
   
   // Status and Workflow
-  status                    InitiationStatus          @default(SUBMITTED)
-  submittedAt               DateTime                  @default(now())
+  status                    InitiationStatus          @default(DRAFT)
+  submittedAt               DateTime?
   
   // Approvals
   managerApproval           ManagerApproval?
@@ -343,13 +343,8 @@ enum BusinessUnit {
   SCHAUENBURG_PTY_LTD_300
 }
 
-enum PurchaseType {
-  REGULAR
-  ONCE_OFF
-  SHARED_IP
-}
-
 enum InitiationStatus {
+  DRAFT
   SUBMITTED
   MANAGER_APPROVED
   PROCUREMENT_APPROVED
@@ -1525,27 +1520,4 @@ model SystemConfig {
   createdAt           DateTime      @default(now())
 
   @@map("system_config")
-}
-
-// ============================================================================
-// CUSTOM OPTIONS - User-added options for dropdowns
-// ============================================================================
-
-model CustomOption {
-  id                  String        @id @default(cuid())
-  optionType          CustomOptionType
-  value               String        // The actual option value (e.g., "Custom Bank Name")
-  createdById         String?       // User who created this option
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-
-  @@unique([optionType, value]) // Prevent duplicates per type
-  @@index([optionType])
-  @@map("custom_options")
-}
-
-enum CustomOptionType {
-  PRODUCT_SERVICE_CATEGORY
-  BANK
-  ACCOUNT_TYPE
 }

@@ -2,7 +2,6 @@
 
 import { Suspense, useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
-import { isDocumentRequired, isDocumentMandatory, type DocumentKey, type PurchaseType } from "@/lib/document-requirements"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,14 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Loader2, Upload, CheckCircle, AlertCircle, FileIcon, X, Plus, Check, ChevronsUpDown, Copy } from "lucide-react"
+import { Loader2, Upload, CheckCircle, AlertCircle, FileIcon, X } from "lucide-react"
 import Image from "next/image"
-import { PRODUCT_SERVICE_CATEGORIES } from "@/lib/product-service-categories"
-import { SOUTH_AFRICAN_BANKS } from "@/lib/south-african-banks"
-import { ACCOUNT_TYPES } from "@/lib/account-types"
 
 function SupplierOnboardingForm() {
   const searchParams = useSearchParams()
@@ -30,18 +23,6 @@ function SupplierOnboardingForm() {
   const [error, setError] = useState("")
   const [revisionNotes, setRevisionNotes] = useState<string | null>(null)
   const [existingFiles, setExistingFiles] = useState<{[key: string]: string[]}>({})
-  const [purchaseType, setPurchaseType] = useState<string | null>(null)
-  const [creditApplication, setCreditApplication] = useState<boolean>(false)
-  const [requiredDocuments, setRequiredDocuments] = useState<string[]>([])
-  const [customCategoryInput, setCustomCategoryInput] = useState("")
-  const [customCategories, setCustomCategories] = useState<string[]>([])
-  const [categorySearchOpen, setCategorySearchOpen] = useState(false)
-  const [customBankInput, setCustomBankInput] = useState("")
-  const [customBanks, setCustomBanks] = useState<string[]>([])
-  const [bankSearchOpen, setBankSearchOpen] = useState(false)
-  const [customAccountTypeInput, setCustomAccountTypeInput] = useState("")
-  const [customAccountTypes, setCustomAccountTypes] = useState<string[]>([])
-  const [accountTypeSearchOpen, setAccountTypeSearchOpen] = useState(false)
   
   // Form state
   const [formData, setFormData] = useState({
@@ -145,16 +126,6 @@ function SupplierOnboardingForm() {
           if (data.revisionNotes) {
             setRevisionNotes(data.revisionNotes)
           }
-          // Set purchase type, credit application status, and required documents
-          if (data.purchaseType) {
-            setPurchaseType(data.purchaseType)
-          }
-          if (data.creditApplication !== undefined) {
-            setCreditApplication(data.creditApplication)
-          }
-          if (data.requiredDocuments) {
-            setRequiredDocuments(data.requiredDocuments)
-          }
         } else {
           console.error('Failed to load existing data:', data.error)
         }
@@ -168,197 +139,9 @@ function SupplierOnboardingForm() {
     fetchExistingData()
   }, [onboardingToken])
 
-  // Fetch custom categories, banks, and account types on mount
-  useEffect(() => {
-    const fetchCustomOptions = async () => {
-      try {
-        // Fetch custom product/service categories
-        const categoriesResponse = await fetch('/api/custom-options?type=PRODUCT_SERVICE_CATEGORY')
-        const categoriesData = await categoriesResponse.json()
-        if (categoriesData.success) {
-          setCustomCategories(categoriesData.options || [])
-        }
-
-        // Fetch custom banks
-        const banksResponse = await fetch('/api/custom-options?type=BANK')
-        const banksData = await banksResponse.json()
-        if (banksData.success) {
-          setCustomBanks(banksData.options || [])
-        }
-
-        // Fetch custom account types
-        const accountTypesResponse = await fetch('/api/custom-options?type=ACCOUNT_TYPE')
-        const accountTypesData = await accountTypesResponse.json()
-        if (accountTypesData.success) {
-          setCustomAccountTypes(accountTypesData.options || [])
-        }
-      } catch (error) {
-        console.error('Error fetching custom options:', error)
-      }
-    }
-
-    fetchCustomOptions()
-  }, [])
-
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
-
-  const handleSameForAllResponsiblePersons = () => {
-    // Copy contact person details to all responsible person fields
-    setFormData(prev => ({
-      ...prev,
-      // Banking
-      rpBanking: prev.contactPerson,
-      rpBankingPhone: prev.contactNumber,
-      rpBankingEmail: prev.emailAddress,
-      // Quality Management
-      rpQuality: prev.contactPerson,
-      rpQualityPhone: prev.contactNumber,
-      rpQualityEmail: prev.emailAddress,
-      // SHE
-      rpSHE: prev.contactPerson,
-      rpSHEPhone: prev.contactNumber,
-      rpSHEEmail: prev.emailAddress,
-      // BBBEE
-      rpBBBEE: prev.contactPerson,
-      rpBBBEEPhone: prev.contactNumber,
-      rpBBBEEEmail: prev.emailAddress,
-    }))
-  }
-
-  const handleAddCustomCategory = async () => {
-    const trimmedInput = customCategoryInput.trim()
-    if (trimmedInput && !customCategories.includes(trimmedInput) && !PRODUCT_SERVICE_CATEGORIES.includes(trimmedInput as any)) {
-      try {
-        const response = await fetch('/api/custom-options', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            optionType: 'PRODUCT_SERVICE_CATEGORY',
-            value: trimmedInput,
-          }),
-        })
-
-        const data = await response.json()
-        if (data.success) {
-          // Add to local state
-          setCustomCategories(prev => [...prev, data.option].sort((a, b) => 
-            a.localeCompare(b, undefined, { sensitivity: 'base' })
-          ))
-          // Set the newly added category as selected (replacing "Other Products/Services")
-          handleInputChange('productsAndServices', data.option)
-          // Clear the input and close the popover
-          setCustomCategoryInput("")
-          setCategorySearchOpen(false)
-        } else {
-          alert(data.error || 'Failed to add custom category')
-        }
-      } catch (error) {
-        console.error('Error adding custom category:', error)
-        alert('Failed to add custom category. Please try again.')
-      }
-    }
-  }
-
-  // Combine standard and custom categories, then sort alphabetically
-  const allCategories = [...PRODUCT_SERVICE_CATEGORIES, ...customCategories].sort((a, b) => 
-    a.localeCompare(b, undefined, { sensitivity: 'base' })
-  )
-
-  const handleAddCustomBank = async () => {
-    const trimmedInput = customBankInput.trim()
-    if (trimmedInput && !customBanks.includes(trimmedInput) && !SOUTH_AFRICAN_BANKS.includes(trimmedInput as any)) {
-      try {
-        const response = await fetch('/api/custom-options', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            optionType: 'BANK',
-            value: trimmedInput,
-          }),
-        })
-
-        const data = await response.json()
-        if (data.success) {
-          // Add to local state
-          setCustomBanks(prev => [...prev, data.option].sort((a, b) => {
-            if (a === "Other") return 1
-            if (b === "Other") return -1
-            return a.localeCompare(b, undefined, { sensitivity: 'base' })
-          }))
-          // Set the newly added bank as selected (replacing "Other")
-          handleInputChange('bankName', data.option)
-          // Clear the input and close the popover
-          setCustomBankInput("")
-          setBankSearchOpen(false)
-        } else {
-          alert(data.error || 'Failed to add custom bank')
-        }
-      } catch (error) {
-        console.error('Error adding custom bank:', error)
-        alert('Failed to add custom bank. Please try again.')
-      }
-    }
-  }
-
-  // Combine standard and custom banks, then sort alphabetically
-  const allBanks = [...SOUTH_AFRICAN_BANKS.filter(b => b !== "Other"), ...customBanks, "Other"].sort((a, b) => {
-    // Keep "Other" at the end
-    if (a === "Other") return 1
-    if (b === "Other") return -1
-    return a.localeCompare(b, undefined, { sensitivity: 'base' })
-  })
-
-  const handleAddCustomAccountType = async () => {
-    const trimmedInput = customAccountTypeInput.trim()
-    if (trimmedInput && !customAccountTypes.includes(trimmedInput) && !ACCOUNT_TYPES.includes(trimmedInput as any)) {
-      try {
-        const response = await fetch('/api/custom-options', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            optionType: 'ACCOUNT_TYPE',
-            value: trimmedInput,
-          }),
-        })
-
-        const data = await response.json()
-        if (data.success) {
-          // Add to local state
-          setCustomAccountTypes(prev => [...prev, data.option].sort((a, b) => {
-            if (a === "Other") return 1
-            if (b === "Other") return -1
-            return a.localeCompare(b, undefined, { sensitivity: 'base' })
-          }))
-          // Set the newly added account type as selected (replacing "Other")
-          handleInputChange('typeOfAccount', data.option)
-          // Clear the input and close the popover
-          setCustomAccountTypeInput("")
-          setAccountTypeSearchOpen(false)
-        } else {
-          alert(data.error || 'Failed to add custom account type')
-        }
-      } catch (error) {
-        console.error('Error adding custom account type:', error)
-        alert('Failed to add custom account type. Please try again.')
-      }
-    }
-  }
-
-  // Combine standard and custom account types, then sort alphabetically
-  const allAccountTypes = [...ACCOUNT_TYPES.filter(a => a !== "Other"), ...customAccountTypes, "Other"].sort((a, b) => {
-    // Keep "Other" at the end
-    if (a === "Other") return 1
-    if (b === "Other") return -1
-    return a.localeCompare(b, undefined, { sensitivity: 'base' })
-  })
 
   const handleFileChange = (category: string, fileList: FileList | null) => {
     if (fileList) {
@@ -452,23 +235,23 @@ function SupplierOnboardingForm() {
                   <CheckCircle className="h-16 w-16 text-green-600" />
                 </div>
               </div>
-              <h2 className="text-3xl font-bold text-foreground">
+              <h2 className="text-3xl font-bold text-gray-900">
                 {revisionNotes ? 'Application Updated!' : 'Thank You!'}
               </h2>
-              <p className="text-lg text-muted-foreground">
+              <p className="text-lg text-gray-600">
                 {revisionNotes 
                   ? 'Your updated supplier information has been submitted successfully.'
                   : 'Your supplier onboarding form has been submitted successfully.'
                 }
               </p>
-              <p className="text-muted-foreground">
+              <p className="text-gray-500">
                 {revisionNotes
                   ? 'Our procurement team will review your updates and contact you shortly.'
                   : 'Our procurement team will review your submission and contact you shortly.'
                 }
               </p>
               <div className="pt-4">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-gray-400">
                   You will receive a confirmation email shortly.
                 </p>
               </div>
@@ -543,7 +326,7 @@ function SupplierOnboardingForm() {
                   <strong>{totalFiles} files uploaded</strong>
                   <div className="mt-2 space-y-1">
                     {Object.entries(files).filter(([_, fileList]) => fileList.length > 0).map(([category, fileList]) => (
-                      <div key={category} className="bg-muted p-2 rounded">
+                      <div key={category} className="bg-gray-50 p-2 rounded">
                         <strong className="capitalize">{category.replace(/([A-Z])/g, ' $1').trim()}:</strong> {fileList.length} file(s)
                       </div>
                     ))}
@@ -612,7 +395,7 @@ function SupplierOnboardingForm() {
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-            <p className="text-lg text-muted-foreground">Loading your application data...</p>
+            <p className="text-lg text-gray-600">Loading your application data...</p>
           </CardContent>
         </Card>
       </div>
@@ -633,7 +416,7 @@ function SupplierOnboardingForm() {
               className="object-contain"
             />
           </div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
             {revisionNotes ? 'Update Your Application' : 'Supplier Onboarding Form'}
           </h1>
           <p className="text-lg text-gray-600">
@@ -685,6 +468,7 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.supplierName}
                     onChange={(e) => handleInputChange('supplierName', e.target.value)}
+                    placeholder="e.g., The Innoverse"
                   />
                 </div>
                 <div>
@@ -694,6 +478,7 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.contactPerson}
                     onChange={(e) => handleInputChange('contactPerson', e.target.value)}
+                    placeholder="Full name"
                   />
                 </div>
                 <div>
@@ -703,6 +488,7 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.nameOfBusiness}
                     onChange={(e) => handleInputChange('nameOfBusiness', e.target.value)}
+                    placeholder="Registered business name"
                   />
                 </div>
                 <div>
@@ -711,6 +497,7 @@ function SupplierOnboardingForm() {
                     id="tradingName"
                     value={formData.tradingName}
                     onChange={(e) => handleInputChange('tradingName', e.target.value)}
+                    placeholder="Trading as..."
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -720,6 +507,7 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.companyRegistrationNo}
                     onChange={(e) => handleInputChange('companyRegistrationNo', e.target.value)}
+                    placeholder="e.g., 2024/07/806"
                   />
                 </div>
               </div>
@@ -739,6 +527,7 @@ function SupplierOnboardingForm() {
                   required
                   value={formData.physicalAddress}
                   onChange={(e) => handleInputChange('physicalAddress', e.target.value)}
+                  placeholder="Street address, city, postal code"
                   rows={3}
                 />
               </div>
@@ -748,6 +537,7 @@ function SupplierOnboardingForm() {
                   id="postalAddress"
                   value={formData.postalAddress}
                   onChange={(e) => handleInputChange('postalAddress', e.target.value)}
+                  placeholder="P.O. Box or same as physical address"
                   rows={3}
                 />
               </div>
@@ -769,6 +559,7 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.contactNumber}
                     onChange={(e) => handleInputChange('contactNumber', e.target.value)}
+                    placeholder="0784588458"
                   />
                 </div>
                 <div>
@@ -779,6 +570,7 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.emailAddress}
                     onChange={(e) => handleInputChange('emailAddress', e.target.value)}
+                    placeholder="email@company.com"
                   />
                 </div>
               </div>
@@ -798,85 +590,19 @@ function SupplierOnboardingForm() {
                   required
                   value={formData.natureOfBusiness}
                   onChange={(e) => handleInputChange('natureOfBusiness', e.target.value)}
+                  placeholder="e.g., AI Consulting, Manufacturing"
                 />
               </div>
-              <div className="space-y-2">
+              <div>
                 <Label htmlFor="productsAndServices">Products and/or Services *</Label>
-                <Popover open={categorySearchOpen} onOpenChange={setCategorySearchOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={categorySearchOpen}
-                      className={`w-full justify-between ${!formData.productsAndServices || formData.productsAndServices === "Other Products/Services" ? "border-red-300" : ""}`}
-                    >
-                      {formData.productsAndServices
-                        ? allCategories.find((cat) => cat === formData.productsAndServices) || formData.productsAndServices
-                        : "Select products/services category..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[350px] p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Search categories..." />
-                      <CommandList>
-                        <CommandEmpty>No category found.</CommandEmpty>
-                        <CommandGroup>
-                          {allCategories.map((category) => (
-                            <CommandItem
-                              key={category}
-                              value={category}
-                              onSelect={() => {
-                                handleInputChange('productsAndServices', category)
-                                // Clear custom input when selecting a different option
-                                if (category !== "Other Products/Services") {
-                                  setCustomCategoryInput("")
-                                }
-                                setCategorySearchOpen(false)
-                              }}
-                            >
-                              <Check
-                                className={`mr-2 h-4 w-4 ${formData.productsAndServices === category ? "opacity-100" : "opacity-0"}`}
-                              />
-                              {category}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                {formData.productsAndServices === "Other Products/Services" && (
-                  <div className="flex gap-2 mt-2">
-                    <Input
-                      placeholder="Type custom service category"
-                      value={customCategoryInput}
-                      onChange={(e) => setCustomCategoryInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handleAddCustomCategory()
-                        }
-                      }}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      onClick={handleAddCustomCategory}
-                      disabled={!customCategoryInput.trim() || customCategories.includes(customCategoryInput.trim()) || PRODUCT_SERVICE_CATEGORIES.includes(customCategoryInput.trim() as any)}
-                      size="default"
-                      className="px-3"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-                {!formData.productsAndServices && (
-                  <p className="text-sm text-red-600">Please select products/services category</p>
-                )}
-                {formData.productsAndServices === "Other Products/Services" && (
-                  <p className="text-sm text-red-600">Please type and add a custom service category using the input field above</p>
-                )}
+                <Textarea
+                  id="productsAndServices"
+                  required
+                  value={formData.productsAndServices}
+                  onChange={(e) => handleInputChange('productsAndServices', e.target.value)}
+                  placeholder="Describe your products and services"
+                  rows={4}
+                />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -897,20 +623,12 @@ function SupplierOnboardingForm() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="associatedCompanyBranchName">Associated Company Branch Name</Label>
-                <Textarea
-                  id="associatedCompanyBranchName"
-                  value={formData.associatedCompanyBranchName}
-                  onChange={(e) => handleInputChange('associatedCompanyBranchName', e.target.value)}
-                  rows={2}
-                />
-              </div>
-              <div>
                 <Label htmlFor="branchesContactNumbers">Branches Contact Numbers</Label>
                 <Textarea
                   id="branchesContactNumbers"
                   value={formData.branchesContactNumbers}
                   onChange={(e) => handleInputChange('branchesContactNumbers', e.target.value)}
+                  placeholder="List branch locations and contact numbers"
                   rows={3}
                 />
               </div>
@@ -933,83 +651,15 @@ function SupplierOnboardingForm() {
                     onChange={(e) => handleInputChange('bankAccountName', e.target.value)}
                   />
                 </div>
-                <div className="space-y-2">
+                <div>
                   <Label htmlFor="bankName">Bank Name *</Label>
-                  <Popover open={bankSearchOpen} onOpenChange={setBankSearchOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={bankSearchOpen}
-                        className={`w-full justify-between ${!formData.bankName || formData.bankName === "Other" ? "border-red-300" : ""}`}
-                      >
-                        {formData.bankName
-                          ? allBanks.find((bank) => bank === formData.bankName) || formData.bankName
-                          : "Select bank..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[350px] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search banks..." />
-                        <CommandList>
-                          <CommandEmpty>No bank found.</CommandEmpty>
-                          <CommandGroup>
-                            {allBanks.map((bank) => (
-                              <CommandItem
-                                key={bank}
-                                value={bank}
-                                onSelect={() => {
-                                  handleInputChange('bankName', bank)
-                                  // Clear custom input when selecting a different option
-                                  if (bank !== "Other") {
-                                    setCustomBankInput("")
-                                  }
-                                  setBankSearchOpen(false)
-                                }}
-                              >
-                                <Check
-                                  className={`mr-2 h-4 w-4 ${formData.bankName === bank ? "opacity-100" : "opacity-0"}`}
-                                />
-                                {bank}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {formData.bankName === "Other" && (
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        placeholder="Type custom bank name"
-                        value={customBankInput}
-                        onChange={(e) => setCustomBankInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            handleAddCustomBank()
-                          }
-                        }}
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        onClick={handleAddCustomBank}
-                        disabled={!customBankInput.trim() || customBanks.includes(customBankInput.trim()) || SOUTH_AFRICAN_BANKS.includes(customBankInput.trim() as any)}
-                        size="default"
-                        className="px-3"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                  {!formData.bankName && (
-                    <p className="text-sm text-red-600">Please select bank</p>
-                  )}
-                  {formData.bankName === "Other" && (
-                    <p className="text-sm text-red-600">Please type and add a custom bank name using the input field above</p>
-                  )}
+                  <Input
+                    id="bankName"
+                    required
+                    value={formData.bankName}
+                    onChange={(e) => handleInputChange('bankName', e.target.value)}
+                    placeholder="e.g., FNB, Standard Bank"
+                  />
                 </div>
                 <div>
                   <Label htmlFor="branchName">Branch Name *</Label>
@@ -1038,83 +688,15 @@ function SupplierOnboardingForm() {
                     onChange={(e) => handleInputChange('accountNumber', e.target.value)}
                   />
                 </div>
-                <div className="space-y-2">
+                <div>
                   <Label htmlFor="typeOfAccount">Type of Account *</Label>
-                  <Popover open={accountTypeSearchOpen} onOpenChange={setAccountTypeSearchOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={accountTypeSearchOpen}
-                        className={`w-full justify-between ${!formData.typeOfAccount || formData.typeOfAccount === "Other" ? "border-red-300" : ""}`}
-                      >
-                        {formData.typeOfAccount
-                          ? allAccountTypes.find((accountType) => accountType === formData.typeOfAccount) || formData.typeOfAccount
-                          : "Select account type..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[350px] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search account types..." />
-                        <CommandList>
-                          <CommandEmpty>No account type found.</CommandEmpty>
-                          <CommandGroup>
-                            {allAccountTypes.map((accountType) => (
-                              <CommandItem
-                                key={accountType}
-                                value={accountType}
-                                onSelect={() => {
-                                  handleInputChange('typeOfAccount', accountType)
-                                  // Clear custom input when selecting a different option
-                                  if (accountType !== "Other") {
-                                    setCustomAccountTypeInput("")
-                                  }
-                                  setAccountTypeSearchOpen(false)
-                                }}
-                              >
-                                <Check
-                                  className={`mr-2 h-4 w-4 ${formData.typeOfAccount === accountType ? "opacity-100" : "opacity-0"}`}
-                                />
-                                {accountType}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {formData.typeOfAccount === "Other" && (
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        placeholder="Type custom account type"
-                        value={customAccountTypeInput}
-                        onChange={(e) => setCustomAccountTypeInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            handleAddCustomAccountType()
-                          }
-                        }}
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        onClick={handleAddCustomAccountType}
-                        disabled={!customAccountTypeInput.trim() || customAccountTypes.includes(customAccountTypeInput.trim()) || ACCOUNT_TYPES.includes(customAccountTypeInput.trim() as any)}
-                        size="default"
-                        className="px-3"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                  {!formData.typeOfAccount && (
-                    <p className="text-sm text-red-600">Please select account type</p>
-                  )}
-                  {formData.typeOfAccount === "Other" && (
-                    <p className="text-sm text-red-600">Please type and add a custom account type using the input field above</p>
-                  )}
+                  <Input
+                    id="typeOfAccount"
+                    required
+                    value={formData.typeOfAccount}
+                    onChange={(e) => handleInputChange('typeOfAccount', e.target.value)}
+                    placeholder="e.g., Cheque, Savings"
+                  />
                 </div>
               </div>
             </CardContent>
@@ -1123,24 +705,8 @@ function SupplierOnboardingForm() {
           {/* Section 6: Responsible Persons */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>6. Responsible Persons</CardTitle>
-                  <CardDescription>Contact details for key personnel</CardDescription>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSameForAllResponsiblePersons}
-                  disabled={!formData.contactPerson || !formData.contactNumber || !formData.emailAddress}
-                  className="flex items-center gap-2"
-                  title="Copy contact person details to all responsible person fields"
-                >
-                  <Copy className="h-4 w-4" />
-                  Same for all
-                </Button>
-              </div>
+              <CardTitle>6. Responsible Persons</CardTitle>
+              <CardDescription>Contact details for key personnel</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Banking RP */}
@@ -1289,24 +855,13 @@ function SupplierOnboardingForm() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="bbbeeStatus">BBBEE Status *</Label>
-                  <Select
-                    value={formData.bbbeeStatus}
-                    onValueChange={(value) => handleInputChange('bbbeeStatus', value)}
+                  <Input
+                    id="bbbeeStatus"
                     required
-                  >
-                    <SelectTrigger id="bbbeeStatus">
-                      <SelectValue placeholder="Select BBBEE level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Level 1">Level 1</SelectItem>
-                      <SelectItem value="Level 2">Level 2</SelectItem>
-                      <SelectItem value="Level 3">Level 3</SelectItem>
-                      <SelectItem value="Level 4">Level 4</SelectItem>
-                      <SelectItem value="Level 5">Level 5</SelectItem>
-                      <SelectItem value="Level 6">Level 6</SelectItem>
-                      <SelectItem value="Level 7">Level 7</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    value={formData.bbbeeStatus}
+                    onChange={(e) => handleInputChange('bbbeeStatus', e.target.value)}
+                    placeholder="e.g., Level 1, Level 2"
+                  />
                 </div>
                 <div>
                   <Label htmlFor="numberOfEmployees">Number of Employees *</Label>
@@ -1316,8 +871,18 @@ function SupplierOnboardingForm() {
                     required
                     value={formData.numberOfEmployees}
                     onChange={(e) => handleInputChange('numberOfEmployees', e.target.value)}
+                    placeholder="e.g., 50"
                   />
                 </div>
+              </div>
+              <div>
+                <Label htmlFor="associatedCompanyBranchName">Associated Company Branch Name</Label>
+                <Textarea
+                  id="associatedCompanyBranchName"
+                  value={formData.associatedCompanyBranchName}
+                  onChange={(e) => handleInputChange('associatedCompanyBranchName', e.target.value)}
+                  rows={2}
+                />
               </div>
             </CardContent>
           </Card>
@@ -1356,74 +921,29 @@ function SupplierOnboardingForm() {
             <CardHeader>
               <CardTitle>9. Required Documents</CardTitle>
               <CardDescription>
-                {purchaseType === 'ONCE_OFF' && `For Once-off Purchase, only Bank Confirmation Letter and Company Registration Documents (CIPC) are required.${creditApplication ? ' Credit Application Form is also required.' : ''}`}
-                {purchaseType === 'REGULAR' && `For Regular Purchase, all documents are required except the Non-Disclosure Agreement (NDA).${creditApplication ? ' Credit Application Form is also required.' : ''}`}
-                {purchaseType === 'SHARED_IP' && `For Shared IP, all documents including the Non-Disclosure Agreement (NDA) are required.${creditApplication ? ' Credit Application Form is also required.' : ''}`}
-                {!purchaseType && 'Please upload all required documents. Required documents are marked with *.'}
+                Please upload all required documents.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {[
-                { key: 'companyRegistration', label: 'Company Registration Documents (CIPC)', baseLabel: 'Company Registration Documents' },
-                { key: 'cm29Directors', label: 'Copy of CM29 - List of Directors', baseLabel: 'Copy of CM29 - List of Directors' },
-                { key: 'shareholderCerts', label: 'Shareholder Certificates', baseLabel: 'Shareholder Certificates' },
-                { key: 'proofOfShareholding', label: 'Proof of Shareholding', baseLabel: 'Proof of Shareholding' },
-                { key: 'bbbeeAccreditation', label: 'BBBEE Accreditation', baseLabel: 'BBBEE Accreditation' },
-                { key: 'bbbeeScorecard', label: 'BBBEE Scorecard Report', baseLabel: 'BBBEE Scorecard Report' },
-                { key: 'taxClearance', label: 'Tax Clearance Certificate', baseLabel: 'Tax Clearance Certificate' },
-                { key: 'vatCertificate', label: 'VAT Registration Certificate', baseLabel: 'VAT Registration Certificate' },
-                { key: 'bankConfirmation', label: 'Bank Confirmation Letter', baseLabel: 'Bank Confirmation Letter' },
-                { key: 'nda', label: 'Non-Disclosure Agreement (NDA) - Signed', baseLabel: 'Non-Disclosure Agreement (NDA) - Signed' },
-                { key: 'healthSafety', label: 'Health and Safety Policy', baseLabel: 'Health and Safety Policy' },
-                { key: 'creditApplication', label: 'Credit Application Form', baseLabel: 'Credit Application Form' },
-                { key: 'qualityCert', label: 'Quality Certification', baseLabel: 'Quality Certification' },
-                { key: 'goodStanding', label: 'Letter of Good Standing', baseLabel: 'Letter of Good Standing' },
-                { key: 'sectorRegistrations', label: 'Sector Registrations', baseLabel: 'Sector Registrations' },
-                { key: 'organogram', label: 'Updated Company Organogram', baseLabel: 'Updated Company Organogram' },
-                { key: 'companyProfile', label: 'Company Profile', baseLabel: 'Company Profile' },
-              ]
-              .filter(({ key }) => {
-                // For ONCE_OFF, only show bankConfirmation and companyRegistration
-                // Also show creditApplication if credit application was selected
-                if (purchaseType === 'ONCE_OFF') {
-                  return key === 'bankConfirmation' || key === 'companyRegistration' || (key === 'creditApplication' && creditApplication)
-                }
-                // For REGULAR, show all except NDA
-                // Credit application form is only shown if credit application was selected
-                if (purchaseType === 'REGULAR') {
-                  if (key === 'nda') return false
-                  if (key === 'creditApplication') return creditApplication
-                  return true
-                }
-                // For SHARED_IP, show all documents
-                // Credit application form is only shown if credit application was selected
-                if (purchaseType === 'SHARED_IP') {
-                  if (key === 'creditApplication') return creditApplication
-                  return true
-                }
-                // If purchaseType is not set yet, show all (will be filtered once loaded)
-                return true
-              })
-              .map(({ key, label, baseLabel }) => {
-                // Check if document should be shown (requested)
-                const isRequested = purchaseType 
-                  ? isDocumentRequired(key as DocumentKey, purchaseType as PurchaseType, creditApplication) 
-                  : requiredDocuments.includes(key)
-                // Check if document is mandatory (should be marked with *)
-                // Only mark as mandatory if purchaseType is valid and document is actually mandatory
-                let isMandatory = false
-                if (purchaseType && (purchaseType === 'REGULAR' || purchaseType === 'ONCE_OFF' || purchaseType === 'SHARED_IP')) {
-                  try {
-                    isMandatory = isDocumentMandatory(key as DocumentKey, purchaseType as PurchaseType)
-                  } catch (error) {
-                    console.error('Error checking if document is mandatory:', error)
-                    isMandatory = false
-                  }
-                }
-                const displayLabel = isMandatory ? `${baseLabel} *` : baseLabel
-                return { key, label: displayLabel, required: isMandatory, requested: isRequested }
-              })
-              .map(({ key, label, required }) => (
+                { key: 'companyRegistration', label: 'Company Registration Documents *', required: true },
+                { key: 'cm29Directors', label: 'Copy of CM29 - List of Directors', required: false },
+                { key: 'shareholderCerts', label: 'Shareholder Certificates', required: false },
+                { key: 'proofOfShareholding', label: 'Proof of Shareholding', required: false },
+                { key: 'bbbeeAccreditation', label: 'BBBEE Accreditation *', required: true },
+                { key: 'bbbeeScorecard', label: 'BBBEE Scorecard Report', required: false },
+                { key: 'taxClearance', label: 'Tax Clearance Certificate *', required: true },
+                { key: 'vatCertificate', label: 'VAT Registration Certificate', required: false },
+                { key: 'bankConfirmation', label: 'Bank Confirmation Letter *', required: true },
+                { key: 'nda', label: 'Non-Disclosure Agreement (NDA) - Signed *', required: true },
+                { key: 'healthSafety', label: 'Health and Safety Policy', required: false },
+                { key: 'creditApplication', label: 'Credit Application Form', required: false },
+                { key: 'qualityCert', label: 'Quality Certification', required: false },
+                { key: 'goodStanding', label: 'Letter of Good Standing', required: false },
+                { key: 'sectorRegistrations', label: 'Sector Registrations', required: false },
+                { key: 'organogram', label: 'Updated Company Organogram', required: false },
+                { key: 'companyProfile', label: 'Company Profile', required: false },
+              ].map(({ key, label, required }) => (
                 <div key={key} className="border rounded-lg p-4">
                   <Label className="mb-2 block">{label}</Label>
                   
@@ -1463,11 +983,11 @@ function SupplierOnboardingForm() {
                     {files[key]?.length > 0 && (
                       <div className="space-y-1">
                         {files[key].map((file, index) => (
-                          <div key={index} className="flex items-center justify-between bg-muted p-2 rounded">
+                          <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                             <div className="flex items-center space-x-2">
-                              <FileIcon className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm text-foreground">{file.name}</span>
-                              <span className="text-xs text-muted-foreground">
+                              <FileIcon className="h-4 w-4 text-gray-500" />
+                              <span className="text-sm text-gray-700">{file.name}</span>
+                              <span className="text-xs text-gray-500">
                                 ({(file.size / 1024 / 1024).toFixed(2)} MB)
                               </span>
                             </div>
@@ -1540,10 +1060,10 @@ function SupplierOnboardingForm() {
 export default function SupplierOnboardingFormPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-          <p className="text-muted-foreground">Loading supplier onboarding form...</p>
+          <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
+          <p className="text-slate-600">Loading supplier onboarding form...</p>
         </div>
       </div>
     }>

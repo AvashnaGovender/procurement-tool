@@ -14,7 +14,7 @@ interface InitiationData {
   id: string
   status: string
   supplierName: string
-  businessUnit: string | string[]
+  businessUnit: string
   submittedAt: string
   managerApproval?: {
     status: string
@@ -64,7 +64,7 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
       case 'REJECTED':
         return <XCircle className="h-4 w-4 text-red-500" />
       default:
-        return <AlertCircle className="h-4 w-4 text-muted-foreground" />
+        return <AlertCircle className="h-4 w-4 text-gray-500" />
     }
   }
 
@@ -78,7 +78,7 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
       case 'REJECTED':
         return 'bg-red-100 text-red-800'
       default:
-        return 'bg-muted text-muted-foreground'
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
@@ -98,7 +98,7 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="text-center text-muted-foreground">
+          <div className="text-center text-gray-500">
             Failed to load initiation data
           </div>
         </CardContent>
@@ -119,24 +119,22 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <h4 className="font-medium text-sm text-muted-foreground">Supplier Name</h4>
+              <h4 className="font-medium text-sm text-gray-600">Supplier Name</h4>
               <p className="text-lg">{initiationData.supplierName}</p>
             </div>
             <div>
-              <h4 className="font-medium text-sm text-muted-foreground">Business Unit{Array.isArray(initiationData.businessUnit) && initiationData.businessUnit.length > 1 ? 's' : ''}</h4>
+              <h4 className="font-medium text-sm text-gray-600">Business Unit</h4>
               <p className="text-lg">
-                {Array.isArray(initiationData.businessUnit) 
-                  ? initiationData.businessUnit.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')
-                  : (initiationData.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                      ? 'Schauenburg Systems 200' 
-                      : 'Schauenburg (Pty) Ltd 300')
+                {initiationData.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
+                  ? 'Schauenburg Systems 200' 
+                  : 'Schauenburg (Pty) Ltd 300'
                 }
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            <span className="font-medium text-sm text-muted-foreground">Overall Status:</span>
+            <span className="font-medium text-sm text-gray-600">Overall Status:</span>
             <Badge className={getStatusColor(initiationData.status)}>
               {initiationData.status.replace('_', ' ')}
             </Badge>
@@ -162,7 +160,7 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
               </Badge>
             </div>
             {initiationData.managerApproval && (
-              <div className="text-sm text-muted-foreground space-y-2">
+              <div className="text-sm text-gray-600 space-y-2">
                 <p>Approver: {initiationData.managerApproval.approver}</p>
                 {initiationData.managerApproval.approvedAt && (
                   <p>
@@ -199,7 +197,7 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
               </Badge>
             </div>
             {initiationData.procurementApproval && (
-              <div className="text-sm text-muted-foreground space-y-2">
+              <div className="text-sm text-gray-600 space-y-2">
                 <p>Approver: {initiationData.procurementApproval.approver}</p>
                 {initiationData.procurementApproval.approvedAt && (
                   <p>
@@ -258,7 +256,7 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
             <CardTitle>Next Steps</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">
+            <p className="text-gray-600">
               The supplier has been notified and can now proceed with the onboarding process. 
               You can track their progress in the supplier submissions dashboard.
             </p>

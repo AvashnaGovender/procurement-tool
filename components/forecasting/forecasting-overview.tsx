@@ -52,11 +52,11 @@ export function ForecastingOverview() {
         return (
           <Card key={stat.title} className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>
               <Icon className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground mb-1">{stat.value}</div>
+              <div className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</div>
               <div className="flex items-center space-x-1 text-xs">
                 {stat.trend === "up" ? (
                   <TrendingUp className="h-3 w-3 text-green-500" />
@@ -65,7 +65,7 @@ export function ForecastingOverview() {
                 )}
                 <span className={stat.trend === "up" ? "text-green-600" : "text-red-600"}>{stat.change}</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
+              <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
             </CardContent>
           </Card>
         )

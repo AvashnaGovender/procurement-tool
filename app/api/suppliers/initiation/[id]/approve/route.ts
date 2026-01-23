@@ -3,8 +3,6 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-sender'
-import { getRequiredDocuments } from '@/lib/document-requirements'
-import { generateSupplierCode } from '@/lib/generate-supplier-code'
 
 export async function POST(
   request: NextRequest,
@@ -87,6 +85,7 @@ export async function POST(
     const canApproveAsProcurementManager = isAssignedProcurementManager || hasDelegatedProcurementAuthority
 
     // Determine which approval to process
+    // SEQUENTIAL WORKFLOW: Manager must approve first, then Procurement Manager
     let shouldUpdateManagerApproval = false
     let shouldUpdateProcurementApproval = false
 
@@ -95,12 +94,20 @@ export async function POST(
       if (approverRole === 'MANAGER') {
         shouldUpdateManagerApproval = true
       } else if (approverRole === 'PROCUREMENT_MANAGER') {
-        shouldUpdateProcurementApproval = true
+        // Only allow procurement approval if manager has already approved
+        if (initiation.managerApproval?.status === 'APPROVED' && initiation.procurementApproval) {
+          shouldUpdateProcurementApproval = true
+        } else {
+          return NextResponse.json({ 
+            error: 'Manager must approve first before procurement approval can be processed.' 
+          }, { status: 400 })
+        }
       } else {
         // If no role specified, check which approval is pending
+        // In sequential workflow, manager approval comes first
         if (initiation.managerApproval?.status === 'PENDING' && canApproveAsManager) {
           shouldUpdateManagerApproval = true
-        } else if (initiation.procurementApproval?.status === 'PENDING' && canApproveAsProcurementManager) {
+        } else if (initiation.managerApproval?.status === 'APPROVED' && initiation.procurementApproval?.status === 'PENDING' && canApproveAsProcurementManager) {
           shouldUpdateProcurementApproval = true
         }
       }
@@ -111,14 +118,21 @@ export async function POST(
           shouldUpdateManagerApproval = true
         }
       } else if (approverRole === 'PROCUREMENT_MANAGER') {
+        // Only allow procurement approval if manager has already approved
+        if (initiation.managerApproval?.status !== 'APPROVED') {
+          return NextResponse.json({ 
+            error: 'Manager must approve first before procurement approval can be processed.' 
+          }, { status: 400 })
+        }
         if (canApproveAsProcurementManager && initiation.procurementApproval?.status === 'PENDING') {
           shouldUpdateProcurementApproval = true
         }
       } else {
         // No specific role - default to first pending approval they can handle
+        // In sequential workflow, manager approval comes first
         if (canApproveAsManager && initiation.managerApproval?.status === 'PENDING') {
           shouldUpdateManagerApproval = true
-        } else if (canApproveAsProcurementManager && initiation.procurementApproval?.status === 'PENDING') {
+        } else if (initiation.managerApproval?.status === 'APPROVED' && canApproveAsProcurementManager && initiation.procurementApproval?.status === 'PENDING') {
           shouldUpdateProcurementApproval = true
         }
       }
@@ -145,6 +159,229 @@ export async function POST(
           approvedAt: new Date()
         }
       })
+
+      // If manager rejects, notify initiator
+      if (action === 'reject') {
+        try {
+          const initiationDetails = await prisma.supplierInitiation.findUnique({
+            where: { id: initiationId },
+            include: {
+              initiatedBy: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true
+                }
+              }
+            }
+          })
+
+          if (initiationDetails && initiationDetails.initiatedBy) {
+            const initiatorEmailContent = `
+Dear ${initiationDetails.initiatedBy.name},
+
+Your supplier initiation request has been rejected by the Manager.
+
+<strong>Supplier Details:</strong>
+- <strong>Supplier Name:</strong> ${initiationDetails.supplierName}
+- <strong>Email:</strong> ${initiationDetails.supplierEmail}
+- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
+- <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
+- <strong>Requested by:</strong> ${initiationDetails.requesterName}
+
+<strong>Rejection Reason:</strong>
+${comments || 'No reason provided'}
+
+If you have any questions or would like to discuss this decision, please contact the Manager.
+
+Best regards,
+Schauenburg Systems Procurement System
+            `.trim()
+
+            console.log('📧 Sending rejection notification to initiator:', initiationDetails.initiatedBy.email)
+            const initiatorEmailResult = await sendEmail({
+              to: initiationDetails.initiatedBy.email,
+              subject: 'Supplier Initiation Request Rejected',
+              content: initiatorEmailContent,
+              supplierName: initiationDetails.supplierName,
+              businessType: initiationDetails.productServiceCategory
+            })
+
+            if (initiatorEmailResult.success) {
+              console.log('✅ Initiator rejection notification email sent successfully')
+            } else {
+              console.error('❌ Failed to send initiator rejection notification email:', initiatorEmailResult.message)
+            }
+          }
+        } catch (emailError) {
+          console.error('❌ Error sending initiator rejection notification:', emailError)
+          // Don't fail the process if email fails
+        }
+      }
+
+      // SEQUENTIAL WORKFLOW: If manager approves, create procurement approval
+      if (action === 'approve' && !initiation.procurementApproval) {
+        console.log('✅ Manager approved - creating procurement approval...')
+        
+        // Find an active procurement manager
+        const procurementManagers = await prisma.user.findMany({
+          where: {
+            role: 'PROCUREMENT_MANAGER',
+            isActive: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
+        })
+
+        if (procurementManagers.length > 0) {
+          const assignedProcurementManager = procurementManagers[0]
+          console.log('✅ Creating procurement approval for:', assignedProcurementManager.email)
+          
+          await prisma.procurementApproval.create({
+            data: {
+              initiationId: initiation.id,
+              approverId: assignedProcurementManager.id,
+              status: 'PENDING'
+            }
+          })
+
+          // Send procurement approval email
+          try {
+            const initiationDetails = await prisma.supplierInitiation.findUnique({
+              where: { id: initiationId }
+            })
+
+            if (initiationDetails) {
+              const approvalsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/approvals`
+              const procurementEmailContent = `
+Dear Procurement Manager,
+
+A supplier initiation request has been approved by the Manager and now requires your approval.
+
+<strong>Request Details:</strong>
+- <strong>Supplier:</strong> ${initiationDetails.supplierName}
+- <strong>Email:</strong> ${initiationDetails.supplierEmail}
+- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
+- <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
+- <strong>Requested by:</strong> ${initiationDetails.requesterName}
+- <strong>Purchase Type:</strong> ${initiationDetails.purchaseType === 'REGULAR' ? 'Regular Purchase' : initiationDetails.purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
+${initiationDetails.annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> R${initiationDetails.annualPurchaseValue.toLocaleString()}` : ''}
+- <strong>Credit Application:</strong> ${initiationDetails.creditApplication ? 'Yes' : 'No'}${!initiationDetails.creditApplication && initiationDetails.creditApplicationReason ? ` (Reason: ${initiationDetails.creditApplicationReason})` : ''}
+
+<strong>Reason for Onboarding:</strong>
+${initiationDetails.onboardingReason}
+
+<strong>Manager Status:</strong> ✅ Approved
+
+Please click the button below to review and approve this request:
+
+<div style="text-align: center; margin: 30px 0;">
+  <a href="${approvalsUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">Review & Approve Request</a>
+</div>
+
+Or copy this link to your browser: ${approvalsUrl}
+
+Best regards,
+Schauenburg Systems Procurement System
+              `.trim()
+
+              console.log('📧 Sending procurement approval email to:', assignedProcurementManager.email)
+              const procurementEmailResult = await sendEmail({
+                to: assignedProcurementManager.email,
+                subject: 'Supplier Approval Required - Manager Approved',
+                content: procurementEmailContent,
+                supplierName: initiationDetails.supplierName,
+                businessType: initiationDetails.productServiceCategory
+              })
+              
+              if (procurementEmailResult.success) {
+                console.log('✅ Procurement approval email sent successfully')
+              } else {
+                console.error('❌ Failed to send procurement approval email:', procurementEmailResult.message)
+              }
+
+              // Check for active delegations for procurement manager
+              const now = new Date()
+              const procurementDelegations = await prisma.userDelegation.findMany({
+                where: {
+                  delegatorId: assignedProcurementManager.id,
+                  isActive: true,
+                  startDate: { lte: now },
+                  endDate: { gte: now },
+                  OR: [
+                    { delegationType: 'ALL_APPROVALS' },
+                    { delegationType: 'PROCUREMENT_APPROVALS' }
+                  ]
+                },
+                include: {
+                  delegate: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true
+                    }
+                  }
+                }
+              })
+
+              // Send procurement approval email to delegates
+              for (const delegation of procurementDelegations) {
+                const delegateEmailContent = `
+Dear ${delegation.delegate.name},
+
+You are receiving this email because ${assignedProcurementManager.name} has delegated their approval authority to you.
+
+A supplier initiation request has been approved by the Manager and now requires procurement approval.
+
+<strong>Request Details:</strong>
+- <strong>Supplier:</strong> ${initiationDetails.supplierName}
+- <strong>Email:</strong> ${initiationDetails.supplierEmail}
+- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
+- <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
+- <strong>Requested by:</strong> ${initiationDetails.requesterName}
+- <strong>Purchase Type:</strong> ${initiationDetails.purchaseType === 'REGULAR' ? 'Regular Purchase' : initiationDetails.purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
+${initiationDetails.annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> R${initiationDetails.annualPurchaseValue.toLocaleString()}` : ''}
+- <strong>Credit Application:</strong> ${initiationDetails.creditApplication ? 'Yes' : 'No'}${!initiationDetails.creditApplication && initiationDetails.creditApplicationReason ? ` (Reason: ${initiationDetails.creditApplicationReason})` : ''}
+
+<strong>Reason for Onboarding:</strong>
+${initiationDetails.onboardingReason}
+
+<strong>Manager Status:</strong> ✅ Approved
+<strong>Note:</strong> You are acting as a delegate for ${assignedProcurementManager.name}.
+
+Please click the button below to review and approve this request:
+
+<div style="text-align: center; margin: 30px 0;">
+  <a href="${approvalsUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">Review & Approve Request</a>
+</div>
+
+Or copy this link to your browser: ${approvalsUrl}
+
+Best regards,
+Schauenburg Systems Procurement System
+                `.trim()
+
+                console.log('📧 Sending procurement approval email to delegate:', delegation.delegate.email)
+                const delegateEmailResult = await sendEmail({
+                  to: delegation.delegate.email,
+                  subject: 'Supplier Approval Required - Manager Approved (Delegated)',
+                  content: delegateEmailContent,
+                  supplierName: initiationDetails.supplierName,
+                  businessType: initiationDetails.productServiceCategory
+                })
+                console.log('Delegate email result:', delegateEmailResult)
+              }
+            }
+          } catch (emailError) {
+            console.error('❌ Error sending procurement approval email:', emailError)
+            // Don't fail the process if email fails
+          }
+        } else {
+          console.warn('⚠️ No procurement manager found for approval!')
+        }
+      }
     }
 
     if (shouldUpdateProcurementApproval && initiation.procurementApproval) {
@@ -156,6 +393,124 @@ export async function POST(
           approvedAt: new Date()
         }
       })
+
+      // If procurement manager rejects, notify both manager and initiator
+      if (action === 'reject') {
+        try {
+          const initiationDetails = await prisma.supplierInitiation.findUnique({
+            where: { id: initiationId },
+            include: {
+              initiatedBy: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true
+                }
+              },
+              managerApproval: {
+                include: {
+                  approver: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true
+                    }
+                  }
+                }
+              }
+            }
+          })
+
+          if (initiationDetails) {
+            // Email to initiator
+            if (initiationDetails.initiatedBy) {
+              const initiatorEmailContent = `
+Dear ${initiationDetails.initiatedBy.name},
+
+Your supplier initiation request has been rejected by the Procurement Manager.
+
+<strong>Supplier Details:</strong>
+- <strong>Supplier Name:</strong> ${initiationDetails.supplierName}
+- <strong>Email:</strong> ${initiationDetails.supplierEmail}
+- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
+- <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
+- <strong>Requested by:</strong> ${initiationDetails.requesterName}
+
+<strong>Manager Status:</strong> ✅ Approved
+<strong>Procurement Manager Status:</strong> ❌ Rejected
+
+<strong>Rejection Reason:</strong>
+${comments || 'No reason provided'}
+
+If you have any questions or would like to discuss this decision, please contact the Procurement Manager.
+
+Best regards,
+Schauenburg Systems Procurement System
+              `.trim()
+
+              console.log('📧 Sending procurement rejection notification to initiator:', initiationDetails.initiatedBy.email)
+              const initiatorEmailResult = await sendEmail({
+                to: initiationDetails.initiatedBy.email,
+                subject: 'Supplier Initiation Request Rejected by Procurement Manager',
+                content: initiatorEmailContent,
+                supplierName: initiationDetails.supplierName,
+                businessType: initiationDetails.productServiceCategory
+              })
+
+              if (initiatorEmailResult.success) {
+                console.log('✅ Initiator procurement rejection notification email sent successfully')
+              } else {
+                console.error('❌ Failed to send initiator procurement rejection notification email:', initiatorEmailResult.message)
+              }
+            }
+
+            // Email to manager
+            if (initiationDetails.managerApproval?.approver) {
+              const managerEmailContent = `
+Dear ${initiationDetails.managerApproval.approver.name},
+
+A supplier initiation request that you approved has been rejected by the Procurement Manager.
+
+<strong>Supplier Details:</strong>
+- <strong>Supplier Name:</strong> ${initiationDetails.supplierName}
+- <strong>Email:</strong> ${initiationDetails.supplierEmail}
+- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
+- <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
+- <strong>Requested by:</strong> ${initiationDetails.requesterName}
+
+<strong>Manager Status:</strong> ✅ Approved
+<strong>Procurement Manager Status:</strong> ❌ Rejected
+
+<strong>Rejection Reason:</strong>
+${comments || 'No reason provided'}
+
+The initiator has been notified of this rejection.
+
+Best regards,
+Schauenburg Systems Procurement System
+              `.trim()
+
+              console.log('📧 Sending procurement rejection notification to manager:', initiationDetails.managerApproval.approver.email)
+              const managerEmailResult = await sendEmail({
+                to: initiationDetails.managerApproval.approver.email,
+                subject: 'Supplier Initiation Request Rejected by Procurement Manager',
+                content: managerEmailContent,
+                supplierName: initiationDetails.supplierName,
+                businessType: initiationDetails.productServiceCategory
+              })
+
+              if (managerEmailResult.success) {
+                console.log('✅ Manager procurement rejection notification email sent successfully')
+              } else {
+                console.error('❌ Failed to send manager procurement rejection notification email:', managerEmailResult.message)
+              }
+            }
+          }
+        } catch (emailError) {
+          console.error('❌ Error sending procurement rejection notifications:', emailError)
+          // Don't fail the process if email fails
+        }
+      }
     }
 
     // Update initiation status based on approvals
@@ -189,8 +544,9 @@ export async function POST(
           newStatus = 'MANAGER_APPROVED'
           console.log('⏳ Manager approved, waiting for procurement - status: MANAGER_APPROVED')
         } else if (procurementApproved) {
+          // This should not happen in sequential workflow, but handle it for safety
           newStatus = 'PROCUREMENT_APPROVED'
-          console.log('⏳ Procurement approved, waiting for manager - status: PROCUREMENT_APPROVED')
+          console.log('⚠️ Procurement approved before manager - this should not happen in sequential workflow')
         }
       }
 
@@ -213,47 +569,34 @@ export async function POST(
         // This prevents duplicate emails if the approval endpoint is called multiple times
         if (initiationDetails && !initiationDetails.emailSent && !initiationDetails.onboarding) {
           console.log('📧 Both approvals complete - proceeding with supplier creation and email...')
-          
-          // Determine required documents based on purchase type and credit application
-          const requiredDocuments = getRequiredDocuments(initiationDetails.purchaseType, initiationDetails.creditApplication)
-          
-          // Generate supplier code and create supplier + onboarding in a transaction to prevent race conditions
-          const { supplier, onboarding } = await prisma.$transaction(async (tx) => {
-            // Generate alphanumeric sequential supplier code within the transaction
-            const supplierCode = await generateSupplierCode(tx)
-            
-            // Create a supplier record with AWAITING_DOCS status
-            const newSupplier = await tx.supplier.create({
-              data: {
-                supplierCode,
-                supplierName: initiationDetails.supplierName,
-                contactEmail: initiationDetails.supplierEmail,
-                companyName: initiationDetails.supplierName,
-                contactPerson: initiationDetails.supplierContactPerson,
-                businessType: 'OTHER', // Default, will be updated when supplier submits
-                sector: initiationDetails.productServiceCategory, // Store the category from initiation
-                status: 'PENDING',
-                createdById: initiationDetails.initiatedById
-              }
-            })
+          // Create a supplier record with AWAITING_DOCS status
+          const supplier = await prisma.supplier.create({
+            data: {
+              supplierCode: `SUP-${Date.now()}`, // Generate unique supplier code
+              supplierName: initiationDetails.supplierName,
+              contactEmail: initiationDetails.supplierEmail,
+              companyName: initiationDetails.supplierName,
+              contactPerson: initiationDetails.supplierContactPerson,
+              businessType: 'OTHER', // Default, will be updated when supplier submits
+              sector: initiationDetails.productServiceCategory, // Store the category from initiation
+              status: 'PENDING',
+              createdById: initiationDetails.initiatedById
+            }
+          })
 
-            // Create onboarding record linked to the supplier
-            const newOnboarding = await tx.supplierOnboarding.create({
-              data: {
-                supplierId: newSupplier.id,
-                initiationId: initiationId,
-                contactName: initiationDetails.supplierContactPerson,
-                contactEmail: initiationDetails.supplierEmail,
-                businessType: 'OTHER',
-                sector: initiationDetails.productServiceCategory,
-                currentStep: 'PENDING_SUPPLIER_RESPONSE',
-                overallStatus: 'AWAITING_RESPONSE',
-                initiatedById: initiationDetails.initiatedById,
-                requiredDocuments: requiredDocuments
-              }
-            })
-            
-            return { supplier: newSupplier, onboarding: newOnboarding }
+          // Create onboarding record linked to the supplier
+          await prisma.supplierOnboarding.create({
+            data: {
+              supplierId: supplier.id,
+              initiationId: initiationId,
+              contactName: initiationDetails.supplierContactPerson,
+              contactEmail: initiationDetails.supplierEmail,
+              businessType: 'OTHER',
+              sector: initiationDetails.productServiceCategory,
+              currentStep: 'PENDING_SUPPLIER_RESPONSE',
+              overallStatus: 'AWAITING_RESPONSE',
+              initiatedById: initiationDetails.initiatedById
+            }
           })
 
           // Send email to supplier using existing email functionality
@@ -279,11 +622,9 @@ Thank you for your interest in becoming a supplier partner with Schauenburg Syst
 Your onboarding request has been reviewed and approved. We're excited to begin working with you!
 
 <strong>Your Request Details:</strong>
-- Business Unit(s): ${Array.isArray(initiationDetails.businessUnit) 
-  ? initiationDetails.businessUnit.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')
-  : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
+- Business Unit: ${initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300'}
 - Product/Service Category: ${initiationDetails.productServiceCategory}
-- Purchase Type: ${initiationDetails.purchaseType === 'REGULAR' ? 'Regular Purchase' : initiationDetails.purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
+- Purchase Type: ${initiationDetails.regularPurchase ? 'Regular Purchase' : ''}${initiationDetails.regularPurchase && initiationDetails.onceOffPurchase ? ', ' : ''}${initiationDetails.onceOffPurchase ? 'Once-off Purchase' : ''}
 ${initiationDetails.annualPurchaseValue ? `- Annual Purchase Value: R${initiationDetails.annualPurchaseValue.toLocaleString()}` : ''}
 
 <strong>Next Step:</strong>
@@ -337,9 +678,7 @@ Great news! The supplier initiation request you submitted has been approved by b
 <strong>Supplier Details:</strong>
 - <strong>Supplier Name:</strong> ${initiationDetails.supplierName}
 - <strong>Email:</strong> ${initiationDetails.supplierEmail}
-- <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) 
-  ? initiationDetails.businessUnit.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')
-  : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300')}
+- <strong>Business Unit:</strong> ${initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300'}
 - <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
 
 The supplier has been sent an email with instructions to complete their onboarding documentation. You can track the progress of this supplier onboarding in the Supplier Submissions dashboard.

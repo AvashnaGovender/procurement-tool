@@ -107,14 +107,7 @@ export async function DELETE(
 
     const { id: initiationId } = await params
 
-    // Check if user has permission to delete initiations
-    const canDelete = ['ADMIN', 'PROCUREMENT_MANAGER', 'APPROVER'].includes(session.user.role)
-    
-    if (!canDelete) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    // Get the initiation to check its status
+    // Get the initiation to check its status and ownership
     const initiation = await prisma.supplierInitiation.findUnique({
       where: { id: initiationId }
     })
@@ -123,54 +116,45 @@ export async function DELETE(
       return NextResponse.json({ error: 'Initiation not found' }, { status: 404 })
     }
 
-    // Check if initiation has an associated onboarding/supplier
-    // If it does and the supplier form has been submitted, we should be more careful
-    const onboarding = await prisma.supplierOnboarding.findFirst({
-      where: { initiationId: initiationId }
-    })
+    // Check if user has permission to delete initiations
+    const isAdmin = ['ADMIN', 'PROCUREMENT_MANAGER', 'APPROVER'].includes(session.user.role)
+    const isOwner = initiation.initiatedById === session.user.id
     
-    // Only allow deletion if:
-    // 1. No onboarding record exists, OR
-    // 2. Onboarding exists but supplier hasn't submitted form yet, OR
-    // 3. User is ADMIN (admins can delete anything)
-    const canDeleteInitiation = 
-      session.user.role === 'ADMIN' ||
-      !onboarding ||
-      (onboarding && !onboarding.supplierFormSubmitted)
+    // Users can delete their own drafts and rejected requests
+    // Admins can delete more statuses
+    const canDelete = isAdmin || (isOwner && (initiation.status === 'DRAFT' || initiation.status === 'REJECTED'))
     
-    if (!canDeleteInitiation) {
+    if (!canDelete) {
       return NextResponse.json({ 
-        error: `Cannot delete initiation. The supplier has already submitted their onboarding form. Please delete the supplier submission instead.`
+        error: 'Forbidden',
+        message: 'You can only delete your own drafts and rejected requests, or you need admin privileges.'
+      }, { status: 403 })
+    }
+
+    // Only allow deletion of certain statuses (not approved or completed ones)
+    const allowedStatuses = ['DRAFT', 'SUBMITTED', 'MANAGER_APPROVED', 'PROCUREMENT_APPROVED', 'REJECTED']
+    const protectedStatuses = ['APPROVED', 'EMAIL_SENT', 'SUPPLIER_EMAILED']
+    
+    if (!allowedStatuses.includes(initiation.status)) {
+      let errorMessage = `Cannot delete initiation with current status '${initiation.status}'. `
+      
+      if (protectedStatuses.includes(initiation.status)) {
+        errorMessage += `This initiation has been approved and supplier has been notified. Deletion is not allowed to maintain data integrity.`
+      } else {
+        errorMessage += `Only initiations with DRAFT, SUBMITTED, MANAGER_APPROVED, PROCUREMENT_APPROVED, or REJECTED status can be deleted.`
+      }
+      
+      return NextResponse.json({ 
+        error: errorMessage
       }, { status: 400 })
     }
 
-    // Delete the initiation and related records in a transaction
+    // Delete the initiation (this will cascade delete related approvals due to foreign key constraints)
     console.log('Attempting to delete initiation:', initiationId)
     console.log('Initiation status:', initiation.status)
     
-    await prisma.$transaction(async (tx) => {
-      // Delete related approvals first (they have foreign key constraints)
-      await tx.managerApproval.deleteMany({
-        where: { initiationId: initiationId }
-      })
-      await tx.procurementApproval.deleteMany({
-        where: { initiationId: initiationId }
-      })
-      
-      // Delete the initiation
-      await tx.supplierInitiation.delete({
-        where: { id: initiationId }
-      })
-      
-      // If onboarding exists but supplier hasn't submitted, delete it too
-      if (onboarding && !onboarding.supplierFormSubmitted) {
-        await tx.onboardingTimeline.deleteMany({
-          where: { onboardingId: onboarding.id }
-        })
-        await tx.supplierOnboarding.delete({
-          where: { id: onboarding.id }
-        })
-      }
+    await prisma.supplierInitiation.delete({
+      where: { id: initiationId }
     })
 
     console.log('Initiation deleted successfully')

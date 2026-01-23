@@ -55,18 +55,18 @@ export function RenewalAlerts() {
       <CardContent>
         <div className="space-y-4">
           {renewalAlerts.map((alert) => (
-            <div key={alert.id} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+            <div key={alert.id} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors">
               <div className="flex items-center justify-between mb-2">
                 <Badge variant={getPriorityColor(alert.priority)}>{alert.priority}</Badge>
-                <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                <div className="flex items-center space-x-1 text-xs text-gray-500">
                   <Clock className="h-3 w-3" />
                   <span>{alert.daysToExpiry} days</span>
                 </div>
               </div>
-              <h4 className="font-medium text-foreground text-sm mb-1">{alert.title}</h4>
-              <p className="text-xs text-muted-foreground mb-2">{alert.supplier}</p>
+              <h4 className="font-medium text-gray-900 text-sm mb-1">{alert.title}</h4>
+              <p className="text-xs text-gray-600 mb-2">{alert.supplier}</p>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">${(alert.value / 1000000).toFixed(1)}M</span>
+                <span className="text-xs text-gray-500">${(alert.value / 1000000).toFixed(1)}M</span>
                 <Button size="sm" variant="outline" className="h-6 text-xs bg-transparent">
                   <RefreshCw className="h-3 w-3 mr-1" />
                   Renew

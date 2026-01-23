@@ -56,7 +56,7 @@ export function CategoryLeadTimes() {
             <div key={category.category} className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <span className="font-medium text-foreground">{category.category}</span>
+                  <span className="font-medium text-gray-900">{category.category}</span>
                   <div className="flex items-center space-x-1 text-sm">
                     {category.trend === "up" ? (
                       <TrendingUp className="h-3 w-3 text-red-500" />
@@ -69,18 +69,18 @@ export function CategoryLeadTimes() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-semibold text-foreground">{category.avgLeadTime} days</div>
-                  <div className="text-xs text-muted-foreground">Target: {category.target} days</div>
+                  <div className="text-lg font-semibold text-gray-900">{category.avgLeadTime} days</div>
+                  <div className="text-xs text-gray-500">Target: {category.target} days</div>
                 </div>
               </div>
               <div className="space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
+                <div className="flex justify-between text-xs text-gray-500">
                   <span>On-time delivery</span>
                   <span>{category.onTime}%</span>
                 </div>
                 <Progress value={category.onTime} className="h-2" />
               </div>
-              <div className="text-xs text-muted-foreground">{category.orders} orders this month</div>
+              <div className="text-xs text-gray-500">{category.orders} orders this month</div>
             </div>
           ))}
         </div>

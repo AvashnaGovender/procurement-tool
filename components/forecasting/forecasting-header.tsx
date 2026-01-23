@@ -5,7 +5,7 @@ import Link from "next/link"
 
 export function ForecastingHeader() {
   return (
-    <header className="bg-card border-b border-border">
+    <header className="bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-4">
@@ -15,8 +15,8 @@ export function ForecastingHeader() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Demand Forecasting</h1>
-              <p className="text-sm text-muted-foreground">Predict future procurement needs</p>
+              <h1 className="text-2xl font-bold text-gray-900">Demand Forecasting</h1>
+              <p className="text-sm text-gray-600">Predict future procurement needs</p>
             </div>
           </div>
 

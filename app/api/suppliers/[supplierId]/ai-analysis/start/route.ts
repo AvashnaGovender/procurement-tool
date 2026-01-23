@@ -9,21 +9,28 @@ export async function POST(
   try {
     const { supplierId } = await params
     
-    // Get supplier with documents and onboarding
+    // Get supplier with documents
     const supplier = await prisma.supplier.findUnique({
       where: { id: supplierId },
-      include: {
-        onboarding: {
-          include: {
-            initiation: {
-              select: {
-                purchaseType: true,
-                creditApplication: true
-              }
-            }
-          }
-        }
-      }
+      select: {
+        id: true,
+        supplierCode: true,
+        companyName: true,
+        contactEmail: true,
+        contactPerson: true,
+        registrationNumber: true,
+        physicalAddress: true,
+        bbbeeLevel: true,
+        bankName: true,
+        branchName: true,
+        branchNumber: true,
+        accountNumber: true,
+        typeOfAccount: true,
+        bankAccountName: true,
+        qualityManagementCert: true,
+        sheCertification: true,
+        airtableData: true,
+      },
     })
 
     if (!supplier) {
@@ -513,36 +520,8 @@ async function processAnalysisJob(
       })
     })
     
-    // Get purchase type and credit application from supplier data or infer from documents
-    let purchaseType: 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP' = 'REGULAR'
-    let creditApplication = false
-    
-    // Try to get from supplier onboarding if available
-    if (supplier.onboarding?.initiation) {
-      purchaseType = supplier.onboarding.initiation.purchaseType || purchaseType
-      creditApplication = supplier.onboarding.initiation.creditApplication || false
-    }
-    
-    // If not available, try to infer purchase type from uploaded documents
-    if (!supplier.onboarding?.initiation?.purchaseType) {
-      if (allUploadedFiles.nda && allUploadedFiles.nda.length > 0) {
-        purchaseType = 'SHARED_IP'
-      } else {
-        const documentCount = Object.keys(allUploadedFiles).length
-        if (documentCount <= 2 && allUploadedFiles.bankConfirmation && allUploadedFiles.companyRegistration) {
-          purchaseType = 'ONCE_OFF'
-        } else {
-          purchaseType = 'REGULAR'
-        }
-      }
-    }
-    
-    // Get mandatory documents based on purchase type and credit application
-    const { getMandatoryDocuments } = await import('@/lib/document-requirements')
-    const mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication)
-    
-    // Convert to array of document keys for checking
-    const requiredDocs = mandatoryDocKeys
+    // Define mandatory documents - all 5 are required
+    const requiredDocs = ['companyRegistration', 'bbbeeAccreditation', 'taxClearance', 'bankConfirmation', 'nda']
     const missingDocs = requiredDocs.filter(doc => {
       if (doc === 'taxClearance') {
         // Accept either tax clearance OR good standing across all versions
@@ -550,7 +529,6 @@ async function processAnalysisJob(
         const hasGoodStanding = allUploadedFiles?.goodStanding && allUploadedFiles.goodStanding.length > 0
         return !hasTaxClearance && !hasGoodStanding
       }
-      // For other documents, check if they exist
       return !allUploadedFiles?.[doc] || allUploadedFiles[doc].length === 0
     })
     
@@ -564,29 +542,10 @@ async function processAnalysisJob(
     }
     
     // Track optional documents across all versions
-    // Note: creditApplication is NOT optional - it's mandatory when creditApplication is true
-    // goodStanding is also not optional when taxClearance is mandatory (it's an alternative)
-    const optionalDocs = ['companyProfile', 'organogram', 'qualityCert', 'healthSafety', 'cm29Directors', 'shareholderCerts', 'proofOfShareholding', 'bbbeeScorecard', 'vatCertificate', 'sectorRegistrations']
-    // Filter out creditApplication and goodStanding from optional docs if they're mandatory
-    const optionalDocsToCheck = optionalDocs.filter(doc => {
-      // Don't count creditApplication as optional if it's mandatory
-      if (doc === 'creditApplication' && creditApplication) {
-        return false
-      }
-      // Don't count goodStanding as optional if taxClearance is mandatory (it's an alternative)
-      if (doc === 'goodStanding' && (purchaseType === 'REGULAR' || purchaseType === 'SHARED_IP')) {
-        return false
-      }
-      return true
-    })
-    const providedOptionalDocs = optionalDocsToCheck.filter(doc => allUploadedFiles?.[doc] && allUploadedFiles[doc].length > 0)
+    const optionalDocs = ['companyProfile', 'organogram', 'qualityCert', 'healthSafety', 'cm29Directors', 'shareholderCerts', 'proofOfShareholding', 'bbbeeScorecard', 'vatCertificate', 'creditApplication', 'goodStanding', 'sectorRegistrations']
+    const providedOptionalDocs = optionalDocs.filter(doc => allUploadedFiles?.[doc] && allUploadedFiles[doc].length > 0)
     
     await addLog(`📋 Mandatory documents: ${requiredDocs.length} required`)
-    await addLog(`📋 Credit Application required: ${creditApplication ? 'YES' : 'NO'}`)
-    if (creditApplication) {
-      const hasCreditApp = allUploadedFiles?.creditApplication && allUploadedFiles.creditApplication.length > 0
-      await addLog(`📋 Credit Application uploaded: ${hasCreditApp ? 'YES' : 'NO'}`)
-    }
     
     // Log tax clearance status specifically across all versions
     const hasTaxClearance = allUploadedFiles?.taxClearance && allUploadedFiles.taxClearance.length > 0

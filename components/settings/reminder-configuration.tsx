@@ -232,14 +232,14 @@ export function ReminderConfiguration() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
         </div>
       ) : configs.length === 0 ? (
         <Alert className="bg-yellow-50 border-yellow-300">
           <AlertCircle className="h-4 w-4 text-yellow-600" />
           <AlertDescription className="text-yellow-800">
             <strong>No reminder configurations found.</strong> Please run the initialization script to set up default configurations:
-            <code className="block bg-muted px-2 py-1 rounded mt-2">npx tsx scripts/init-reminder-configs.ts</code>
+            <code className="block bg-gray-100 px-2 py-1 rounded mt-2">npx tsx scripts/init-reminder-configs.ts</code>
           </AlertDescription>
         </Alert>
       ) : (
@@ -348,8 +348,8 @@ export function ReminderConfiguration() {
         <Bell className="h-4 w-4" />
         <AlertDescription className="text-sm">
           <strong>Note:</strong> For production deployment, set up a cron job to call{' '}
-          <code className="bg-muted px-1 py-0.5 rounded">/api/reminders/trigger</code> daily.
-          Add <code className="bg-muted px-1 py-0.5 rounded">CRON_SECRET</code> to your environment variables for security.
+          <code className="bg-gray-100 px-1 py-0.5 rounded">/api/reminders/trigger</code> daily.
+          Add <code className="bg-gray-100 px-1 py-0.5 rounded">CRON_SECRET</code> to your environment variables for security.
         </AlertDescription>
       </Alert>
     </div>

@@ -17,7 +17,7 @@ interface SupplierInitiation {
   id: string
   status: string
   supplierName: string
-  businessUnit: string | string[]
+  businessUnit: string
   requesterName: string
   submittedAt: string
   managerApproval?: {
@@ -32,8 +32,9 @@ interface SupplierInitiation {
     approvedAt?: string
     comments?: string
   }
-  purchaseType: string
+  regularPurchase: boolean
   annualPurchaseValue?: number
+  onceOffPurchase: boolean
   onboardingReason: string
 }
 
@@ -136,7 +137,7 @@ export default function SupplierInitiationsPage() {
       case 'REJECTED':
         return <XCircle className="h-4 w-4 text-red-500" />
       default:
-        return <AlertCircle className="h-4 w-4 text-muted-foreground" />
+        return <AlertCircle className="h-4 w-4 text-gray-500" />
     }
   }
 
@@ -150,7 +151,7 @@ export default function SupplierInitiationsPage() {
       case 'REJECTED':
         return 'bg-red-100 text-red-800'
       default:
-        return 'bg-muted text-muted-foreground'
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
@@ -186,7 +187,7 @@ export default function SupplierInitiationsPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Supplier Initiations</h1>
-            <p className="text-muted-foreground">Manage supplier onboarding initiation requests</p>
+            <p className="text-gray-600">Manage supplier onboarding initiation requests</p>
           </div>
         </div>
       </div>
@@ -200,7 +201,7 @@ export default function SupplierInitiationsPage() {
                   <Building2 className="h-5 w-5 text-blue-500" />
                   <div>
                     <CardTitle className="text-lg">{initiation.supplierName}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-gray-600">
                       Requested by {initiation.requesterName}
                     </p>
                   </div>
@@ -213,25 +214,25 @@ export default function SupplierInitiationsPage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Business Unit{Array.isArray(initiation.businessUnit) && initiation.businessUnit.length > 1 ? 's' : ''}</Label>
+                  <Label className="text-sm font-medium text-gray-600">Business Unit</Label>
                   <p className="text-sm">
-                    {Array.isArray(initiation.businessUnit) 
-                      ? initiation.businessUnit.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems 200' : 'Schauenburg (Pty) Ltd 300').join(', ')
-                      : (initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                          ? 'Schauenburg Systems 200' 
-                          : 'Schauenburg (Pty) Ltd 300')
+                    {initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
+                      ? 'Schauenburg Systems 200' 
+                      : 'Schauenburg (Pty) Ltd 300'
                     }
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Purchase Type</Label>
+                  <Label className="text-sm font-medium text-gray-600">Purchase Type</Label>
                   <p className="text-sm">
-                    {initiation.purchaseType === 'REGULAR' ? 'Regular Purchase' : initiation.purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
+                    {initiation.regularPurchase && 'Regular Purchase'}
+                    {initiation.regularPurchase && initiation.onceOffPurchase && ', '}
+                    {initiation.onceOffPurchase && 'Once-off Purchase'}
                     {initiation.annualPurchaseValue && ` (R${initiation.annualPurchaseValue.toLocaleString()})`}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Submitted</Label>
+                  <Label className="text-sm font-medium text-gray-600">Submitted</Label>
                   <p className="text-sm">
                     {new Date(initiation.submittedAt).toLocaleDateString()}
                   </p>
@@ -240,7 +241,7 @@ export default function SupplierInitiationsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Manager Approval</Label>
+                  <Label className="text-sm font-medium text-gray-600">Manager Approval</Label>
                   <div className="flex items-center gap-2 mb-1">
                     {getStatusIcon(initiation.managerApproval?.status || 'PENDING')}
                     <span className="text-sm">
@@ -261,7 +262,7 @@ export default function SupplierInitiationsPage() {
                   )}
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Procurement Approval</Label>
+                  <Label className="text-sm font-medium text-gray-600">Procurement Approval</Label>
                   <div className="flex items-center gap-2 mb-1">
                     {getStatusIcon(initiation.procurementApproval?.status || 'PENDING')}
                     <span className="text-sm">
@@ -284,7 +285,7 @@ export default function SupplierInitiationsPage() {
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t">
-                <div className="text-sm text-muted-foreground">
+                <div className="text-sm text-gray-600">
                   <p className="font-medium">Reason:</p>
                   <p className="line-clamp-2">{initiation.onboardingReason}</p>
                 </div>
@@ -354,8 +355,8 @@ export default function SupplierInitiationsPage() {
 
       {/* Approval Dialog */}
       <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
-        <DialogContent className="max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
+        <DialogContent>
+          <DialogHeader>
             <DialogTitle>
               {approvalAction === 'approve' ? 'Approve' : 'Reject'} Supplier Initiation
             </DialogTitle>
@@ -367,7 +368,7 @@ export default function SupplierInitiationsPage() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-2">
+          <div className="space-y-4">
             <div>
               <Label htmlFor="comments">Comments (Optional)</Label>
               <Textarea
@@ -378,23 +379,23 @@ export default function SupplierInitiationsPage() {
                 rows={3}
               />
             </div>
-          </div>
-          
-          <div className="flex justify-end gap-2 flex-shrink-0 pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={() => setApprovalDialogOpen(false)}
-              disabled={submittingApproval}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleApproval}
-              disabled={submittingApproval}
-              variant={approvalAction === 'reject' ? 'destructive' : 'default'}
-            >
-              {submittingApproval ? 'Processing...' : `${approvalAction === 'approve' ? 'Approve' : 'Reject'}`}
-            </Button>
+            
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setApprovalDialogOpen(false)}
+                disabled={submittingApproval}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleApproval}
+                disabled={submittingApproval}
+                variant={approvalAction === 'reject' ? 'destructive' : 'default'}
+              >
+                {submittingApproval ? 'Processing...' : `${approvalAction === 'approve' ? 'Approve' : 'Reject'}`}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

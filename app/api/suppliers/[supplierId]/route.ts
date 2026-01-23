@@ -11,18 +11,75 @@ export async function GET(
     const { supplierId } = await params
     const supplier = await prisma.supplier.findUnique({
       where: { id: supplierId },
-      include: {
-        onboarding: {
-          include: {
-            initiation: {
-              select: {
-                purchaseType: true,
-                creditApplication: true,
-                initiatedById: true
-              }
-            }
-          }
-        }
+      select: {
+        id: true,
+        supplierCode: true,
+        
+        // Basic Information
+        supplierName: true,
+        contactPerson: true,
+        companyName: true,
+        tradingName: true,
+        registrationNumber: true,
+        
+        // Address
+        physicalAddress: true,
+        postalAddress: true,
+        
+        // Contact
+        contactPhone: true,
+        contactEmail: true,
+        
+        // Business Details
+        natureOfBusiness: true,
+        productsAndServices: true,
+        associatedCompany: true,
+        associatedCompanyRegNo: true,
+        branchesContactNumbers: true,
+        
+        // Banking Information
+        bankAccountName: true,
+        bankName: true,
+        branchName: true,
+        branchNumber: true,
+        accountNumber: true,
+        typeOfAccount: true,
+        
+        // Responsible Person - Banking
+        rpBanking: true,
+        rpBankingPhone: true,
+        rpBankingEmail: true,
+        
+        // Responsible Person - Quality Management
+        rpQuality: true,
+        rpQualityPhone: true,
+        rpQualityEmail: true,
+        
+        // Responsible Person - SHE
+        rpSHE: true,
+        rpSHEPhone: true,
+        rpSHEEmail: true,
+        
+        // BBBEE & Employment
+        bbbeeLevel: true,
+        numberOfEmployees: true,
+        
+        // Responsible Person - BBBEE
+        rpBBBEE: true,
+        rpBBBEEPhone: true,
+        rpBBBEEEmail: true,
+        
+        // Other Fields
+        associatedCompanyBranchName: true,
+        qualityManagementCert: true,
+        sheCertification: true,
+        authorizationAgreement: true,
+        field39: true,
+        
+        // Status & Metadata
+        status: true,
+        createdAt: true,
+        airtableData: true,
       }
     })
 
@@ -33,58 +90,9 @@ export async function GET(
       )
     }
 
-    // Extract only the fields we need for the response
-    const supplierResponse = {
-      id: supplier.id,
-      supplierCode: supplier.supplierCode,
-      supplierName: supplier.supplierName,
-      contactPerson: supplier.contactPerson,
-      companyName: supplier.companyName,
-      tradingName: supplier.tradingName,
-      registrationNumber: supplier.registrationNumber,
-      physicalAddress: supplier.physicalAddress,
-      postalAddress: supplier.postalAddress,
-      contactPhone: supplier.contactPhone,
-      contactEmail: supplier.contactEmail,
-      natureOfBusiness: supplier.natureOfBusiness,
-      productsAndServices: supplier.productsAndServices,
-      associatedCompany: supplier.associatedCompany,
-      associatedCompanyRegNo: supplier.associatedCompanyRegNo,
-      branchesContactNumbers: supplier.branchesContactNumbers,
-      bankAccountName: supplier.bankAccountName,
-      bankName: supplier.bankName,
-      branchName: supplier.branchName,
-      branchNumber: supplier.branchNumber,
-      accountNumber: supplier.accountNumber,
-      typeOfAccount: supplier.typeOfAccount,
-      rpBanking: supplier.rpBanking,
-      rpBankingPhone: supplier.rpBankingPhone,
-      rpBankingEmail: supplier.rpBankingEmail,
-      rpQuality: supplier.rpQuality,
-      rpQualityPhone: supplier.rpQualityPhone,
-      rpQualityEmail: supplier.rpQualityEmail,
-      rpSHE: supplier.rpSHE,
-      rpSHEPhone: supplier.rpSHEPhone,
-      rpSHEEmail: supplier.rpSHEEmail,
-      bbbeeLevel: supplier.bbbeeLevel,
-      numberOfEmployees: supplier.numberOfEmployees,
-      rpBBBEE: supplier.rpBBBEE,
-      rpBBBEEPhone: supplier.rpBBBEEPhone,
-      rpBBBEEEmail: supplier.rpBBBEEEmail,
-      associatedCompanyBranchName: supplier.associatedCompanyBranchName,
-      qualityManagementCert: supplier.qualityManagementCert,
-      sheCertification: supplier.sheCertification,
-      authorizationAgreement: supplier.authorizationAgreement,
-      field39: supplier.field39,
-      status: supplier.status,
-      createdAt: supplier.createdAt,
-      airtableData: supplier.airtableData,
-      onboarding: supplier.onboarding
-    }
-
     return NextResponse.json({
       success: true,
-      supplier: supplierResponse
+      supplier
     })
   } catch (error) {
     console.error('Error fetching supplier:', error)

@@ -14,8 +14,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   
+  // Public API routes for supplier form (no authentication required)
+  const publicApiPaths = [
+    '/api/supplier-form',
+    '/api/suppliers/get-by-token',
+    '/api/custom-options'
+  ]
+  const isPublicApiPath = publicApiPaths.some(path => request.nextUrl.pathname.startsWith(path))
+  
   // Check if user is authenticated for protected routes
-  if (!token && !request.nextUrl.pathname.startsWith('/api/supplier-form')) {
+  if (!token && !isPublicApiPath) {
     const loginUrl = new URL('/login', request.url)
     // Preserve the original URL as callback for redirect after login
     loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname)

@@ -55,13 +55,10 @@ export async function POST(request: NextRequest) {
     // Generate unique onboarding token
     const onboardingToken = randomBytes(32).toString('hex')
 
-    // Import generateSupplierCode
-    const { generateSupplierCode } = await import('@/lib/generate-supplier-code')
-    
     // Create supplier and onboarding record in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Generate alphanumeric sequential supplier code within the transaction to prevent race conditions
-      const supplierCode = await generateSupplierCode(tx)
+      // Generate unique supplier code
+      const supplierCode = `SUP-${Date.now()}-${Math.random().toString(36).substring(7)}`
       
       // Create supplier
       const supplier = await tx.supplier.create({

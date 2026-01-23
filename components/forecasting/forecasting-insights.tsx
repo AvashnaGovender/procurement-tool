@@ -62,17 +62,17 @@ export function ForecastingInsights() {
           {insights.map((insight, index) => {
             const Icon = insight.icon
             return (
-              <div key={index} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+              <div key={index} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors">
                 <div className="flex items-start space-x-3">
                   <Icon className={`h-5 w-5 mt-0.5 ${insight.color}`} />
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
-                      <h4 className="font-medium text-foreground text-sm">{insight.title}</h4>
+                      <h4 className="font-medium text-gray-900 text-sm">{insight.title}</h4>
                       <Badge variant={getPriorityColor(insight.priority)} className="text-xs">
                         {insight.priority}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-2">{insight.description}</p>
+                    <p className="text-xs text-gray-600 mb-2">{insight.description}</p>
                     <Badge variant="outline" className="text-xs">
                       {insight.type}
                     </Badge>

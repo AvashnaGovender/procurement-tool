@@ -98,15 +98,15 @@ const getStatusColor = (status: string) => {
 const getPriorityColor = (priority: string) => {
   switch (priority) {
     case "urgent":
-      return "text-red-600 dark:text-red-400 bg-red-500/10 dark:bg-red-500/20"
+      return "text-red-600 bg-red-50"
     case "high":
-      return "text-orange-600 dark:text-orange-400 bg-orange-500/10 dark:bg-orange-500/20"
+      return "text-orange-600 bg-orange-50"
     case "medium":
-      return "text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 dark:bg-yellow-500/20"
+      return "text-yellow-600 bg-yellow-50"
     case "low":
-      return "text-green-600 dark:text-green-400 bg-green-500/10 dark:bg-green-500/20"
+      return "text-green-600 bg-green-50"
     default:
-      return "text-muted-foreground bg-muted"
+      return "text-gray-600 bg-gray-50"
   }
 }
 
@@ -114,7 +114,7 @@ export function RequisitionList() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Requisitions ({requisitions.length})</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Requisitions ({requisitions.length})</h2>
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm">
             Sort by Date
@@ -139,16 +139,16 @@ export function RequisitionList() {
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
-                      <h3 className="text-lg font-semibold text-foreground">{req.title}</h3>
+                      <h3 className="text-lg font-semibold text-gray-900">{req.title}</h3>
                       <Badge variant={getStatusColor(req.status)}>{req.status}</Badge>
                       <Badge variant="outline" className={`${getPriorityColor(req.priority)} border-0`}>
                         {req.priority}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">{req.description}</p>
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                    <p className="text-sm text-gray-600 mb-2">{req.description}</p>
+                    <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <div className="flex items-center space-x-1">
-                        <span className="font-medium text-foreground">{req.id}</span>
+                        <span className="font-medium text-gray-700">{req.id}</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <User className="h-4 w-4" />
@@ -202,25 +202,25 @@ export function RequisitionList() {
                   <div className="flex items-center space-x-1 mb-1">
                     <span className="text-sm font-medium">R{req.amount.toLocaleString()}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">Total Amount</p>
+                  <p className="text-xs text-gray-500">Total Amount</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium">{req.items} items</p>
-                  <p className="text-xs text-muted-foreground">Line Items</p>
+                  <p className="text-xs text-gray-500">Line Items</p>
                 </div>
                 <div>
                   <div className="flex items-center space-x-1 mb-1">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Calendar className="h-4 w-4 text-gray-400" />
                     <span className="text-sm font-medium">{req.dateCreated}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">Date Created</p>
+                  <p className="text-xs text-gray-500">Date Created</p>
                 </div>
                 <div>
                   <div className="flex items-center space-x-1 mb-1">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Calendar className="h-4 w-4 text-gray-400" />
                     <span className="text-sm font-medium">{req.dateNeeded}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">Date Needed</p>
+                  <p className="text-xs text-gray-500">Date Needed</p>
                 </div>
               </div>
             </CardContent>

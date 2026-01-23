@@ -230,9 +230,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate alphanumeric sequential supplier code
-    const { generateSupplierCode } = await import('@/lib/generate-supplier-code')
-    const supplierCode = await generateSupplierCode()
+    // Generate supplier code
+    const supplierCode = `SUP-${Date.now()}`
 
     // Create supplier and onboarding with ALL 39 fields
     const result = await prisma.$transaction(async (tx) => {

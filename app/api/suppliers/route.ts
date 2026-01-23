@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma'
 import { createAuditLog } from '@/lib/audit-logger'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { generateSupplierCode } from '@/lib/generate-supplier-code'
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,12 +39,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate alphanumeric sequential supplier code
+    // Generate supplier code
+    const supplierCode = `SUP-${Date.now()}`
+    
     // Create supplier and onboarding in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Generate supplier code within the transaction to prevent race conditions
-      const supplierCode = await generateSupplierCode(tx)
-      
       // Create supplier
       const supplier = await tx.supplier.create({
         data: {

@@ -15,22 +15,31 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { signOut } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
-const navigation = [
+type NavigationItem = {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  comingSoon: boolean
+  roles?: string[]
+}
+
+const navigation: NavigationItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, comingSoon: false },
   { name: "Analytics", href: "/analytics", icon: TrendingUp, comingSoon: true },
   { name: "Suppliers", href: "/suppliers", icon: Users, comingSoon: false },
   { name: "Supplier Initiations", href: "/admin/supplier-initiations", icon: ClipboardList, comingSoon: false },
-  { name: "Approvals", href: "/admin/approvals", icon: CheckCircle, comingSoon: false },
+  { name: "Approvals", href: "/admin/approvals", icon: CheckCircle, comingSoon: false, roles: ["MANAGER", "PROCUREMENT_MANAGER"] },
   { name: "Reports", href: "/reports", icon: BarChart3, comingSoon: true },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const { data: session } = useSession()
 
   const handleLogout = async () => {
     await signOut({ redirect: false })
@@ -60,7 +69,16 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-        {navigation.map((item) => {
+        {navigation
+          .filter((item) => {
+            // Filter by role if roles are specified
+            if (item.roles && session?.user?.role) {
+              return item.roles.includes(session.user.role)
+            }
+            // Show item if no role restriction or if user has no role (shouldn't happen but safe fallback)
+            return !item.roles || !session?.user?.role
+          })
+          .map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
           
           if (item.comingSoon) {

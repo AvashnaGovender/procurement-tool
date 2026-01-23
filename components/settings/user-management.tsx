@@ -207,7 +207,7 @@ export function UserManagement() {
       case "APPROVER":
         return "bg-yellow-100 text-yellow-800"
       default:
-        return "bg-muted text-muted-foreground"
+        return "bg-gray-100 text-gray-800"
     }
   }
 
@@ -277,9 +277,9 @@ export function UserManagement() {
                 </TableCell>
                 <TableCell>
                   {user.manager ? (
-                    <span className="text-sm text-muted-foreground">{user.manager.name}</span>
+                    <span className="text-sm text-gray-600">{user.manager.name}</span>
                   ) : (
-                    <span className="text-sm text-muted-foreground">None</span>
+                    <span className="text-sm text-gray-400">None</span>
                   )}
                 </TableCell>
                 <TableCell>

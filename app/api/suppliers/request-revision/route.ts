@@ -34,31 +34,17 @@ export async function POST(request: NextRequest) {
     })
 
     if (onboarding) {
-      // Only increment revision count if:
-      // 1. No revision was previously requested, OR
-      // 2. Supplier has submitted new documents after the last revision request
-      const hasNewDocuments = onboarding.documentsUploadedAt && 
-                             onboarding.revisionRequestedAt && 
-                             onboarding.documentsUploadedAt > onboarding.revisionRequestedAt
-      
-      const shouldIncrement = !onboarding.revisionRequested || hasNewDocuments
-      
-      // Increment revision count only if needed (prevents multiple clicks from incrementing)
-      const updateData: any = {
-        revisionRequested: true,
-        revisionNotes: revisionNotes,
-        revisionRequestedAt: new Date(),
-        currentStep: 'PENDING_SUPPLIER_RESPONSE',
-        overallStatus: 'REVISION_NEEDED',
-      }
-      
-      if (shouldIncrement) {
-        updateData.revisionCount = { increment: 1 }
-      }
-      
+      // Increment revision count
       await prisma.supplierOnboarding.update({
         where: { id: onboarding.id },
-        data: updateData
+        data: {
+          revisionRequested: true,
+          revisionCount: { increment: 1 },
+          revisionNotes: revisionNotes,
+          revisionRequestedAt: new Date(),
+          currentStep: 'PENDING_SUPPLIER_RESPONSE',
+          overallStatus: 'REVISION_NEEDED',
+        }
       })
 
       // Add timeline entry

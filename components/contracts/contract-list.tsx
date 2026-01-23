@@ -104,7 +104,7 @@ const getStatusColor = (status: string) => {
 }
 
 const getExpiryColor = (days: number | null) => {
-  if (days === null) return "text-muted-foreground"
+  if (days === null) return "text-gray-500"
   if (days < 0) return "text-red-600"
   if (days <= 30) return "text-orange-600"
   if (days <= 90) return "text-yellow-600"
@@ -115,7 +115,7 @@ export function ContractList() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Contracts ({contracts.length})</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Contracts ({contracts.length})</h2>
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm">
             Sort by Expiry
@@ -140,7 +140,7 @@ export function ContractList() {
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
-                      <h3 className="text-lg font-semibold text-foreground">{contract.title}</h3>
+                      <h3 className="text-lg font-semibold text-gray-900">{contract.title}</h3>
                       <Badge variant={getStatusColor(contract.status)}>{contract.status}</Badge>
                       {contract.daysToExpiry !== null && contract.daysToExpiry <= 30 && (
                         <Badge variant="outline" className="text-orange-600 border-orange-200">
@@ -149,10 +149,10 @@ export function ContractList() {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">{contract.type}</p>
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                    <p className="text-sm text-gray-600 mb-2">{contract.type}</p>
+                    <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <div className="flex items-center space-x-1">
-                        <span className="font-medium text-foreground">{contract.id}</span>
+                        <span className="font-medium text-gray-700">{contract.id}</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <Building className="h-4 w-4" />
