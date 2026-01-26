@@ -298,7 +298,7 @@ export default function SupplierInitiationsPage() {
                                 variant="outline"
                                 asChild
                               >
-                                <Link href={`/suppliers/initiate?draftId=${initiation.id}`}>
+                                <Link href={`/suppliers/onboard?draftId=${initiation.id}`}>
                                   <AlertCircle className="h-4 w-4 mr-1" />
                                   Revise & Resubmit
                                 </Link>

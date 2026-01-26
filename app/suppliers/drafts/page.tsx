@@ -189,7 +189,7 @@ export default function DraftsPage() {
                       className="flex items-center gap-2"
                     >
                       <Edit className="h-4 w-4" />
-                      Edit
+                      {draft.status === 'REJECTED' ? 'Revise & Resubmit' : 'Continue Editing'}
                     </Button>
                     <Button
                       variant="ghost"
