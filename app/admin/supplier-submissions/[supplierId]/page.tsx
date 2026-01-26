@@ -1039,7 +1039,7 @@ Procurement Team`
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <>
       {/* Completion Dialog */}
       <Dialog open={showCompletion} onOpenChange={setShowCompletion}>
         <DialogContent className="sm:max-w-lg">
@@ -1084,7 +1084,7 @@ Procurement Team`
       </Dialog>
       
       {/* Top Bar */}
-      <header className="flex-shrink-0 h-16 bg-card border-b border-border flex items-center justify-between px-8">
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -2645,7 +2645,7 @@ Procurement Team`
       </Dialog>
         </div>
       </main>
-    </div>
+    </>
   )
 }
 
