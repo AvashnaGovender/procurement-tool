@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Building2, CheckCircle, AlertCircle, Users, DollarSign } from "lucide-react"
+import { Building2, CheckCircle, AlertCircle, Users, DollarSign, Plus } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { PRODUCT_SERVICE_CATEGORIES } from "@/lib/product-service-categories"
@@ -32,6 +32,8 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
   const [errorMessage, setErrorMessage] = useState('')
   const [successDialogOpen, setSuccessDialogOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+  const [customCategory, setCustomCategory] = useState('')
+  const [customCategories, setCustomCategories] = useState<string[]>([])
   const [formData, setFormData] = useState({
     businessUnit: [] as string[],
     processReadUnderstood: false,
@@ -122,6 +124,23 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
       ...prev,
       [field]: value
     }))
+  }
+
+  const handleAddCustomCategory = () => {
+    if (!customCategory.trim()) return
+    
+    // Add to custom categories list
+    const newCategory = customCategory.trim()
+    setCustomCategories(prev => [...prev, newCategory])
+    
+    // Set as selected value
+    setFormData(prev => ({
+      ...prev,
+      productServiceCategory: newCategory
+    }))
+    
+    // Clear input
+    setCustomCategory('')
   }
 
   const handleBusinessUnitChange = (unit: string, checked: boolean) => {
@@ -504,10 +523,41 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                       {category}
                     </SelectItem>
                   ))}
+                  {customCategories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category} ✓
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {!formData.productServiceCategory && (
                 <p className="text-sm text-red-600">Please select product/service category</p>
+              )}
+              
+              {/* Show custom category input when "Other Products/Services" is selected */}
+              {formData.productServiceCategory === "Other Products/Services" && (
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    placeholder="Enter custom category"
+                    className="flex-1"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleAddCustomCategory()
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleAddCustomCategory}
+                    disabled={!customCategory.trim()}
+                    className="px-3"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               )}
             </div>
           </div>
