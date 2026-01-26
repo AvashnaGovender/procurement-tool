@@ -1039,7 +1039,7 @@ Procurement Team`
   }
 
   return (
-    <>
+    <div>
       {/* Completion Dialog */}
       <Dialog open={showCompletion} onOpenChange={setShowCompletion}>
         <DialogContent className="sm:max-w-lg">
@@ -2645,7 +2645,7 @@ Procurement Team`
       </Dialog>
         </div>
       </main>
-    </>
+    </div>
   )
 }
 
