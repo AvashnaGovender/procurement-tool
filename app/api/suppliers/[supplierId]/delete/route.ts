@@ -65,6 +65,12 @@ export async function DELETE(
 
     // Delete all related records in a transaction
     await prisma.$transaction(async (tx) => {
+      // Get the initiation ID if it exists
+      let initiationId: string | null = null
+      if (supplier.onboarding?.initiationId) {
+        initiationId = supplier.onboarding.initiationId
+      }
+
       // Delete onboarding timeline entries
       if (supplier.onboarding) {
         await tx.onboardingTimeline.deleteMany({
@@ -86,6 +92,25 @@ export async function DELETE(
         where: { id: supplierId }
       })
       console.log(`✅ Deleted supplier: ${supplierId}`)
+
+      // Delete the related supplier initiation if it exists
+      if (initiationId) {
+        // Delete manager approval if exists
+        await tx.managerApproval.deleteMany({
+          where: { initiationId }
+        })
+        
+        // Delete procurement approval if exists
+        await tx.procurementApproval.deleteMany({
+          where: { initiationId }
+        })
+        
+        // Delete the initiation
+        await tx.supplierInitiation.delete({
+          where: { id: initiationId }
+        })
+        console.log(`✅ Deleted supplier initiation: ${initiationId}`)
+      }
     })
 
     console.log(`✅ Successfully deleted supplier "${supplier.companyName}" (${supplierId}) and all associated data`)

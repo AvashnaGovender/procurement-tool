@@ -149,12 +149,47 @@ export async function DELETE(
       }, { status: 400 })
     }
 
-    // Delete the initiation (this will cascade delete related approvals due to foreign key constraints)
+    // Delete the initiation and all related records in a transaction
     console.log('Attempting to delete initiation:', initiationId)
     console.log('Initiation status:', initiation.status)
     
-    await prisma.supplierInitiation.delete({
-      where: { id: initiationId }
+    await prisma.$transaction(async (tx) => {
+      // Get onboarding if it exists
+      const onboarding = await tx.supplierOnboarding.findUnique({
+        where: { initiationId }
+      })
+
+      // Delete onboarding timeline entries if they exist
+      if (onboarding) {
+        await tx.onboardingTimeline.deleteMany({
+          where: { onboardingId: onboarding.id }
+        })
+        console.log(`✅ Deleted timeline entries for onboarding: ${onboarding.id}`)
+      }
+
+      // Delete manager approval if exists
+      await tx.managerApproval.deleteMany({
+        where: { initiationId }
+      })
+      
+      // Delete procurement approval if exists
+      await tx.procurementApproval.deleteMany({
+        where: { initiationId }
+      })
+      
+      // Delete onboarding if exists
+      if (onboarding) {
+        await tx.supplierOnboarding.delete({
+          where: { id: onboarding.id }
+        })
+        console.log(`✅ Deleted onboarding record: ${onboarding.id}`)
+      }
+      
+      // Delete the initiation
+      await tx.supplierInitiation.delete({
+        where: { id: initiationId }
+      })
+      console.log(`✅ Deleted supplier initiation: ${initiationId}`)
     })
 
     console.log('Initiation deleted successfully')

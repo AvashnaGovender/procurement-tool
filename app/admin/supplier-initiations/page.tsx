@@ -334,7 +334,8 @@ export default function SupplierInitiationsPage() {
                                 </Button>
                               </>
                             )}
-                            {['SUBMITTED', 'MANAGER_APPROVED', 'PROCUREMENT_APPROVED', 'REJECTED'].includes(initiation.status) && (
+                            {/* Show delete button for drafts that haven't been submitted */}
+                            {(initiation.status === 'DRAFT' || initiation.status === 'REJECTED') && initiation.initiatedById === session?.user?.id && (
                               <Button
                                 size="sm"
                                 variant="destructive"
