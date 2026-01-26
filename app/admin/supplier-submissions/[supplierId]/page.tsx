@@ -1038,10 +1038,9 @@ Procurement Team`
     )
   }
 
-  return null
-  
-  /*
-      {/* Completion Dialog *\/
+  // Render the page
+  return (
+    <div className="min-h-screen">
       <Dialog open={showCompletion} onOpenChange={setShowCompletion}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -2646,7 +2645,8 @@ Procurement Team`
       </Dialog>
         </div>
       </main>
-  */
+    </div>
+  )
 }
 
 
