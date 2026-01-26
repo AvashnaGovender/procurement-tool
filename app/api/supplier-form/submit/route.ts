@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
     const supplierData = {
       supplierName: formData.get('supplierName')?.toString() || '',
       contactPerson: formData.get('contactPerson')?.toString() || '',
-      nameOfBusiness: formData.get('nameOfBusiness')?.toString() || '',
       tradingName: formData.get('tradingName')?.toString() || '',
       companyRegistrationNo: formData.get('companyRegistrationNo')?.toString() || '',
       physicalAddress: formData.get('physicalAddress')?.toString() || '',
@@ -58,9 +57,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate required fields
-    if (!supplierData.nameOfBusiness || !supplierData.emailAddress) {
+    if (!supplierData.supplierName || !supplierData.emailAddress) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields: Name of Business and Email Address are required' },
+        { success: false, error: 'Missing required fields: Supplier Name and Email Address are required' },
         { status: 400 }
       )
     }
@@ -196,7 +195,7 @@ export async function POST(request: NextRequest) {
     const supplierPayload = {
       supplierName: supplierData.supplierName,
       contactPerson: supplierData.contactPerson,
-      companyName: supplierData.nameOfBusiness,
+      companyName: supplierData.supplierName,
       tradingName: supplierData.tradingName,
       registrationNumber: supplierData.companyRegistrationNo,
       physicalAddress: supplierData.physicalAddress,
@@ -322,7 +321,7 @@ export async function POST(request: NextRequest) {
         step: 'PENDING_SUPPLIER_RESPONSE',
         status: 'DOCUMENTS_RECEIVED',
         action: 'Supplier form submitted',
-        description: `${supplierData.nameOfBusiness} submitted onboarding form with ${Object.keys(uploadedFiles).length} document categories`,
+        description: `${supplierData.supplierName} submitted onboarding form with ${Object.keys(uploadedFiles).length} document categories`,
         performedBy: supplierData.contactPerson,
         metadata: {
           source: 'custom-form',
@@ -465,7 +464,7 @@ async function sendEmailNotifications(
     console.log('\n📧 ===== SENDING EMAIL TO INITIATOR =====')
     console.log('   Recipient Email:', recipientEmail)
     console.log('   Recipient Name:', senderName)
-    console.log('   Supplier:', supplierData.nameOfBusiness)
+    console.log('   Supplier:', supplierData.supplierName)
     console.log('   Total Files:', totalFiles)
     console.log('==========================================\n')
     
@@ -481,8 +480,8 @@ async function sendEmailNotifications(
       from: smtpConfig.fromEmail,
       to: recipientEmail, // Send to initiator's email
       subject: isRevision 
-        ? `Supplier Revision Submitted: ${supplierData.nameOfBusiness} (Revision ${onboarding.revisionCount})`
-        : `Supplier Documents Received: ${supplierData.nameOfBusiness}`,
+        ? `Supplier Revision Submitted: ${supplierData.supplierName} (Revision ${onboarding.revisionCount})`
+        : `Supplier Documents Received: ${supplierData.supplierName}`,
       html: `
         <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
         <html xmlns="http://www.w3.org/1999/xhtml">
@@ -699,7 +698,7 @@ async function sendEmailNotifications(
                               <tr>
                                 <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
                                   <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Company Name:</span>
-                                  <span style="color: #333;">${supplierData.nameOfBusiness}</span>
+                                  <span style="color: #333;">${supplierData.supplierName}</span>
                                 </td>
                               </tr>
                               <tr>
