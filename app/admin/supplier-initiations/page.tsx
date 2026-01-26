@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -204,7 +204,7 @@ export default function SupplierInitiationsPage() {
   }
 
   return (
-    <React.Fragment>
+    <div className="flex flex-col h-full">
       {/* Top Bar */}
       <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 original:bg-white original:border-slate-200">
         <div className="flex items-center space-x-4">
@@ -540,6 +540,6 @@ export default function SupplierInitiationsPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </React.Fragment>
+    </div>
   )
 }
