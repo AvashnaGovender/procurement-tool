@@ -306,29 +306,30 @@ export default function SupplierSubmissionsPage() {
   }
 
   return (
-    <div className="bg-slate-100 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/dashboard">
-                  <Home className="h-4 w-4" />
-                </Link>
-              </Button>
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900">Supplier Submissions</h1>
-                <p className="text-slate-600 mt-2">Review and manage supplier onboarding applications and initiations</p>
-              </div>
-            </div>
-            <Button onClick={() => { fetchSuppliers(); fetchInitiations(); }} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
+    <>
+      {/* Top Bar */}
+      <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard">
+              <Home className="h-4 w-4 mr-2" />
+              Dashboard
+            </Link>
+          </Button>
+          <div className="border-l border-slate-300 pl-4">
+            <h1 className="text-xl font-bold text-slate-900">Supplier Submissions</h1>
+            <p className="text-xs text-slate-600">Review and manage supplier onboarding applications and initiations</p>
           </div>
         </div>
+        <Button onClick={() => { fetchSuppliers(); fetchInitiations(); }} variant="outline" size="sm">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
+      </header>
 
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto p-8 bg-slate-100">
+        <div className="max-w-7xl mx-auto">
         {/* Main Tabs */}
         <Tabs defaultValue="initiations" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-8 bg-white border-slate-200">
@@ -722,8 +723,9 @@ export default function SupplierSubmissionsPage() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
-    </div>
+        </div>
+      </main>
+    </>
   )
 }
 

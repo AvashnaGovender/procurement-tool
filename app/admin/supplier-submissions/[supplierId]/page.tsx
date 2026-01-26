@@ -746,8 +746,10 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const mapDocumentNameToCategory = (name: string): string | null => {
     const nameLower = name.toLowerCase()
     if (nameLower.includes('nda') || nameLower.includes('non-disclosure')) return 'nda'
+    if (nameLower.includes('cipc') || nameLower.includes('company registration')) return 'cipcCertificate'
     if (nameLower.includes('tax clearance')) return 'taxClearance'
     if (nameLower.includes('good standing')) return 'goodStanding'
+    if (nameLower.includes('bbbee scorecard') || nameLower.includes('affidavit')) return 'bbbeeScorecard'
     if (nameLower.includes('bbbee') || nameLower.includes('b-bbee')) return 'bbbeeAccreditation'
     if (nameLower.includes('bank confirmation')) return 'bankConfirmation'
     if (nameLower.includes('vat')) return 'vatCertificate'
@@ -755,7 +757,6 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     if (nameLower.includes('cm29') || nameLower.includes('directors')) return 'cm29Directors'
     if (nameLower.includes('shareholder')) return 'shareholderCerts'
     if (nameLower.includes('proof of shareholding')) return 'proofOfShareholding'
-    if (nameLower.includes('bbbee scorecard')) return 'bbbeeScorecard'
     if (nameLower.includes('health') && nameLower.includes('safety')) return 'healthSafety'
     if (nameLower.includes('quality')) return 'qualityCert'
     if (nameLower.includes('sector registration')) return 'sectorRegistrations'
@@ -1196,18 +1197,6 @@ Procurement Team`
                       />
                     ) : (
                     <p className="text-sm font-medium">{supplier.contactPerson || 'N/A'}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase">Name of Business</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.companyName || ''}
-                        onChange={(e) => setEditData({ ...editData, companyName: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
-                    <p className="text-sm font-medium">{supplier.companyName || 'N/A'}</p>
                     )}
                   </div>
                   <div>
@@ -1698,59 +1687,6 @@ Procurement Team`
                     ) : (
                     <p className="text-sm font-medium">{supplier.numberOfEmployees || 'N/A'}</p>
                     )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Certifications */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-blue-600" />
-                  Certifications & Agreements
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    {isEditing ? (
-                      <Checkbox
-                        checked={editData.qualityManagementCert || false}
-                        onCheckedChange={(checked) => setEditData({ ...editData, qualityManagementCert: checked as boolean })}
-                      />
-                    ) : (
-                    <div className={`w-4 h-4 rounded flex items-center justify-center ${supplier.qualityManagementCert ? 'bg-green-500' : 'bg-gray-300'}`}>
-                      {supplier.qualityManagementCert && <CheckCircle className="h-3 w-3 text-white" />}
-                    </div>
-                    )}
-                    <span className="text-sm">Quality Management Certification</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {isEditing ? (
-                      <Checkbox
-                        checked={editData.sheCertification || false}
-                        onCheckedChange={(checked) => setEditData({ ...editData, sheCertification: checked as boolean })}
-                      />
-                    ) : (
-                    <div className={`w-4 h-4 rounded flex items-center justify-center ${supplier.sheCertification ? 'bg-green-500' : 'bg-gray-300'}`}>
-                      {supplier.sheCertification && <CheckCircle className="h-3 w-3 text-white" />}
-                    </div>
-                    )}
-                    <span className="text-sm">Safety, Health and Environment (SHE) Certification</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {isEditing ? (
-                      <Checkbox
-                        checked={editData.authorizationAgreement || false}
-                        onCheckedChange={(checked) => setEditData({ ...editData, authorizationAgreement: checked as boolean })}
-                      />
-                    ) : (
-                    <div className={`w-4 h-4 rounded flex items-center justify-center ${supplier.authorizationAgreement ? 'bg-green-500' : 'bg-gray-300'}`}>
-                      {supplier.authorizationAgreement && <CheckCircle className="h-3 w-3 text-white" />}
-                    </div>
-                    )}
-                    <span className="text-sm">Authorization Agreement Signed</span>
                   </div>
                 </div>
               </CardContent>
