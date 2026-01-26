@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
         },
         {
           status: {
-            notIn: [InitiationStatus.DRAFT, InitiationStatus.REJECTED]
+            notIn: ['DRAFT', 'REJECTED'] as any
           }
         }
       ]

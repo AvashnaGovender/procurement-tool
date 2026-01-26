@@ -272,7 +272,7 @@ export async function GET(request: NextRequest) {
       where: {
         initiatedById: session.user.id,
         status: {
-          in: [InitiationStatus.DRAFT, InitiationStatus.REJECTED]
+          in: ['DRAFT', 'REJECTED'] as any
         }
       },
       orderBy: {
