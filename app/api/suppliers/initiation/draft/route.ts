@@ -43,8 +43,16 @@ export async function POST(request: NextRequest) {
     // Validate required fields for draft (more lenient than submission)
     const businessUnitsRaw = Array.isArray(businessUnit) ? businessUnit : (businessUnit ? [businessUnit] : [])
     const businessUnits: BusinessUnit[] = businessUnitsRaw
-      .filter(unit => unit === 'SCHAUENBURG_SYSTEMS_200' || unit === 'SCHAUENBURG_PTY_LTD_300')
-      .map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? BusinessUnit.SCHAUENBURG_SYSTEMS_200 : BusinessUnit.SCHAUENBURG_PTY_LTD_300)
+      .map(unit => {
+        const unitStr = String(unit).trim()
+        if (unitStr === 'SCHAUENBURG_SYSTEMS_200') {
+          return 'SCHAUENBURG_SYSTEMS_200' as BusinessUnit
+        } else if (unitStr === 'SCHAUENBURG_PTY_LTD_300') {
+          return 'SCHAUENBURG_PTY_LTD_300' as BusinessUnit
+        }
+        return null
+      })
+      .filter((unit): unit is BusinessUnit => unit !== null)
 
     // Combine relationship declaration
     const relationshipDeclarationValue = relationshipDeclaration === "OTHER" 
@@ -152,7 +160,7 @@ export async function POST(request: NextRequest) {
     // Create new draft
     const initiation = await prisma.supplierInitiation.create({
       data: {
-        businessUnit: businessUnits.length > 0 ? businessUnits : [BusinessUnit.SCHAUENBURG_SYSTEMS_200],
+        businessUnit: businessUnits.length > 0 ? businessUnits : ['SCHAUENBURG_SYSTEMS_200' as BusinessUnit],
         processReadUnderstood: processReadUnderstood || false,
         dueDiligenceCompleted: dueDiligenceCompleted || false,
         supplierName: supplierName || '',

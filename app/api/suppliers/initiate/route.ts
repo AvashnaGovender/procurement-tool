@@ -59,8 +59,17 @@ export async function POST(request: NextRequest) {
     
     // Validate and cast to BusinessUnit enum
     const businessUnits: BusinessUnit[] = businessUnitsRaw
-      .filter(unit => unit === 'SCHAUENBURG_SYSTEMS_200' || unit === 'SCHAUENBURG_PTY_LTD_300')
-      .map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? BusinessUnit.SCHAUENBURG_SYSTEMS_200 : BusinessUnit.SCHAUENBURG_PTY_LTD_300)
+      .map(unit => {
+        const unitStr = String(unit).trim()
+        // Map string values to BusinessUnit enum - use explicit enum values
+        if (unitStr === 'SCHAUENBURG_SYSTEMS_200') {
+          return 'SCHAUENBURG_SYSTEMS_200' as BusinessUnit
+        } else if (unitStr === 'SCHAUENBURG_PTY_LTD_300') {
+          return 'SCHAUENBURG_PTY_LTD_300' as BusinessUnit
+        }
+        return null
+      })
+      .filter((unit): unit is BusinessUnit => unit !== null)
     
     if (!businessUnits || businessUnits.length === 0 || !processReadUnderstood || !dueDiligenceCompleted || 
         !supplierName || !supplierEmail || !supplierContactPerson || !productServiceCategory || !requesterName || 
