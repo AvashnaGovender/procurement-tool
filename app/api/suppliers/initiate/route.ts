@@ -58,18 +58,30 @@ export async function POST(request: NextRequest) {
     const businessUnitsRaw = Array.isArray(businessUnit) ? businessUnit : (businessUnit ? [businessUnit] : [])
     
     // Validate and cast to BusinessUnit enum
-    const businessUnits: BusinessUnit[] = businessUnitsRaw
+    console.log('Raw businessUnitsRaw:', businessUnitsRaw)
+    console.log('BusinessUnit enum:', BusinessUnit)
+    console.log('BusinessUnit.SCHAUENBURG_SYSTEMS_200:', BusinessUnit.SCHAUENBURG_SYSTEMS_200)
+    console.log('BusinessUnit.SCHAUENBURG_PTY_LTD_300:', BusinessUnit.SCHAUENBURG_PTY_LTD_300)
+    
+    const businessUnits = businessUnitsRaw
       .map(unit => {
         const unitStr = String(unit).trim()
+        console.log('Processing unit:', unitStr, 'Type:', typeof unit)
         // Map string values to BusinessUnit enum - use actual enum constants
         if (unitStr === 'SCHAUENBURG_SYSTEMS_200' || unitStr === BusinessUnit.SCHAUENBURG_SYSTEMS_200) {
+          console.log('Returning SCHAUENBURG_SYSTEMS_200')
           return BusinessUnit.SCHAUENBURG_SYSTEMS_200
         } else if (unitStr === 'SCHAUENBURG_PTY_LTD_300' || unitStr === BusinessUnit.SCHAUENBURG_PTY_LTD_300) {
+          console.log('Returning SCHAUENBURG_PTY_LTD_300')
           return BusinessUnit.SCHAUENBURG_PTY_LTD_300
         }
+        console.log('No match for unit:', unitStr)
         return null
       })
       .filter((unit): unit is BusinessUnit => unit !== null)
+    
+    console.log('Final businessUnits:', businessUnits)
+    console.log('businessUnits types:', businessUnits.map(u => typeof u))
     
     if (!businessUnits || businessUnits.length === 0 || !processReadUnderstood || !dueDiligenceCompleted || 
         !supplierName || !supplierEmail || !supplierContactPerson || !productServiceCategory || !requesterName || 
