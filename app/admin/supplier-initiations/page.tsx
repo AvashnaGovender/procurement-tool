@@ -412,6 +412,7 @@ export default function SupplierInitiationsPage() {
           )}
         </CardContent>
       </Card>
+      </main>
 
       {/* Approval Dialog */}
       <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
