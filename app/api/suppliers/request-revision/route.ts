@@ -98,8 +98,9 @@ export async function POST(request: NextRequest) {
       // Don't fail the entire request if email fails
     }
 
-    // Send notification email to initiator if initiation exists
-    if (onboarding?.initiation?.initiatedBy) {
+    // Send notification email to initiator ONLY if revision is requested by Procurement Manager
+    // Don't send to initiator if they are the ones requesting the revision themselves
+    if (onboarding?.initiation?.initiatedBy && session.user.role === 'PROCUREMENT_MANAGER') {
       try {
         await sendInitiatorRevisionNotificationEmail(
           supplier,
