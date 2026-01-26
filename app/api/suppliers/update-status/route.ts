@@ -274,6 +274,53 @@ export async function POST(request: NextRequest) {
     if (status === 'REJECTED') {
       try {
         await sendRejectionEmail(supplier, rejectionReason)
+        
+        // Send email to initiator and manager if onboarding exists
+        if (onboarding && onboarding.initiationId) {
+          const initiation = await prisma.supplierInitiation.findUnique({
+            where: { id: onboarding.initiationId },
+            include: {
+              initiatedBy: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true
+                }
+              },
+              managerApproval: {
+                include: {
+                  approver: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true
+                    }
+                  }
+                }
+              }
+            }
+          })
+          
+          // Send email to initiator
+          if (initiation && initiation.initiatedBy) {
+            try {
+              await sendInitiatorRejectionEmail(supplier, initiation.initiatedBy, rejectionReason)
+            } catch (initiatorEmailError) {
+              console.error('Failed to send initiator rejection email:', initiatorEmailError)
+              // Don't fail if initiator email fails, but log it
+            }
+          }
+          
+          // Send email to manager who approved
+          if (initiation && initiation.managerApproval && initiation.managerApproval.approver) {
+            try {
+              await sendManagerRejectionEmail(supplier, initiation.managerApproval.approver, rejectionReason)
+            } catch (managerEmailError) {
+              console.error('Failed to send manager rejection email:', managerEmailError)
+              // Don't fail if manager email fails, but log it
+            }
+          }
+        }
       } catch (emailError) {
         console.error('Failed to send rejection email:', emailError)
         // Don't fail the entire request if email fails
@@ -1339,6 +1386,518 @@ async function sendManagerApprovalEmail(supplier: any, manager: { name: string, 
     console.log('✅ Manager approval notification email sent successfully to:', manager.email)
   } catch (error) {
     console.error('Error sending manager approval notification email:', error)
+    throw error
+  }
+}
+
+async function sendInitiatorRejectionEmail(supplier: any, initiator: { name: string, email: string }, rejectionReason: string) {
+  try {
+    // Load SMTP configuration
+    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
+    const configData = fs.readFileSync(configPath, 'utf8')
+    const smtpConfig = JSON.parse(configData)
+
+    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
+      throw new Error('SMTP configuration not properly set up')
+    }
+
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      host: smtpConfig.host,
+      port: smtpConfig.port,
+      secure: smtpConfig.secure,
+      auth: {
+        user: smtpConfig.user,
+        pass: smtpConfig.pass
+      }
+    })
+
+    const supplierDetailUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-submissions/${supplier.id}`
+
+    // Create initiator rejection notification email content
+    const emailSubject = `Supplier Rejected: ${supplier.companyName}`
+    const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { 
+      margin: 0; 
+      padding: 0; 
+      font-family: Arial, sans-serif; 
+      background-color: #f4f4f4; 
+    }
+    .email-container { 
+      max-width: 600px; 
+      margin: 0 auto; 
+      background-color: #ffffff; 
+    }
+    .header { 
+      background-color: #ffffff; 
+      padding: 40px 30px; 
+      text-align: center; 
+      border-bottom: 3px solid #1e40af; 
+    }
+    .logo { 
+      max-width: 150px; 
+      height: auto; 
+      margin-bottom: 20px; 
+    }
+    .header-text { 
+      color: #1e40af; 
+      font-size: 24px; 
+      font-weight: bold; 
+      margin: 0; 
+      line-height: 1.2; 
+    }
+    .content { 
+      padding: 40px 30px; 
+      color: #333333; 
+      line-height: 1.6; 
+    }
+    .greeting { 
+      font-size: 18px; 
+      font-weight: bold; 
+      color: #1e40af; 
+      margin-bottom: 20px; 
+    }
+    .rejection-badge {
+      background-color: #ef4444;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+      margin: 30px 0;
+    }
+    .info-box { 
+      background-color: #fef2f2; 
+      border-left: 4px solid #ef4444; 
+      padding: 20px; 
+      margin: 25px 0; 
+      border-radius: 4px; 
+    }
+    .info-box-title { 
+      font-weight: bold; 
+      color: #991b1b; 
+      margin-bottom: 10px; 
+      font-size: 16px; 
+    }
+    .info-item { 
+      margin: 8px 0; 
+      color: #374151; 
+    }
+    .feedback-box {
+      background-color: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 20px;
+      margin: 25px 0;
+      border-radius: 4px;
+    }
+    .feedback-title {
+      font-weight: bold;
+      color: #92400e;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    .feedback-content {
+      color: #1f2937;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .footer { 
+      background-color: #f9fafb; 
+      padding: 30px; 
+      text-align: center; 
+      color: #6b7280; 
+      font-size: 14px; 
+      border-top: 1px solid #e5e7eb; 
+    }
+    .footer-link { 
+      color: #3b82f6; 
+      text-decoration: none; 
+    }
+    @media only screen and (max-width: 600px) {
+      .content { 
+        padding: 30px 20px; 
+      }
+      .header { 
+        padding: 30px 20px; 
+      }
+      .header-text { 
+        font-size: 20px; 
+      }
+      .greeting { 
+        font-size: 16px; 
+      }
+      .info-box, .feedback-box { 
+        padding: 15px; 
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <img src="cid:logo" alt="Schauenburg Systems" class="logo" />
+      <p class="header-text">Supplier Application Rejected</p>
+    </div>
+    
+    <div class="content">
+      <p class="greeting">Dear ${initiator.name},</p>
+      
+      <div class="rejection-badge">
+        ❌ Supplier Application Rejected
+      </div>
+      
+      <p>
+        The supplier you initiated has been reviewed by the Procurement Manager and the application has been <strong>rejected</strong>.
+      </p>
+      
+      <div class="info-box">
+        <div class="info-box-title">Supplier Details</div>
+        <div class="info-item"><strong>Company Name:</strong> ${supplier.companyName}</div>
+        <div class="info-item"><strong>Supplier Code:</strong> ${supplier.supplierCode}</div>
+        <div class="info-item"><strong>Contact Person:</strong> ${supplier.contactPerson}</div>
+        <div class="info-item"><strong>Contact Email:</strong> ${supplier.contactEmail}</div>
+        <div class="info-item"><strong>Status:</strong> <span style="color: #dc2626; font-weight: bold;">REJECTED</span></div>
+      </div>
+      
+      <div class="feedback-box">
+        <div class="feedback-title">Rejection Reason from Procurement Manager</div>
+        <div class="feedback-content">${rejectionReason}</div>
+      </div>
+      
+      <p>
+        <strong>What this means:</strong>
+      </p>
+      <ul style="color: #374151; line-height: 1.8;">
+        <li>The supplier did not meet the required criteria for approval</li>
+        <li>The supplier has been notified of the rejection</li>
+        <li>You may initiate a new supplier onboarding if the issues are resolved</li>
+        <li>Contact the Procurement Manager if you have questions about the rejection</li>
+      </ul>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 0 auto;">
+          <tr>
+            <td align="center" style="background-color: #3b82f6; border-radius: 8px; padding: 0;">
+              <a href="${supplierDetailUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff !important; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">View Supplier Details</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+      
+      <div style="text-align: center; margin: 20px 0;">
+        <p style="color: #6b7280; font-size: 14px; margin: 10px 0;">
+          Or copy and paste this link into your browser:
+        </p>
+        <p style="word-break: break-all; color: #3b82f6; font-size: 13px; padding: 10px; background-color: #f3f4f6; border-radius: 4px;">
+          ${supplierDetailUrl}
+        </p>
+      </div>
+      
+      <p style="margin-top: 30px;">
+        Best regards,<br/>
+        <strong>Schauenburg Systems Procurement Team</strong>
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>Schauenburg Systems</p>
+      <p>
+        <a href="${smtpConfig.companyWebsite}" class="footer-link">${smtpConfig.companyWebsite}</a>
+      </p>
+      <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
+        This is an automated notification from the Supplier Onboarding System.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+    `
+
+    // Send email
+    console.log('📧 Sending initiator rejection notification email to:', initiator.email)
+    
+    await transporter.sendMail({
+      from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
+      to: initiator.email,
+      subject: emailSubject,
+      html: emailHtml,
+      attachments: [
+        {
+          filename: 'logo.png',
+          path: path.join(process.cwd(), 'public', 'logo.png'),
+          cid: 'logo'
+        }
+      ]
+    })
+
+    console.log('✅ Initiator rejection notification email sent successfully to:', initiator.email)
+  } catch (error) {
+    console.error('Error sending initiator rejection notification email:', error)
+    throw error
+  }
+}
+
+async function sendManagerRejectionEmail(supplier: any, manager: { name: string, email: string }, rejectionReason: string) {
+  try {
+    // Load SMTP configuration
+    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
+    const configData = fs.readFileSync(configPath, 'utf8')
+    const smtpConfig = JSON.parse(configData)
+
+    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
+      throw new Error('SMTP configuration not properly set up')
+    }
+
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      host: smtpConfig.host,
+      port: smtpConfig.port,
+      secure: smtpConfig.secure,
+      auth: {
+        user: smtpConfig.user,
+        pass: smtpConfig.pass
+      }
+    })
+
+    const supplierDetailUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-submissions/${supplier.id}`
+
+    // Create manager rejection notification email content
+    const emailSubject = `Supplier Rejected - Final Approval Declined: ${supplier.companyName}`
+    const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { 
+      margin: 0; 
+      padding: 0; 
+      font-family: Arial, sans-serif; 
+      background-color: #f4f4f4; 
+    }
+    .email-container { 
+      max-width: 600px; 
+      margin: 0 auto; 
+      background-color: #ffffff; 
+    }
+    .header { 
+      background-color: #ffffff; 
+      padding: 40px 30px; 
+      text-align: center; 
+      border-bottom: 3px solid #1e40af; 
+    }
+    .logo { 
+      max-width: 150px; 
+      height: auto; 
+      margin-bottom: 20px; 
+    }
+    .header-text { 
+      color: #1e40af; 
+      font-size: 24px; 
+      font-weight: bold; 
+      margin: 0; 
+      line-height: 1.2; 
+    }
+    .content { 
+      padding: 40px 30px; 
+      color: #333333; 
+      line-height: 1.6; 
+    }
+    .greeting { 
+      font-size: 18px; 
+      font-weight: bold; 
+      color: #1e40af; 
+      margin-bottom: 20px; 
+    }
+    .rejection-badge {
+      background-color: #ef4444;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+      margin: 30px 0;
+    }
+    .info-box { 
+      background-color: #fef2f2; 
+      border-left: 4px solid #ef4444; 
+      padding: 20px; 
+      margin: 25px 0; 
+      border-radius: 4px; 
+    }
+    .info-box-title { 
+      font-weight: bold; 
+      color: #991b1b; 
+      margin-bottom: 10px; 
+      font-size: 16px; 
+    }
+    .info-item { 
+      margin: 8px 0; 
+      color: #374151; 
+    }
+    .feedback-box {
+      background-color: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 20px;
+      margin: 25px 0;
+      border-radius: 4px;
+    }
+    .feedback-title {
+      font-weight: bold;
+      color: #92400e;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    .feedback-content {
+      color: #1f2937;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .footer { 
+      background-color: #f9fafb; 
+      padding: 30px; 
+      text-align: center; 
+      color: #6b7280; 
+      font-size: 14px; 
+      border-top: 1px solid #e5e7eb; 
+    }
+    .footer-link { 
+      color: #3b82f6; 
+      text-decoration: none; 
+    }
+    @media only screen and (max-width: 600px) {
+      .content { 
+        padding: 30px 20px; 
+      }
+      .header { 
+        padding: 30px 20px; 
+      }
+      .header-text { 
+        font-size: 20px; 
+      }
+      .greeting { 
+        font-size: 16px; 
+      }
+      .info-box, .feedback-box { 
+        padding: 15px; 
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <img src="cid:logo" alt="Schauenburg Systems" class="logo" />
+      <p class="header-text">Supplier Application Rejected</p>
+    </div>
+    
+    <div class="content">
+      <p class="greeting">Dear ${manager.name},</p>
+      
+      <div class="rejection-badge">
+        ❌ Supplier Application Rejected by Procurement Manager
+      </div>
+      
+      <p>
+        The supplier initiation request that you approved has been reviewed by the Procurement Manager and the application has been <strong>rejected</strong>.
+      </p>
+      
+      <div class="info-box">
+        <div class="info-box-title">Supplier Details</div>
+        <div class="info-item"><strong>Company Name:</strong> ${supplier.companyName}</div>
+        <div class="info-item"><strong>Supplier Code:</strong> ${supplier.supplierCode}</div>
+        <div class="info-item"><strong>Contact Person:</strong> ${supplier.contactPerson}</div>
+        <div class="info-item"><strong>Contact Email:</strong> ${supplier.contactEmail}</div>
+        <div class="info-item"><strong>Status:</strong> <span style="color: #dc2626; font-weight: bold;">REJECTED</span></div>
+      </div>
+      
+      <div class="feedback-box">
+        <div class="feedback-title">Rejection Reason from Procurement Manager</div>
+        <div class="feedback-content">${rejectionReason}</div>
+      </div>
+      
+      <p>
+        <strong>Approval Summary:</strong>
+      </p>
+      <ul style="color: #374151; line-height: 1.8;">
+        <li>✅ Manager Approval: Completed (by you)</li>
+        <li>❌ Procurement Manager Approval: Rejected</li>
+        <li>❌ Supplier Onboarding: Not Completed</li>
+        <li>📧 Supplier Email: Rejection notification sent to supplier</li>
+      </ul>
+      
+      <p>
+        The supplier and the initiator have been notified of this rejection.
+      </p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 0 auto;">
+          <tr>
+            <td align="center" style="background-color: #3b82f6; border-radius: 8px; padding: 0;">
+              <a href="${supplierDetailUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff !important; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">View Supplier Details</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+      
+      <div style="text-align: center; margin: 20px 0;">
+        <p style="color: #6b7280; font-size: 14px; margin: 10px 0;">
+          Or copy and paste this link into your browser:
+        </p>
+        <p style="word-break: break-all; color: #3b82f6; font-size: 13px; padding: 10px; background-color: #f3f4f6; border-radius: 4px;">
+          ${supplierDetailUrl}
+        </p>
+      </div>
+      
+      <p style="margin-top: 30px;">
+        Best regards,<br/>
+        <strong>Schauenburg Systems Procurement Team</strong>
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>Schauenburg Systems</p>
+      <p>
+        <a href="${smtpConfig.companyWebsite}" class="footer-link">${smtpConfig.companyWebsite}</a>
+      </p>
+      <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
+        This is an automated notification from the Supplier Onboarding System.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+    `
+
+    // Send email
+    console.log('📧 Sending manager rejection notification email to:', manager.email)
+    
+    await transporter.sendMail({
+      from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
+      to: manager.email,
+      subject: emailSubject,
+      html: emailHtml,
+      attachments: [
+        {
+          filename: 'logo.png',
+          path: path.join(process.cwd(), 'public', 'logo.png'),
+          cid: 'logo'
+        }
+      ]
+    })
+
+    console.log('✅ Manager rejection notification email sent successfully to:', manager.email)
+  } catch (error) {
+    console.error('Error sending manager rejection notification email:', error)
     throw error
   }
 }
