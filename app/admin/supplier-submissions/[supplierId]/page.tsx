@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import React, { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -1039,7 +1039,7 @@ Procurement Team`
   }
 
   return (
-    <div>
+    <React.Fragment>
       {/* Completion Dialog */}
       <Dialog open={showCompletion} onOpenChange={setShowCompletion}>
         <DialogContent className="sm:max-w-lg">
@@ -2645,7 +2645,7 @@ Procurement Team`
       </Dialog>
         </div>
       </main>
-    </div>
+    </React.Fragment>
   )
 }
 
