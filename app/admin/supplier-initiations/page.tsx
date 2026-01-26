@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -250,9 +250,8 @@ export default function SupplierInitiationsPage() {
                 {initiations.map((initiation) => {
                   const isExpanded = expandedRows.has(initiation.id)
                   return (
-                    <>
+                    <React.Fragment key={initiation.id}>
                       <TableRow 
-                        key={initiation.id} 
                         className="hover:bg-gray-50 cursor-pointer"
                         onClick={() => toggleRow(initiation.id)}
                       >
@@ -405,7 +404,7 @@ export default function SupplierInitiationsPage() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </React.Fragment>
                   )
                 })}
               </TableBody>
