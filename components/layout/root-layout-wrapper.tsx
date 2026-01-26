@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Sidebar } from "./sidebar"
@@ -14,9 +14,15 @@ function RootLayoutWrapperContent({ children }: RootLayoutWrapperProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { status } = useSession()
+  const [isInIframe, setIsInIframe] = useState(false)
 
-  // Check if page is embedded (e.g., in an iframe)
-  const isEmbedded = searchParams.get('embedded') === 'true'
+  // Check if we're running inside an iframe
+  useEffect(() => {
+    setIsInIframe(window.self !== window.top)
+  }, [])
+
+  // Check if page is embedded (e.g., in an iframe) via query param or actual iframe detection
+  const isEmbedded = searchParams.get('embedded') === 'true' || isInIframe
 
   // Pages that should NOT have the sidebar
   const noSidebarPaths = ['/login', '/supplier-onboarding-form']
