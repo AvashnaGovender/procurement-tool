@@ -58,22 +58,12 @@ function SupplierOnboardingForm() {
   // File uploads state
   const [files, setFiles] = useState<{[key: string]: File[]}>({
     cipcCertificate: [],
-    cm29Directors: [],
-    shareholderCerts: [],
-    proofOfShareholding: [],
-    bbbeeAccreditation: [],
     bbbeeScorecard: [],
     taxClearance: [],
     vatCertificate: [],
     bankConfirmation: [],
     nda: [],
-    healthSafety: [],
     creditApplication: [],
-    qualityCert: [],
-    goodStanding: [],
-    sectorRegistrations: [],
-    organogram: [],
-    companyProfile: [],
   })
 
   // Fetch existing data if token is provided
@@ -148,9 +138,9 @@ function SupplierOnboardingForm() {
   const handlePreview = (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Validate credit application document if required
-    if (creditApplication && (!files.creditApplication || files.creditApplication.length === 0)) {
-      setError("Credit Application Form is required when credit application is selected. Please upload the document.")
+    // Validate credit application document (now always required)
+    if (!files.creditApplication || files.creditApplication.length === 0) {
+      setError("Credit Application Form is required. Please upload the document.")
       return
     }
     
@@ -161,9 +151,9 @@ function SupplierOnboardingForm() {
     setLoading(true)
     setError("")
 
-    // Validate credit application document if required
-    if (creditApplication && (!files.creditApplication || files.creditApplication.length === 0)) {
-      setError("Credit Application Form is required when credit application is selected. Please upload the document.")
+    // Validate credit application document (now always required)
+    if (!files.creditApplication || files.creditApplication.length === 0) {
+      setError("Credit Application Form is required. Please upload the document.")
       setLoading(false)
       return
     }
@@ -605,22 +595,12 @@ function SupplierOnboardingForm() {
             <CardContent className="space-y-6">
               {[
                 { key: 'cipcCertificate', label: 'CIPC Certificate (Company Registration) *', required: true },
-                { key: 'cm29Directors', label: 'Copy of CM29 - List of Directors', required: false },
-                { key: 'shareholderCerts', label: 'Shareholder Certificates', required: false },
-                { key: 'proofOfShareholding', label: 'Proof of Shareholding', required: false },
-                { key: 'bbbeeAccreditation', label: 'BBBEE Accreditation *', required: true },
-                { key: 'bbbeeScorecard', label: 'BBBEE Scorecard Report', required: false },
+                { key: 'bbbeeScorecard', label: 'BBBEE Scorecard Report or Affidavit *', required: true },
                 { key: 'taxClearance', label: 'Tax Clearance Certificate *', required: true },
-                { key: 'vatCertificate', label: 'VAT Registration Certificate', required: false },
+                { key: 'vatCertificate', label: 'VAT Registration Certificate (If applicable)', required: false },
                 { key: 'bankConfirmation', label: 'Bank Confirmation Letter *', required: true },
                 { key: 'nda', label: 'Non-Disclosure Agreement (NDA) - Signed *', required: true },
-                { key: 'healthSafety', label: 'Health and Safety Policy', required: false },
-                { key: 'creditApplication', label: 'Credit Application Form *', required: creditApplication },
-                { key: 'qualityCert', label: 'Quality Certification', required: false },
-                { key: 'goodStanding', label: 'Letter of Good Standing', required: false },
-                { key: 'sectorRegistrations', label: 'Sector Registrations', required: false },
-                { key: 'organogram', label: 'Updated Company Organogram', required: false },
-                { key: 'companyProfile', label: 'Company Profile', required: false },
+                { key: 'creditApplication', label: 'Credit Application Form *', required: true },
               ]
               // Filter to show only documents that need revision if in revision mode
               .filter(({ key }) => {
