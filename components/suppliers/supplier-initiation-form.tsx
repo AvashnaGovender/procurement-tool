@@ -210,7 +210,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         codReason: formData.paymentMethod === 'COD' ? formData.codReason : null,
         annualPurchaseValue: annualPurchaseValueNumber,
         creditApplication: formData.creditApplication,
-        creditApplicationReason: formData.creditApplicationReason,
+        creditApplicationReason: formData.paymentMethod === 'COD' ? 'COD payment - credit not required' : formData.creditApplicationReason,
         regularPurchase: formData.purchaseType === 'REGULAR',
         onceOffPurchase: false,
         onboardingReason: formData.onboardingReason
@@ -291,7 +291,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         codReason: formData.paymentMethod === 'COD' ? formData.codReason : null,
         annualPurchaseValue: annualPurchaseValueNumber,
         creditApplication: formData.creditApplication,
-        creditApplicationReason: formData.creditApplicationReason,
+        creditApplicationReason: formData.paymentMethod === 'COD' ? 'COD payment - credit not required' : formData.creditApplicationReason,
         regularPurchase: formData.purchaseType === 'REGULAR',
         onceOffPurchase: false, // No longer used, but keep for backward compatibility
         onboardingReason: formData.onboardingReason
@@ -337,7 +337,8 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     const hasPaymentMethod = !!formData.paymentMethod // Must be COD or AC
     const hasCodReason = formData.paymentMethod !== 'COD' || !!formData.codReason // COD requires reason
     const hasAnnualValue = formData.purchaseType !== 'REGULAR' || !!formData.annualPurchaseValue // Regular requires annual value
-    const hasCreditReason = formData.creditApplication || (!formData.creditApplication && formData.creditApplicationReason)
+    // If COD, credit reason is not required (COD reason covers it). Otherwise, check credit application reason
+    const hasCreditReason = formData.paymentMethod === 'COD' || formData.creditApplication || (!formData.creditApplication && formData.creditApplicationReason)
     const hasOnboardingReason = !!formData.onboardingReason
 
     return hasBusinessUnit && hasChecklist && hasSupplierInfo && hasPurchaseType && hasPaymentMethod && hasCodReason && hasAnnualValue && hasCreditReason && hasOnboardingReason
@@ -525,7 +526,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                   ))}
                   {customCategories.map((category) => (
                     <SelectItem key={category} value={category}>
-                      {category} ✓
+                      {category}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -699,6 +700,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                   // Clear COD reason if switching away from COD
                   if (value !== 'COD') {
                     handleInputChange('codReason', "")
+                  } else {
+                    // If COD is selected, automatically set credit application to false
+                    handleInputChange('creditApplication', false)
+                    handleInputChange('creditApplicationReason', "")
                   }
                 }}
               >
@@ -745,11 +750,17 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
               id="creditApplication"
               checked={formData.creditApplication}
               onCheckedChange={(checked) => handleInputChange('creditApplication', checked)}
+              disabled={formData.paymentMethod === 'COD'}
             />
-            <Label htmlFor="creditApplication">Credit Application *</Label>
+            <Label htmlFor="creditApplication" className={formData.paymentMethod === 'COD' ? "text-gray-400" : ""}>
+              Credit Application *
+              {formData.paymentMethod === 'COD' && (
+                <span className="ml-2 text-xs text-gray-500">(Not applicable for COD)</span>
+              )}
+            </Label>
           </div>
 
-          {!formData.creditApplication && (
+          {!formData.creditApplication && formData.paymentMethod !== 'COD' && (
             <div className="ml-6 space-y-2">
               <Label htmlFor="creditApplicationReason">Reason for No Credit Application *</Label>
               <Textarea
