@@ -1495,7 +1495,7 @@ Procurement Team`
                         <Alert className="bg-green-50 border-green-300">
                           <CheckCircle className="h-5 w-5 text-green-600" />
                           <AlertDescription>
-                            <strong className="text-green-900">ԣ� All Compulsory Documents Uploaded</strong>
+                            <strong className="text-green-900">✅ All Compulsory Documents Uploaded</strong>
                             <p className="text-sm text-green-800 mt-1">
                               All {mandatoryDocs.length} mandatory documents have been provided. Review each document for accuracy and completeness.
                             </p>
