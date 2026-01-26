@@ -84,8 +84,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
       const response = await fetch(`/api/suppliers/initiation/draft?id=${id}`)
       if (response.ok) {
         const data = await response.json()
+        console.log('📥 Draft data received:', data)
         if (data.success && data.initiation) {
           const draft = data.initiation
+          console.log('💰 Annual Purchase Value from API:', draft.annualPurchaseValue)
           setCurrentDraftId(draft.id)
           
           // Convert businessUnit to array (handle both array and single value)
@@ -98,20 +100,9 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           // Convert ONCE_OFF to SHARED_IP for new structure
           const normalizedPurchaseType = purchaseType === 'ONCE_OFF' ? 'SHARED_IP' : (purchaseType === 'REGULAR' ? 'REGULAR' : 'SHARED_IP')
           
-          // Convert numeric annualPurchaseValue back to string format for the form
-          let annualPurchaseValueStr = ""
-          if (draft.annualPurchaseValue) {
-            const value = Number(draft.annualPurchaseValue)
-            if (value <= 100000) {
-              annualPurchaseValueStr = "0-100k"
-            } else if (value <= 500000) {
-              annualPurchaseValueStr = "100k-500k"
-            } else if (value <= 1000000) {
-              annualPurchaseValueStr = "500k-1M"
-            } else {
-              annualPurchaseValueStr = "1M+"
-            }
-          }
+          // The API already converts the numeric value to string format, so just use it directly
+          const annualPurchaseValueStr = draft.annualPurchaseValue || ""
+          console.log('💰 Annual Purchase Value for form:', annualPurchaseValueStr)
           
           setFormData({
             businessUnit: businessUnit || [],
