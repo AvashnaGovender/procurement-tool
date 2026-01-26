@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-sender'
 import { getRequiredDocuments } from '@/lib/document-requirements'
-import { BusinessUnit } from '@prisma/client'
+import { BusinessUnit, InitiationStatus } from '@prisma/client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
         },
         {
           status: {
-            notIn: ['DRAFT', 'REJECTED']
+            notIn: [InitiationStatus.DRAFT, InitiationStatus.REJECTED]
           }
         }
       ]
