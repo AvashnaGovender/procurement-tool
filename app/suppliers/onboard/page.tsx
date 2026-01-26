@@ -16,7 +16,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import Link from "next/link"
-import { Sidebar } from "@/components/layout/sidebar"
 import { AIOnboardingWorkflow } from "@/components/suppliers/ai-onboarding-workflow"
 import { SupplierInitiationForm } from "@/components/suppliers/supplier-initiation-form"
 import { SupplierInitiationStatus } from "@/components/suppliers/supplier-initiation-status"
@@ -69,14 +68,9 @@ function SupplierOnboardingContent() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden">
-      {/* Sidebar */}
-      <Sidebar />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
+    <div className="flex flex-col h-full">
+      {/* Top Bar */}
+      <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 flex-shrink-0">
           <div className="flex items-center gap-4">
             <Button 
               variant="ghost" 
@@ -302,13 +296,10 @@ function SupplierOnboardingContent() {
 export default function SupplierOnboardingPage() {
   return (
     <Suspense fallback={
-      <div className="flex h-screen overflow-hidden bg-slate-100">
-        <Sidebar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
-            <p className="text-slate-600">Loading supplier onboarding...</p>
-          </div>
+      <div className="flex items-center justify-center p-8">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
+          <p className="text-slate-600">Loading supplier onboarding...</p>
         </div>
       </div>
     }>

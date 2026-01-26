@@ -22,25 +22,28 @@ export async function GET(request: NextRequest) {
         initiation: {
           select: {
             purchaseType: true,
-            creditApplication: true
+            creditApplication: true,
+            supplierContactPerson: true,
+            productServiceCategory: true
           }
         }
       }
     })
 
-    if (!onboarding || !onboarding.supplier) {
+    if (!onboarding) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
         { status: 404 }
       )
     }
 
-    const supplier = onboarding.supplier
+    const supplier = onboarding.supplier || {}
 
     // Map supplier data to form fields
+    // If supplier doesn't exist yet, use initiation data
     const formData = {
       supplierName: supplier.supplierName || '',
-      contactPerson: supplier.contactPerson || '',
+      contactPerson: supplier.contactPerson || onboarding.initiation?.supplierContactPerson || '',
       nameOfBusiness: supplier.companyName || '',
       tradingName: supplier.tradingName || '',
       companyRegistrationNo: supplier.registrationNumber || '',
@@ -48,7 +51,7 @@ export async function GET(request: NextRequest) {
       postalAddress: supplier.postalAddress || '',
       contactNumber: supplier.contactPhone || '',
       emailAddress: supplier.contactEmail || '',
-      natureOfBusiness: supplier.natureOfBusiness || '',
+      natureOfBusiness: supplier.natureOfBusiness || onboarding.initiation?.productServiceCategory || '',
       productsAndServices: supplier.productsAndServices || '',
       associatedCompany: supplier.associatedCompany || '',
       associatedCompanyRegistrationNo: supplier.associatedCompanyRegNo || '',

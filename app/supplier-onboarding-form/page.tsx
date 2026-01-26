@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Upload, CheckCircle, AlertCircle, FileIcon, X } from "lucide-react"
 import Image from "next/image"
 
@@ -47,6 +48,7 @@ function SupplierOnboardingForm() {
     
     // BBBEE (Field 10)
     bbbeeStatus: "",
+    bbbeeOther: "",
     
     // Authorization (Field 11)
     authorizationAgreement: false,
@@ -263,7 +265,6 @@ function SupplierOnboardingForm() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div><strong>Supplier Name:</strong> {formData.supplierName}</div>
                   <div><strong>Contact Person:</strong> {formData.contactPerson}</div>
-                  <div><strong>Name of Business:</strong> {formData.nameOfBusiness}</div>
                   <div><strong>Trading Name:</strong> {formData.tradingName || 'N/A'}</div>
                 </div>
               </div>
@@ -283,7 +284,7 @@ function SupplierOnboardingForm() {
                 <h3 className="text-lg font-semibold mb-3">Business Details</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div><strong>Nature of Business:</strong> {formData.natureOfBusiness}</div>
-                  <div><strong>BBBEE Status:</strong> {formData.bbbeeStatus}</div>
+                  <div><strong>BBBEE Status:</strong> {formData.bbbeeStatus === 'Other' ? formData.bbbeeOther : formData.bbbeeStatus}</div>
                 </div>
               </div>
 
@@ -451,16 +452,6 @@ function SupplierOnboardingForm() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="nameOfBusiness">Name of Business *</Label>
-                  <Input
-                    id="nameOfBusiness"
-                    required
-                    value={formData.nameOfBusiness}
-                    onChange={(e) => handleInputChange('nameOfBusiness', e.target.value)}
-                    placeholder="Registered business name"
-                  />
-                </div>
-                <div>
                   <Label htmlFor="tradingName">Trading Name</Label>
                   <Input
                     id="tradingName"
@@ -563,14 +554,38 @@ function SupplierOnboardingForm() {
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="bbbeeStatus">BBBEE Status *</Label>
-                <Input
-                  id="bbbeeStatus"
-                  required
+                <Select
                   value={formData.bbbeeStatus}
-                  onChange={(e) => handleInputChange('bbbeeStatus', e.target.value)}
-                  placeholder="e.g., Level 1, Level 2"
-                />
+                  onValueChange={(value) => handleInputChange('bbbeeStatus', value)}
+                  required
+                >
+                  <SelectTrigger id="bbbeeStatus">
+                    <SelectValue placeholder="Select BBBEE Level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Level 1">Level 1</SelectItem>
+                    <SelectItem value="Level 2">Level 2</SelectItem>
+                    <SelectItem value="Level 3">Level 3</SelectItem>
+                    <SelectItem value="Level 4">Level 4</SelectItem>
+                    <SelectItem value="Level 5">Level 5</SelectItem>
+                    <SelectItem value="Level 6">Level 6</SelectItem>
+                    <SelectItem value="Level 7">Level 7</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+              {formData.bbbeeStatus === 'Other' && (
+                <div>
+                  <Label htmlFor="bbbeeOther">Please Specify BBBEE Status *</Label>
+                  <Input
+                    id="bbbeeOther"
+                    required
+                    value={formData.bbbeeOther}
+                    onChange={(e) => handleInputChange('bbbeeOther', e.target.value)}
+                    placeholder="Specify your BBBEE status"
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
           </>
@@ -598,7 +613,7 @@ function SupplierOnboardingForm() {
                 { key: 'bankConfirmation', label: 'Bank Confirmation Letter *', required: true },
                 { key: 'nda', label: 'Non-Disclosure Agreement (NDA) - Signed *', required: true },
                 { key: 'healthSafety', label: 'Health and Safety Policy', required: false },
-                { key: 'creditApplication', label: 'Credit Application Form', required: creditApplication },
+                { key: 'creditApplication', label: 'Credit Application Form *', required: creditApplication },
                 { key: 'qualityCert', label: 'Quality Certification', required: false },
                 { key: 'goodStanding', label: 'Letter of Good Standing', required: false },
                 { key: 'sectorRegistrations', label: 'Sector Registrations', required: false },
@@ -617,7 +632,9 @@ function SupplierOnboardingForm() {
               .map(({ key, label, required }) => {
                 // Override required for creditApplication based on creditApplication state
                 const isRequired = key === 'creditApplication' ? creditApplication : required
-                const displayLabel = isRequired ? `${label.replace(' *', '')} *` : label
+                // Remove existing asterisk and add it back if required
+                const cleanLabel = label.replace(' *', '')
+                const displayLabel = isRequired ? `${cleanLabel} *` : cleanLabel
                 
                 return (
                 <div key={key} className="border rounded-lg p-4">

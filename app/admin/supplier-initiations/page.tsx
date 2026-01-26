@@ -85,6 +85,8 @@ export default function SupplierInitiationsPage() {
       const response = await fetch('/api/suppliers/initiations')
       if (response.ok) {
         const data = await response.json()
+        console.log('Fetched initiations:', data)
+        console.log('First initiation purchaseType:', data[0]?.purchaseType)
         setInitiations(data)
       }
     } catch (error) {
@@ -356,11 +358,15 @@ export default function SupplierInitiationsPage() {
                                 <div>
                                   <Label className="text-sm font-medium text-gray-600">Purchase Type</Label>
                                   <p className="text-sm">
-                                    {initiation.purchaseType === 'REGULAR' && 'Regular Purchase'}
-                                    {initiation.purchaseType === 'ONCE_OFF' && 'Once-off Purchase'}
-                                    {initiation.purchaseType === 'SHARED_IP' && 'Shared IP'}
-                                    {!initiation.purchaseType && (initiation.regularPurchase ? 'Regular Purchase' : initiation.onceOffPurchase ? 'Once-off Purchase' : 'N/A')}
-                                    {initiation.annualPurchaseValue && ` (R${initiation.annualPurchaseValue.toLocaleString()})`}
+                                    {(() => {
+                                      if (initiation.purchaseType === 'REGULAR') return 'Regular Purchase'
+                                      if (initiation.purchaseType === 'ONCE_OFF') return 'Once-off Purchase'
+                                      if (initiation.purchaseType === 'SHARED_IP') return 'Shared IP'
+                                      if (initiation.regularPurchase) return 'Regular Purchase'
+                                      if (initiation.onceOffPurchase) return 'Once-off Purchase'
+                                      return 'Not specified'
+                                    })()}
+                                    {initiation.annualPurchaseValue ? ` (R${initiation.annualPurchaseValue.toLocaleString()})` : ''}
                                   </p>
                                 </div>
                                 <div>
