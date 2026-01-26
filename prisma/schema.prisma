@@ -291,7 +291,7 @@ model SupplierInitiation {
   id                        String                    @id @default(cuid())
   
   // Business Unit Selection
-  businessUnit              BusinessUnit
+  businessUnit              BusinessUnit[]
   
   // Checklist Items
   processReadUnderstood     Boolean                   @default(false)

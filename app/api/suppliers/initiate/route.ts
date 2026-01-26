@@ -61,11 +61,11 @@ export async function POST(request: NextRequest) {
     const businessUnits: BusinessUnit[] = businessUnitsRaw
       .map(unit => {
         const unitStr = String(unit).trim()
-        // Map string values to BusinessUnit enum - use explicit enum values
-        if (unitStr === 'SCHAUENBURG_SYSTEMS_200') {
-          return 'SCHAUENBURG_SYSTEMS_200' as BusinessUnit
-        } else if (unitStr === 'SCHAUENBURG_PTY_LTD_300') {
-          return 'SCHAUENBURG_PTY_LTD_300' as BusinessUnit
+        // Map string values to BusinessUnit enum - use actual enum constants
+        if (unitStr === 'SCHAUENBURG_SYSTEMS_200' || unitStr === BusinessUnit.SCHAUENBURG_SYSTEMS_200) {
+          return BusinessUnit.SCHAUENBURG_SYSTEMS_200
+        } else if (unitStr === 'SCHAUENBURG_PTY_LTD_300' || unitStr === BusinessUnit.SCHAUENBURG_PTY_LTD_300) {
+          return BusinessUnit.SCHAUENBURG_PTY_LTD_300
         }
         return null
       })

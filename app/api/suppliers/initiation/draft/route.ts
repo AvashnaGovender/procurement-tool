@@ -45,10 +45,11 @@ export async function POST(request: NextRequest) {
     const businessUnits: BusinessUnit[] = businessUnitsRaw
       .map(unit => {
         const unitStr = String(unit).trim()
-        if (unitStr === 'SCHAUENBURG_SYSTEMS_200') {
-          return 'SCHAUENBURG_SYSTEMS_200' as BusinessUnit
-        } else if (unitStr === 'SCHAUENBURG_PTY_LTD_300') {
-          return 'SCHAUENBURG_PTY_LTD_300' as BusinessUnit
+        // Map string values to BusinessUnit enum - use actual enum constants
+        if (unitStr === 'SCHAUENBURG_SYSTEMS_200' || unitStr === BusinessUnit.SCHAUENBURG_SYSTEMS_200) {
+          return BusinessUnit.SCHAUENBURG_SYSTEMS_200
+        } else if (unitStr === 'SCHAUENBURG_PTY_LTD_300' || unitStr === BusinessUnit.SCHAUENBURG_PTY_LTD_300) {
+          return BusinessUnit.SCHAUENBURG_PTY_LTD_300
         }
         return null
       })
@@ -160,7 +161,7 @@ export async function POST(request: NextRequest) {
     // Create new draft
     const initiation = await prisma.supplierInitiation.create({
       data: {
-        businessUnit: businessUnits.length > 0 ? businessUnits : ['SCHAUENBURG_SYSTEMS_200' as BusinessUnit],
+        businessUnit: businessUnits.length > 0 ? businessUnits : [BusinessUnit.SCHAUENBURG_SYSTEMS_200],
         processReadUnderstood: processReadUnderstood || false,
         dueDiligenceCompleted: dueDiligenceCompleted || false,
         supplierName: supplierName || '',
