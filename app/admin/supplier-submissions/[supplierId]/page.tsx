@@ -1038,9 +1038,10 @@ Procurement Team`
     )
   }
 
-  const pageContent = (
-    <div>
-      {/* Completion Dialog */}
+  return null
+  
+  /*
+      {/* Completion Dialog *\/
       <Dialog open={showCompletion} onOpenChange={setShowCompletion}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -2645,10 +2646,7 @@ Procurement Team`
       </Dialog>
         </div>
       </main>
-    </div>
-  )
-
-  return pageContent
+  */
 }
 
 
