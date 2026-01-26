@@ -138,7 +138,15 @@ function SupplierOnboardingForm() {
     e.preventDefault()
     
     // Validate credit application document (now always required)
-    if (!files.creditApplication || files.creditApplication.length === 0) {
+    // Check both newly uploaded files and existing files
+    const hasCreditApp = (files.creditApplication && files.creditApplication.length > 0) || 
+                         (existingFiles.creditApplication && existingFiles.creditApplication.length > 0)
+    
+    // Only validate credit app if not in revision mode OR if credit app is specifically requested for revision
+    const isRevisionMode = revisionNotes && documentsToRevise.length > 0
+    const needsCreditApp = !isRevisionMode || documentsToRevise.includes('creditApplication')
+    
+    if (needsCreditApp && !hasCreditApp) {
       setError("Credit Application Form is required. Please upload the document.")
       return
     }
@@ -151,7 +159,15 @@ function SupplierOnboardingForm() {
     setError("")
 
     // Validate credit application document (now always required)
-    if (!files.creditApplication || files.creditApplication.length === 0) {
+    // Check both newly uploaded files and existing files
+    const hasCreditApp = (files.creditApplication && files.creditApplication.length > 0) || 
+                         (existingFiles.creditApplication && existingFiles.creditApplication.length > 0)
+    
+    // Only validate credit app if not in revision mode OR if credit app is specifically requested for revision
+    const isRevisionMode = revisionNotes && documentsToRevise.length > 0
+    const needsCreditApp = !isRevisionMode || documentsToRevise.includes('creditApplication')
+    
+    if (needsCreditApp && !hasCreditApp) {
       setError("Credit Application Form is required. Please upload the document.")
       setLoading(false)
       return
@@ -425,7 +441,7 @@ function SupplierOnboardingForm() {
                   <Label htmlFor="supplierName">Supplier Name *</Label>
                   <Input
                     id="supplierName"
-                    required
+                    required={!revisionNotes || documentsToRevise.length === 0}
                     value={formData.supplierName}
                     onChange={(e) => handleInputChange('supplierName', e.target.value)}
                     placeholder="e.g., The Innoverse"
@@ -435,7 +451,7 @@ function SupplierOnboardingForm() {
                   <Label htmlFor="contactPerson">Contact Person *</Label>
                   <Input
                     id="contactPerson"
-                    required
+                    required={!revisionNotes || documentsToRevise.length === 0}
                     value={formData.contactPerson}
                     onChange={(e) => handleInputChange('contactPerson', e.target.value)}
                     placeholder="Full name"
@@ -464,7 +480,7 @@ function SupplierOnboardingForm() {
                 <Label htmlFor="physicalAddress">Physical Address *</Label>
                 <Textarea
                   id="physicalAddress"
-                  required
+                  required={!revisionNotes || documentsToRevise.length === 0}
                   value={formData.physicalAddress}
                   onChange={(e) => handleInputChange('physicalAddress', e.target.value)}
                   placeholder="Street address, city, postal code"
@@ -496,7 +512,7 @@ function SupplierOnboardingForm() {
                   <Input
                     id="contactNumber"
                     type="tel"
-                    required
+                    required={!revisionNotes || documentsToRevise.length === 0}
                     value={formData.contactNumber}
                     onChange={(e) => handleInputChange('contactNumber', e.target.value)}
                     placeholder="0784588458"
@@ -507,7 +523,7 @@ function SupplierOnboardingForm() {
                   <Input
                     id="emailAddress"
                     type="email"
-                    required
+                    required={!revisionNotes || documentsToRevise.length === 0}
                     value={formData.emailAddress}
                     onChange={(e) => handleInputChange('emailAddress', e.target.value)}
                     placeholder="email@company.com"
@@ -527,7 +543,7 @@ function SupplierOnboardingForm() {
                 <Label htmlFor="natureOfBusiness">Nature of Business *</Label>
                 <Input
                   id="natureOfBusiness"
-                  required
+                  required={!revisionNotes || documentsToRevise.length === 0}
                   value={formData.natureOfBusiness}
                   onChange={(e) => handleInputChange('natureOfBusiness', e.target.value)}
                   placeholder="e.g., AI Consulting, Manufacturing"
@@ -547,7 +563,7 @@ function SupplierOnboardingForm() {
                 <Select
                   value={formData.bbbeeStatus}
                   onValueChange={(value) => handleInputChange('bbbeeStatus', value)}
-                  required
+                  required={!revisionNotes || documentsToRevise.length === 0}
                 >
                   <SelectTrigger id="bbbeeStatus">
                     <SelectValue placeholder="Select BBBEE Level" />
@@ -569,7 +585,7 @@ function SupplierOnboardingForm() {
                   <Label htmlFor="bbbeeOther">Please Specify BBBEE Status *</Label>
                   <Input
                     id="bbbeeOther"
-                    required
+                    required={!revisionNotes || documentsToRevise.length === 0}
                     value={formData.bbbeeOther}
                     onChange={(e) => handleInputChange('bbbeeOther', e.target.value)}
                     placeholder="Specify your BBBEE status"
@@ -691,7 +707,7 @@ function SupplierOnboardingForm() {
               <div className="flex items-start space-x-2">
                 <Checkbox
                   id="authorizationAgreement"
-                  required
+                  required={!revisionNotes || documentsToRevise.length === 0}
                   checked={formData.authorizationAgreement}
                   onCheckedChange={(checked) => handleInputChange('authorizationAgreement', checked)}
                 />

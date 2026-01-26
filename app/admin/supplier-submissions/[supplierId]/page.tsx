@@ -1039,7 +1039,7 @@ Procurement Team`
   }
 
   return (
-    <div className="bg-background">
+    <>
       {/* Completion Dialog */}
       <Dialog open={showCompletion} onOpenChange={setShowCompletion}>
         <DialogContent className="sm:max-w-lg">
@@ -1082,25 +1082,24 @@ Procurement Team`
           </div>
         </DialogContent>
       </Dialog>
-      {/* Header */}
-      <div className="bg-card border-b border-border sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push('/dashboard')}
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Button>
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-foreground">{supplier.companyName}</h1>
-                <p className="text-sm text-muted-foreground">Supplier Code: {supplier.supplierCode}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
+      
+      {/* Top Bar */}
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push('/dashboard')}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-foreground">{supplier.companyName}</h1>
+            <p className="text-xs text-muted-foreground">Supplier Code: {supplier.supplierCode}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
               {!isEditing ? (
                 <Button
                   variant="outline"
@@ -1137,22 +1136,21 @@ Procurement Team`
                   </Button>
                 </>
               )}
-            <Badge className={`${getStatusColor(supplier.status)} text-white px-4 py-2`}>
-              {(() => {
-                // Check if this should be displayed as "AWAITING DOCUMENTS"
-                if (supplier.status === 'PENDING' && supplier.onboarding && !supplier.onboarding.supplierFormSubmitted && supplier.onboarding.emailSent) {
-                  return 'AWAITING DOCUMENTS'
-                }
-                return supplier.status.replace(/_/g, ' ')
-              })()}
-            </Badge>
-            </div>
-          </div>
+          <Badge className={`${getStatusColor(supplier.status)} text-white px-4 py-2`}>
+            {(() => {
+              // Check if this should be displayed as "AWAITING DOCUMENTS"
+              if (supplier.status === 'PENDING' && supplier.onboarding && !supplier.onboarding.supplierFormSubmitted && supplier.onboarding.emailSent) {
+                return 'AWAITING DOCUMENTS'
+              }
+              return supplier.status.replace(/_/g, ' ')
+            })()}
+          </Badge>
         </div>
-      </div>
+      </header>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto p-6">
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="details">Details</TabsTrigger>
@@ -1209,18 +1207,6 @@ Procurement Team`
                       />
                     ) : (
                     <p className="text-sm font-medium">{supplier.tradingName || 'N/A'}</p>
-                    )}
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="text-xs text-gray-500 uppercase">Company Registration No.</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.registrationNumber || ''}
-                        onChange={(e) => setEditData({ ...editData, registrationNumber: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
-                    <p className="text-sm font-medium">{supplier.registrationNumber || 'N/A'}</p>
                     )}
                   </div>
                 </div>
@@ -1315,356 +1301,7 @@ Procurement Team`
                     )}
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 uppercase">Associated Company</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.associatedCompany || ''}
-                        onChange={(e) => setEditData({ ...editData, associatedCompany: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
-                    <p className="text-sm font-medium">{supplier.associatedCompany || 'N/A'}</p>
-                    )}
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="text-xs text-gray-500 uppercase">Products and/or Services</label>
-                    {isEditing ? (
-                      <Textarea
-                        value={editData.productsAndServices || ''}
-                        onChange={(e) => setEditData({ ...editData, productsAndServices: e.target.value })}
-                        className="mt-1"
-                        rows={3}
-                      />
-                    ) : (
-                    <p className="text-sm font-medium whitespace-pre-wrap">{supplier.productsAndServices || 'N/A'}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase">Associated Company Registration No.</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.associatedCompanyRegNo || ''}
-                        onChange={(e) => setEditData({ ...editData, associatedCompanyRegNo: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
-                    <p className="text-sm font-medium">{supplier.associatedCompanyRegNo || 'N/A'}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase">Associated Company Branch Name</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.associatedCompanyBranchName || ''}
-                        onChange={(e) => setEditData({ ...editData, associatedCompanyBranchName: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
-                    <p className="text-sm font-medium">{supplier.associatedCompanyBranchName || 'N/A'}</p>
-                    )}
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="text-xs text-gray-500 uppercase">Branches Contact Numbers</label>
-                    {isEditing ? (
-                      <Textarea
-                        value={editData.branchesContactNumbers || ''}
-                        onChange={(e) => setEditData({ ...editData, branchesContactNumbers: e.target.value })}
-                        className="mt-1"
-                        rows={3}
-                      />
-                    ) : (
-                    <p className="text-sm font-medium whitespace-pre-wrap">{supplier.branchesContactNumbers || 'N/A'}</p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Banking Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-blue-600" />
-                  Banking Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase">Bank Account Name</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.bankAccountName || ''}
-                        onChange={(e) => setEditData({ ...editData, bankAccountName: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
-                    <p className="text-sm font-medium">{supplier.bankAccountName || 'N/A'}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase">Bank Name</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.bankName || ''}
-                        onChange={(e) => setEditData({ ...editData, bankName: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
-                    <p className="text-sm font-medium">{supplier.bankName || 'N/A'}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase">Branch Name</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.branchName || ''}
-                        onChange={(e) => setEditData({ ...editData, branchName: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
-                    <p className="text-sm font-medium">{supplier.branchName || 'N/A'}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase">Branch Number</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.branchNumber || ''}
-                        onChange={(e) => setEditData({ ...editData, branchNumber: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
-                    <p className="text-sm font-medium">{supplier.branchNumber || 'N/A'}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase">Account Number</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.accountNumber || ''}
-                        onChange={(e) => setEditData({ ...editData, accountNumber: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
-                    <p className="text-sm font-medium">{supplier.accountNumber || 'N/A'}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase">Type of Account</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.typeOfAccount || ''}
-                        onChange={(e) => setEditData({ ...editData, typeOfAccount: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
-                    <p className="text-sm font-medium">{supplier.typeOfAccount || 'N/A'}</p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Responsible Persons */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <UserCheck className="h-5 w-5 text-blue-600" />
-                  Responsible Persons
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Banking RP */}
-                <div>
-                  <h4 className="font-semibold text-sm text-blue-600 mb-3">Banking</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-4">
-                    <div>
-                      <label className="text-xs text-gray-500 uppercase">Name</label>
-                      {isEditing ? (
-                        <Input
-                          value={editData.rpBanking || ''}
-                          onChange={(e) => setEditData({ ...editData, rpBanking: e.target.value })}
-                          className="mt-1"
-                        />
-                      ) : (
-                      <p className="text-sm font-medium">{supplier.rpBanking || 'N/A'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 uppercase">Telephone</label>
-                      {isEditing ? (
-                        <Input
-                          value={editData.rpBankingPhone || ''}
-                          onChange={(e) => setEditData({ ...editData, rpBankingPhone: e.target.value })}
-                          className="mt-1"
-                        />
-                      ) : (
-                      <p className="text-sm font-medium">{supplier.rpBankingPhone || 'N/A'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 uppercase">Email</label>
-                      {isEditing ? (
-                        <Input
-                          type="email"
-                          value={editData.rpBankingEmail || ''}
-                          onChange={(e) => setEditData({ ...editData, rpBankingEmail: e.target.value })}
-                          className="mt-1"
-                        />
-                      ) : (
-                      <p className="text-sm font-medium">{supplier.rpBankingEmail || 'N/A'}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quality Management RP */}
-                <div>
-                  <h4 className="font-semibold text-sm text-blue-600 mb-3">Quality Management</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-4">
-                    <div>
-                      <label className="text-xs text-gray-500 uppercase">Name</label>
-                      {isEditing ? (
-                        <Input
-                          value={editData.rpQuality || ''}
-                          onChange={(e) => setEditData({ ...editData, rpQuality: e.target.value })}
-                          className="mt-1"
-                        />
-                      ) : (
-                      <p className="text-sm font-medium">{supplier.rpQuality || 'N/A'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 uppercase">Telephone</label>
-                      {isEditing ? (
-                        <Input
-                          value={editData.rpQualityPhone || ''}
-                          onChange={(e) => setEditData({ ...editData, rpQualityPhone: e.target.value })}
-                          className="mt-1"
-                        />
-                      ) : (
-                      <p className="text-sm font-medium">{supplier.rpQualityPhone || 'N/A'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 uppercase">Email</label>
-                      {isEditing ? (
-                        <Input
-                          type="email"
-                          value={editData.rpQualityEmail || ''}
-                          onChange={(e) => setEditData({ ...editData, rpQualityEmail: e.target.value })}
-                          className="mt-1"
-                        />
-                      ) : (
-                      <p className="text-sm font-medium">{supplier.rpQualityEmail || 'N/A'}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* SHE RP */}
-                <div>
-                  <h4 className="font-semibold text-sm text-blue-600 mb-3">Safety, Health and Environment (SHE)</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-4">
-                    <div>
-                      <label className="text-xs text-gray-500 uppercase">Name</label>
-                      {isEditing ? (
-                        <Input
-                          value={editData.rpSHE || ''}
-                          onChange={(e) => setEditData({ ...editData, rpSHE: e.target.value })}
-                          className="mt-1"
-                        />
-                      ) : (
-                      <p className="text-sm font-medium">{supplier.rpSHE || 'N/A'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 uppercase">Telephone</label>
-                      {isEditing ? (
-                        <Input
-                          value={editData.rpSHEPhone || ''}
-                          onChange={(e) => setEditData({ ...editData, rpSHEPhone: e.target.value })}
-                          className="mt-1"
-                        />
-                      ) : (
-                      <p className="text-sm font-medium">{supplier.rpSHEPhone || 'N/A'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 uppercase">Email</label>
-                      {isEditing ? (
-                        <Input
-                          type="email"
-                          value={editData.rpSHEEmail || ''}
-                          onChange={(e) => setEditData({ ...editData, rpSHEEmail: e.target.value })}
-                          className="mt-1"
-                        />
-                      ) : (
-                      <p className="text-sm font-medium">{supplier.rpSHEEmail || 'N/A'}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* BBBEE RP */}
-                <div>
-                  <h4 className="font-semibold text-sm text-blue-600 mb-3">BBBEE</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-4">
-                    <div>
-                      <label className="text-xs text-gray-500 uppercase">Name</label>
-                      {isEditing ? (
-                        <Input
-                          value={editData.rpBBBEE || ''}
-                          onChange={(e) => setEditData({ ...editData, rpBBBEE: e.target.value })}
-                          className="mt-1"
-                        />
-                      ) : (
-                      <p className="text-sm font-medium">{supplier.rpBBBEE || 'N/A'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 uppercase">Telephone</label>
-                      {isEditing ? (
-                        <Input
-                          value={editData.rpBBBEEPhone || ''}
-                          onChange={(e) => setEditData({ ...editData, rpBBBEEPhone: e.target.value })}
-                          className="mt-1"
-                        />
-                      ) : (
-                      <p className="text-sm font-medium">{supplier.rpBBBEEPhone || 'N/A'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 uppercase">Email</label>
-                      {isEditing ? (
-                        <Input
-                          type="email"
-                          value={editData.rpBBBEEEmail || ''}
-                          onChange={(e) => setEditData({ ...editData, rpBBBEEEmail: e.target.value })}
-                          className="mt-1"
-                        />
-                      ) : (
-                      <p className="text-sm font-medium">{supplier.rpBBBEEEmail || 'N/A'}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* BBBEE & Employment */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-blue-600" />
-                  BBBEE & Employment
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase">BBBEE Status</label>
+                    <label className="text-xs text-gray-500 uppercase">BBBEE Level</label>
                     {isEditing ? (
                       <Input
                         value={editData.bbbeeLevel || ''}
@@ -1673,19 +1310,6 @@ Procurement Team`
                       />
                     ) : (
                     <p className="text-sm font-medium">{supplier.bbbeeLevel || 'N/A'}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase">Number of Employees</label>
-                    {isEditing ? (
-                      <Input
-                        type="number"
-                        value={editData.numberOfEmployees || ''}
-                        onChange={(e) => setEditData({ ...editData, numberOfEmployees: e.target.value ? parseInt(e.target.value) : null })}
-                        className="mt-1"
-                      />
-                    ) : (
-                    <p className="text-sm font-medium">{supplier.numberOfEmployees || 'N/A'}</p>
                     )}
                   </div>
                 </div>
@@ -3019,7 +2643,10 @@ Procurement Team`
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+        </div>
+      </main>
+    </>
   )
 }
+
 
