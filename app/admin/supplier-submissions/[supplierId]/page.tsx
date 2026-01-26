@@ -1038,7 +1038,14 @@ Procurement Team`
     )
   }
 
-  // Render the page
+  // Render the page - temporarily simplified for debugging
+  return (
+    <div>
+      <p>Supplier Details Page - Under Maintenance</p>
+    </div>
+  )
+  
+  /* TEMPORARILY DISABLED - Will re-enable after testing
   return (
     <div className="min-h-screen">
       <Dialog open={showCompletion} onOpenChange={setShowCompletion}>
@@ -2647,6 +2654,7 @@ Procurement Team`
       </main>
     </div>
   )
+  */
 }
 
 
