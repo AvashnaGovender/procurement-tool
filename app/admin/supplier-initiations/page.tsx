@@ -196,8 +196,9 @@ export default function SupplierInitiationsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full">
+      {/* Top Bar */}
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0 original:bg-white original:border-slate-200">
         <div className="flex items-center space-x-4">
           <Button variant="ghost" size="sm" asChild>
             <Link href="/dashboard">
@@ -205,13 +206,15 @@ export default function SupplierInitiationsPage() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Supplier Initiations</h1>
-            <p className="text-gray-600">Manage supplier onboarding initiation requests</p>
+            <h1 className="text-2xl font-bold text-foreground original:text-slate-800">Supplier Initiations</h1>
+            <p className="text-sm text-muted-foreground original:text-slate-600">Manage supplier onboarding initiation requests</p>
           </div>
         </div>
-      </div>
+      </header>
 
-      <Card>
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto p-8">
+        <Card>
         <CardContent className="pt-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
