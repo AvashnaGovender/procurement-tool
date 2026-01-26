@@ -281,17 +281,20 @@ export default function SupplierInitiationsPage() {
                         <TableCell>{new Date(initiation.submittedAt).toLocaleDateString()}</TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setViewInitiation(initiation)
-                                setViewDialogOpen(true)
-                              }}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
+                            {/* Show View button only for non-draft initiations */}
+                            {initiation.status !== 'DRAFT' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setViewInitiation(initiation)
+                                  setViewDialogOpen(true)
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                View
+                              </Button>
+                            )}
                             
                             {/* Show Edit button for drafts and rejected initiations created by current user */}
                             {(initiation.status === 'DRAFT' || initiation.status === 'REJECTED') && initiation.initiatedById === session?.user?.id && (

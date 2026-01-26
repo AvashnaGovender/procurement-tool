@@ -98,6 +98,21 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           // Convert ONCE_OFF to SHARED_IP for new structure
           const normalizedPurchaseType = purchaseType === 'ONCE_OFF' ? 'SHARED_IP' : (purchaseType === 'REGULAR' ? 'REGULAR' : 'SHARED_IP')
           
+          // Convert numeric annualPurchaseValue back to string format for the form
+          let annualPurchaseValueStr = ""
+          if (draft.annualPurchaseValue) {
+            const value = Number(draft.annualPurchaseValue)
+            if (value <= 100000) {
+              annualPurchaseValueStr = "0-100k"
+            } else if (value <= 500000) {
+              annualPurchaseValueStr = "100k-500k"
+            } else if (value <= 1000000) {
+              annualPurchaseValueStr = "500k-1M"
+            } else {
+              annualPurchaseValueStr = "1M+"
+            }
+          }
+          
           setFormData({
             businessUnit: businessUnit || [],
             processReadUnderstood: draft.processReadUnderstood || false,
@@ -112,7 +127,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
             purchaseType: normalizedPurchaseType,
             paymentMethod: draft.paymentMethod || "",
             codReason: draft.codReason || "",
-            annualPurchaseValue: draft.annualPurchaseValue || "",
+            annualPurchaseValue: annualPurchaseValueStr,
             creditApplication: draft.creditApplication || false,
             creditApplicationReason: draft.creditApplicationReason || "",
             onboardingReason: draft.onboardingReason || ""

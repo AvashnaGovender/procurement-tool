@@ -65,10 +65,27 @@ export async function DELETE(
 
     // Delete all related records in a transaction
     await prisma.$transaction(async (tx) => {
-      // Get the initiation ID if it exists
+      // Get the initiation ID if it exists through onboarding
       let initiationId: string | null = null
       if (supplier.onboarding?.initiationId) {
         initiationId = supplier.onboarding.initiationId
+      }
+
+      // Also check for initiations that might not be linked through onboarding
+      // by searching for initiations with matching supplier details
+      if (!initiationId) {
+        const matchingInitiation = await tx.supplierInitiation.findFirst({
+          where: {
+            OR: [
+              { supplierName: supplier.companyName },
+              { supplierEmail: supplier.contactEmail }
+            ]
+          }
+        })
+        if (matchingInitiation) {
+          initiationId = matchingInitiation.id
+          console.log(`✅ Found initiation by supplier details: ${initiationId}`)
+        }
       }
 
       // Delete onboarding timeline entries
@@ -110,6 +127,8 @@ export async function DELETE(
           where: { id: initiationId }
         })
         console.log(`✅ Deleted supplier initiation: ${initiationId}`)
+      } else {
+        console.log(`⚠️ No initiation found for supplier: ${supplierId}`)
       }
     })
 
