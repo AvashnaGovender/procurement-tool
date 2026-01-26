@@ -68,6 +68,7 @@ function SupplierOnboardingContent() {
   }
 
   return (
+    <>
     <div className="flex flex-col h-full">
       {/* Top Bar */}
       <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 flex-shrink-0">
@@ -290,6 +291,7 @@ function SupplierOnboardingContent() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   )
 }
 
