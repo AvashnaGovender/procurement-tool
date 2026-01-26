@@ -299,6 +299,17 @@ export async function POST(request: NextRequest) {
 
       // Update existing initiation to SUBMITTED
       console.log('Updating existing initiation to SUBMITTED...')
+      
+      // Delete old approval records before creating new ones
+      console.log('Deleting old approval records...')
+      await prisma.managerApproval.deleteMany({
+        where: { initiationId: id }
+      })
+      await prisma.procurementApproval.deleteMany({
+        where: { initiationId: id }
+      })
+      console.log('✅ Old approval records deleted')
+      
       initiation = await prisma.supplierInitiation.update({
         where: { id },
         data: {
