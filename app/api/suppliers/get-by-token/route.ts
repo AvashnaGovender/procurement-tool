@@ -44,7 +44,6 @@ export async function GET(request: NextRequest) {
     const formData = {
       supplierName: supplier.supplierName || '',
       contactPerson: supplier.contactPerson || onboarding.initiation?.supplierContactPerson || '',
-      nameOfBusiness: supplier.companyName || '',
       tradingName: supplier.tradingName || '',
       companyRegistrationNo: supplier.registrationNumber || '',
       physicalAddress: supplier.physicalAddress || '',
@@ -72,6 +71,7 @@ export async function GET(request: NextRequest) {
       rpSHEPhone: supplier.rpSHEPhone || '',
       rpSHEEmail: supplier.rpSHEEmail || '',
       bbbeeStatus: supplier.bbbeeLevel || '',
+      bbbeeOther: '',
       numberOfEmployees: supplier.numberOfEmployees?.toString() || '',
       rpBBBEE: supplier.rpBBBEE || '',
       rpBBBEEPhone: supplier.rpBBBEEPhone || '',

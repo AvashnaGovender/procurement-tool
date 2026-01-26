@@ -32,7 +32,6 @@ function SupplierOnboardingForm() {
     // Basic Information (Fields 1-4)
     supplierName: "",
     contactPerson: "",
-    nameOfBusiness: "",
     tradingName: "",
     
     // Address (Fields 5-6)
