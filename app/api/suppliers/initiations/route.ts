@@ -214,6 +214,7 @@ export async function GET(request: NextRequest) {
         businessUnit: initiation.businessUnit,
         requesterName: initiation.requesterName,
         submittedAt: initiation.submittedAt,
+        createdAt: initiation.createdAt,
         productServiceCategory: initiation.productServiceCategory,
         relationshipDeclaration: initiation.relationshipDeclaration,
         processReadUnderstood: initiation.processReadUnderstood,

@@ -28,6 +28,7 @@ interface SupplierInitiation {
   businessUnit: string
   requesterName: string
   submittedAt: string
+  createdAt: string
   initiatedById: string
   managerApproval?: {
     status: string
@@ -245,7 +246,7 @@ export default function SupplierInitiationsPage() {
                   <TableHead>Requester</TableHead>
                   <TableHead>Business Unit</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Submitted</TableHead>
+                  <TableHead>Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -278,7 +279,11 @@ export default function SupplierInitiationsPage() {
                             {initiation.status.replace(/_/g, ' ')}
                           </Badge>
                         </TableCell>
-                        <TableCell>{new Date(initiation.submittedAt).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          {initiation.status === 'DRAFT' 
+                            ? new Date(initiation.createdAt).toLocaleDateString()
+                            : new Date(initiation.submittedAt).toLocaleDateString()}
+                        </TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-2">
                             {/* Show View button only for non-draft initiations */}
