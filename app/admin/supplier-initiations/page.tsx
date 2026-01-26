@@ -291,8 +291,8 @@ export default function SupplierInitiationsPage() {
                               View
                             </Button>
                             
-                            {/* Show Edit button for rejected initiations created by current user */}
-                            {initiation.status === 'REJECTED' && initiation.initiatedById === session?.user?.id && (
+                            {/* Show Edit button for drafts and rejected initiations created by current user */}
+                            {(initiation.status === 'DRAFT' || initiation.status === 'REJECTED') && initiation.initiatedById === session?.user?.id && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -300,7 +300,7 @@ export default function SupplierInitiationsPage() {
                               >
                                 <Link href={`/suppliers/onboard?draftId=${initiation.id}`}>
                                   <AlertCircle className="h-4 w-4 mr-1" />
-                                  Revise & Resubmit
+                                  {initiation.status === 'DRAFT' ? 'Continue Editing' : 'Revise & Resubmit'}
                                 </Link>
                               </Button>
                             )}

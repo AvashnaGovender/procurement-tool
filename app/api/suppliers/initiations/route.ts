@@ -136,9 +136,14 @@ export async function GET(request: NextRequest) {
           }
         ]
       },
-      orderBy: {
-        submittedAt: 'desc'
-      }
+      orderBy: [
+        {
+          submittedAt: 'desc'
+        },
+        {
+          createdAt: 'desc'
+        }
+      ]
     })
 
     console.log(`\n📊 Found ${initiations.length} initiations for user ${session.user.email} (role: ${session.user.role})`)
