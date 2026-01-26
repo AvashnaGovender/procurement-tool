@@ -28,7 +28,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(draftId || null)
   const [loadingDraft, setLoadingDraft] = useState(!!draftId)
   const [formData, setFormData] = useState({
-    businessUnit: "",
+    businessUnit: [] as string[],
     processReadUnderstood: false,
     dueDiligenceCompleted: false,
     supplierName: "",
@@ -74,10 +74,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           const draft = data.initiation
           setCurrentDraftId(draft.id)
           
-          // Convert businessUnit array to string (handle both array and single value)
+          // Convert businessUnit to array (handle both array and single value)
           const businessUnit = Array.isArray(draft.businessUnit) 
-            ? draft.businessUnit[0] 
-            : draft.businessUnit
+            ? draft.businessUnit 
+            : (draft.businessUnit ? [draft.businessUnit] : [])
 
           // Determine purchase type from draft
           const purchaseType = draft.purchaseType || (draft.regularPurchase ? 'REGULAR' : (draft.onceOffPurchase ? 'ONCE_OFF' : 'SHARED_IP'))
@@ -85,7 +85,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           const normalizedPurchaseType = purchaseType === 'ONCE_OFF' ? 'SHARED_IP' : (purchaseType === 'REGULAR' ? 'REGULAR' : 'SHARED_IP')
           
           setFormData({
-            businessUnit: businessUnit || "",
+            businessUnit: businessUnit || [],
             processReadUnderstood: draft.processReadUnderstood || false,
             dueDiligenceCompleted: draft.dueDiligenceCompleted || false,
             supplierName: draft.supplierName || "",
@@ -117,6 +117,25 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
       ...prev,
       [field]: value
     }))
+  }
+
+  const handleBusinessUnitChange = (unit: string, checked: boolean) => {
+    setFormData(prev => {
+      const currentUnits = prev.businessUnit || []
+      if (checked) {
+        // Add unit if not already in array
+        return {
+          ...prev,
+          businessUnit: [...currentUnits, unit]
+        }
+      } else {
+        // Remove unit from array
+        return {
+          ...prev,
+          businessUnit: currentUnits.filter(u => u !== unit)
+        }
+      }
+    })
   }
 
   const handleSaveDraft = async (e: React.FormEvent) => {
@@ -152,7 +171,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
 
       const submitData = {
         ...(currentDraftId && { id: currentDraftId }),
-        businessUnit: formData.businessUnit ? [formData.businessUnit] : [],
+        businessUnit: Array.isArray(formData.businessUnit) ? formData.businessUnit : (formData.businessUnit ? [formData.businessUnit] : []),
         processReadUnderstood: formData.processReadUnderstood,
         dueDiligenceCompleted: formData.dueDiligenceCompleted,
         supplierName: formData.supplierName,
@@ -231,7 +250,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
 
       const submitData = {
         ...(currentDraftId && { id: currentDraftId }),
-        businessUnit: formData.businessUnit ? [formData.businessUnit] : [],
+        businessUnit: Array.isArray(formData.businessUnit) ? formData.businessUnit : (formData.businessUnit ? [formData.businessUnit] : []),
         processReadUnderstood: formData.processReadUnderstood,
         dueDiligenceCompleted: formData.dueDiligenceCompleted,
         supplierName: formData.supplierName,
@@ -279,7 +298,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
 
   const isFormValid = () => {
     // Check all required fields
-    const hasBusinessUnit = !!formData.businessUnit
+    const hasBusinessUnit = Array.isArray(formData.businessUnit) && formData.businessUnit.length > 0
     const hasChecklist = formData.processReadUnderstood && formData.dueDiligenceCompleted
     const hasRelationshipDeclaration = formData.relationshipDeclaration === "OTHER" 
       ? !!formData.relationshipDeclarationOther 
@@ -358,22 +377,38 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="businessUnit">Business Unit *</Label>
-            <Select 
-              value={formData.businessUnit} 
-              onValueChange={(value) => handleInputChange('businessUnit', value)}
-            >
-              <SelectTrigger className={!formData.businessUnit ? "border-red-300" : ""}>
-                <SelectValue placeholder="Select Business Unit" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="SCHAUENBURG_PTY_LTD_300">Schauenburg (Pty) Ltd 200</SelectItem>
-                <SelectItem value="SCHAUENBURG_SYSTEMS_200">Schauenburg Systems (Pty) Ltd 300</SelectItem>
-              </SelectContent>
-            </Select>
-            {!formData.businessUnit && (
-              <p className="text-sm text-red-600">Please select a business unit</p>
+          <div className="space-y-3">
+            <Label>Business Unit *</Label>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="businessUnit-200"
+                  checked={formData.businessUnit.includes("SCHAUENBURG_PTY_LTD_300")}
+                  onCheckedChange={(checked) => handleBusinessUnitChange("SCHAUENBURG_PTY_LTD_300", checked as boolean)}
+                />
+                <Label
+                  htmlFor="businessUnit-200"
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  Schauenburg (Pty) Ltd 200
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="businessUnit-300"
+                  checked={formData.businessUnit.includes("SCHAUENBURG_SYSTEMS_200")}
+                  onCheckedChange={(checked) => handleBusinessUnitChange("SCHAUENBURG_SYSTEMS_200", checked as boolean)}
+                />
+                <Label
+                  htmlFor="businessUnit-300"
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  Schauenburg Systems (Pty) Ltd 300
+                </Label>
+              </div>
+            </div>
+            {formData.businessUnit.length === 0 && (
+              <p className="text-sm text-red-600">Please select at least one business unit</p>
             )}
           </div>
         </CardContent>

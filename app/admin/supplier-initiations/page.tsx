@@ -196,9 +196,9 @@ export default function SupplierInitiationsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <>
       {/* Top Bar */}
-      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0 original:bg-white original:border-slate-200">
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 original:bg-white original:border-slate-200">
         <div className="flex items-center space-x-4">
           <Button variant="ghost" size="sm" asChild>
             <Link href="/dashboard">
@@ -512,6 +512,6 @@ export default function SupplierInitiationsPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }

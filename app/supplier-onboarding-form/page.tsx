@@ -208,7 +208,7 @@ function SupplierOnboardingForm() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <Card className="max-w-2xl w-full">
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
@@ -249,7 +249,7 @@ function SupplierOnboardingForm() {
     const totalFiles = Object.values(files).reduce((acc, fileList) => acc + fileList.length, 0)
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
         <div className="max-w-5xl mx-auto">
           <Card>
             <CardHeader>
@@ -357,7 +357,7 @@ function SupplierOnboardingForm() {
   // Show loading state while fetching data
   if (loadingData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
@@ -369,7 +369,7 @@ function SupplierOnboardingForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+    <div className="bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -737,7 +737,7 @@ function SupplierOnboardingForm() {
 export default function SupplierOnboardingFormPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+      <div className="bg-slate-100 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
           <p className="text-slate-600">Loading supplier onboarding form...</p>
