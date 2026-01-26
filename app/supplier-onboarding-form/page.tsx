@@ -612,11 +612,9 @@ function SupplierOnboardingForm() {
                 return documentsToRevise.includes(key)
               })
               .map(({ key, label, required }) => {
-                // Override required for creditApplication based on creditApplication state
-                const isRequired = key === 'creditApplication' ? creditApplication : required
                 // Remove existing asterisk and add it back if required
                 const cleanLabel = label.replace(' *', '')
-                const displayLabel = isRequired ? `${cleanLabel} *` : cleanLabel
+                const displayLabel = required ? `${cleanLabel} *` : cleanLabel
                 
                 return (
                 <div key={key} className="border rounded-lg p-4">
