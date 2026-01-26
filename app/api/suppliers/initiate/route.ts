@@ -6,6 +6,21 @@ import { sendEmail } from '@/lib/email-sender'
 import { getRequiredDocuments } from '@/lib/document-requirements'
 import { BusinessUnit, InitiationStatus } from '@prisma/client'
 
+// Helper function to format annual purchase value as a range
+function formatAnnualPurchaseValue(value: number | null): string {
+  if (!value) return ''
+  
+  if (value <= 100000) {
+    return 'R0 - R100,000'
+  } else if (value <= 500000) {
+    return 'R100,000 - R500,000'
+  } else if (value <= 1000000) {
+    return 'R500,000 - R1,000,000'
+  } else {
+    return 'R1,000,000+'
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('Starting supplier initiation API call')
@@ -431,7 +446,9 @@ A new supplier initiation request has been submitted and requires your approval.
 - <strong>Product/Service Category:</strong> ${productServiceCategory}
 - <strong>Requested by:</strong> ${requesterName}
 - <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
-${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> R${parseFloat(annualPurchaseValue).toLocaleString()}` : ''}
+${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> ${formatAnnualPurchaseValue(parseFloat(annualPurchaseValue))}` : ''}
+- <strong>Payment Method:</strong> ${paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)'}
+${paymentMethod === 'COD' && codReason ? `- <strong>COD Reason:</strong> ${codReason}` : ''}
 - <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}
 
 <strong>Reason for Onboarding:</strong>
@@ -478,7 +495,9 @@ A new supplier initiation request has been submitted and requires approval.
 - <strong>Product/Service Category:</strong> ${productServiceCategory}
 - <strong>Requested by:</strong> ${requesterName}
 - <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
-${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> R${parseFloat(annualPurchaseValue).toLocaleString()}` : ''}
+${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> ${formatAnnualPurchaseValue(parseFloat(annualPurchaseValue))}` : ''}
+- <strong>Payment Method:</strong> ${paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)'}
+${paymentMethod === 'COD' && codReason ? `- <strong>COD Reason:</strong> ${codReason}` : ''}
 - <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}
 
 <strong>Reason for Onboarding:</strong>
