@@ -370,8 +370,10 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
 
     const docNames: Record<string, string> = {
       'companyRegistration': 'Company Registration',
+      'cipcCertificate': 'CIPC Certificate (Company Registration)',
       'bankConfirmation': 'Bank Confirmation Letter',
       'bbbeeAccreditation': 'B-BBEE Certificate',
+      'bbbeeScorecard': 'BBBEE Scorecard Report or Affidavit',
       'nda': 'Non-Disclosure Agreement (NDA)',
       'creditApplication': 'Credit Application Form',
       'taxClearance': 'Tax Clearance Certificate or Letter of Good Standing'
@@ -1823,10 +1825,12 @@ Procurement Team`
                   const docDisplayMap: Record<string, { name: string, icon: string }> = {
                     'nda': { name: 'Non-Disclosure Agreement (NDA)', icon: '📝' },
                     'companyRegistration': { name: 'Company Registration (CIPC Documents)', icon: '📋' },
+                    'cipcCertificate': { name: 'CIPC Certificate (Company Registration)', icon: '📋' },
                     'taxClearance': { name: 'Tax Clearance Certificate', icon: '💼' },
                     'goodStanding': { name: 'Letter of Good Standing', icon: '💼' },
                     'bankConfirmation': { name: 'Bank Confirmation Letter', icon: '🏦' },
                     'bbbeeAccreditation': { name: 'B-BBEE Certificate', icon: '⭐' },
+                    'bbbeeScorecard': { name: 'BBBEE Scorecard Report or Affidavit', icon: '⭐' },
                     'creditApplication': { name: 'Credit Application Form', icon: '💳' }
                   }
                   
