@@ -57,6 +57,7 @@ function SupplierOnboardingForm() {
 
   // File uploads state
   const [files, setFiles] = useState<{[key: string]: File[]}>({
+    cipcCertificate: [],
     cm29Directors: [],
     shareholderCerts: [],
     proofOfShareholding: [],
@@ -603,6 +604,7 @@ function SupplierOnboardingForm() {
             </CardHeader>
             <CardContent className="space-y-6">
               {[
+                { key: 'cipcCertificate', label: 'CIPC Certificate (Company Registration) *', required: true },
                 { key: 'cm29Directors', label: 'Copy of CM29 - List of Directors', required: false },
                 { key: 'shareholderCerts', label: 'Shareholder Certificates', required: false },
                 { key: 'proofOfShareholding', label: 'Proof of Shareholding', required: false },
