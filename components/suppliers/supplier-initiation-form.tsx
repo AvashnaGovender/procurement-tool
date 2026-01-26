@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Building2, CheckCircle, AlertCircle, Users, DollarSign, ArrowLeft, Home } from "lucide-react"
+import { Building2, CheckCircle, AlertCircle, Users, DollarSign } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { PRODUCT_SERVICE_CATEGORIES } from "@/lib/product-service-categories"
@@ -339,43 +339,13 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
 
   return (
     <div className="space-y-6">
-      {/* Navigation Header */}
-      <div className="flex items-center justify-between bg-slate-50 p-4 rounded-lg border">
-        <div className="flex items-center gap-4">
-          <Button 
-            type="button"
-            variant="outline" 
-            size="sm"
-            onClick={() => router.push('/dashboard')}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Button>
-          <Button 
-            type="button"
-            variant="ghost" 
-            size="sm"
-            onClick={() => router.push('/suppliers')}
-            className="flex items-center gap-2"
-          >
-            <Home className="h-4 w-4" />
-            Suppliers
-          </Button>
-          <Button 
-            type="button"
-            variant="ghost" 
-            size="sm"
-            onClick={() => router.push('/suppliers/drafts')}
-            className="flex items-center gap-2"
-          >
-            My Drafts
-          </Button>
+      {currentDraftId && (
+        <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+          <p className="text-sm text-blue-900 font-medium">
+            📝 Editing draft - Save or Submit when ready
+          </p>
         </div>
-        <div className="text-sm text-slate-600">
-          {currentDraftId ? 'Editing draft - Save or Submit when ready' : 'Complete all fields to submit for approval'}
-        </div>
-      </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
       {/* Business Unit Selection */}

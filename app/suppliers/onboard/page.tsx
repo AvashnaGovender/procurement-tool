@@ -121,27 +121,6 @@ function SupplierOnboardingContent() {
           </div>
         </header>
 
-        {/* Breadcrumb Navigation */}
-        <div className="bg-slate-50 border-b border-slate-200 px-8 py-3">
-          <nav className="flex items-center space-x-2 text-sm">
-            <button 
-              onClick={() => router.push('/dashboard')}
-              className="text-slate-600 hover:text-slate-900 hover:underline"
-            >
-              Dashboard
-            </button>
-            <span className="text-slate-400">/</span>
-            <button 
-              onClick={() => router.push('/suppliers')}
-              className="text-slate-600 hover:text-slate-900 hover:underline"
-            >
-              Suppliers
-            </button>
-            <span className="text-slate-400">/</span>
-            <span className="text-slate-900 font-medium">Onboarding</span>
-          </nav>
-        </div>
-
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-8">
           {/* Main Tabs: New Onboarding vs Review Submissions */}
@@ -247,7 +226,7 @@ function SupplierOnboardingContent() {
                   <CardContent className="p-0">
                     <div className="bg-slate-50 rounded-b-lg overflow-hidden">
                       <iframe 
-                        src="/admin/supplier-submissions" 
+                        src="/admin/supplier-submissions?embedded=true" 
                         className="w-full border-0"
                         style={{ minHeight: "calc(100vh - 450px)", height: "700px" }}
                         title="Supplier Submissions Dashboard"

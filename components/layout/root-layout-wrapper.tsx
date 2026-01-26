@@ -1,6 +1,7 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { Suspense } from "react"
+import { usePathname, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Sidebar } from "./sidebar"
 import { UserMenu } from "@/components/user-menu"
@@ -9,13 +10,17 @@ interface RootLayoutWrapperProps {
   children: React.ReactNode
 }
 
-export function RootLayoutWrapper({ children }: RootLayoutWrapperProps) {
+function RootLayoutWrapperContent({ children }: RootLayoutWrapperProps) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { status } = useSession()
+
+  // Check if page is embedded (e.g., in an iframe)
+  const isEmbedded = searchParams.get('embedded') === 'true'
 
   // Pages that should NOT have the sidebar
   const noSidebarPaths = ['/login', '/supplier-onboarding-form']
-  const shouldShowSidebar = !noSidebarPaths.some(path => pathname.startsWith(path)) && status === 'authenticated'
+  const shouldShowSidebar = !noSidebarPaths.some(path => pathname.startsWith(path)) && status === 'authenticated' && !isEmbedded
 
   if (!shouldShowSidebar) {
     return <>{children}</>
@@ -33,6 +38,14 @@ export function RootLayoutWrapper({ children }: RootLayoutWrapperProps) {
         </div>
       </div>
     </div>
+  )
+}
+
+export function RootLayoutWrapper({ children }: RootLayoutWrapperProps) {
+  return (
+    <Suspense fallback={<div>{children}</div>}>
+      <RootLayoutWrapperContent>{children}</RootLayoutWrapperContent>
+    </Suspense>
   )
 }
 
