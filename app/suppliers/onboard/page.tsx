@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState, useEffect } from "react"
+import React, { Suspense, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Home, Settings, Plus, List } from "lucide-react"
@@ -68,10 +68,9 @@ function SupplierOnboardingContent() {
   }
 
   return (
-    <>
     <div className="flex flex-col h-full">
-      {/* Top Bar */}
-      <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 flex-shrink-0">
+        {/* Top Bar */}
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 flex-shrink-0">
           <div className="flex items-center gap-4">
             <Button 
               variant="ghost" 
@@ -260,38 +259,36 @@ function SupplierOnboardingContent() {
             </TabsContent>
           </Tabs>
         </main>
-      </div>
-      
-      {/* Waiting Dialog after initiation send */}
-      <Dialog open={waitingOpen} onOpenChange={setWaitingOpen}>
-        <DialogContent className="sm:max-w-lg bg-white border-slate-300">
-          <DialogHeader>
-            <DialogTitle className="text-slate-900">Waiting for Supplier</DialogTitle>
-            <DialogDescription className="text-slate-600">
-              Waiting for supplier to complete next step. You will be notified for review.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="text-center space-y-4 p-4">
-            <div className="flex gap-3 justify-center pt-4">
-              <Button 
-                variant="outline" 
-                onClick={() => setWaitingOpen(false)}
-                className="border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 bg-white"
-              >
-                Close
-              </Button>
-              <Button 
-                onClick={() => { setWaitingOpen(false); setMainTab('review') }}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Go to Review
-              </Button>
+        
+        {/* Waiting Dialog after initiation send */}
+        <Dialog open={waitingOpen} onOpenChange={setWaitingOpen}>
+          <DialogContent className="sm:max-w-lg bg-white border-slate-300">
+            <DialogHeader>
+              <DialogTitle className="text-slate-900">Waiting for Supplier</DialogTitle>
+              <DialogDescription className="text-slate-600">
+                Waiting for supplier to complete next step. You will be notified for review.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="text-center space-y-4 p-4">
+              <div className="flex gap-3 justify-center pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setWaitingOpen(false)}
+                  className="border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 bg-white"
+                >
+                  Close
+                </Button>
+                <Button 
+                  onClick={() => { setWaitingOpen(false); setMainTab('review') }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Go to Review
+                </Button>
+              </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-    </>
+          </DialogContent>
+        </Dialog>
+      </div>
   )
 }
 
