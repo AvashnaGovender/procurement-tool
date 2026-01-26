@@ -129,9 +129,9 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
   const handleAddCustomCategory = () => {
     if (!customCategory.trim()) return
     
-    // Add to custom categories list
+    // Add to custom categories list and sort alphabetically
     const newCategory = customCategory.trim()
-    setCustomCategories(prev => [...prev, newCategory])
+    setCustomCategories(prev => [...prev, newCategory].sort((a, b) => a.localeCompare(b)))
     
     // Set as selected value
     setFormData(prev => ({
