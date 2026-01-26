@@ -572,7 +572,6 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                 <SelectValue placeholder="Select relationship declaration" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="NONE">None</SelectItem>
                 <SelectItem value="NO_EXISTING_RELATIONSHIP">No existing relationship</SelectItem>
                 <SelectItem value="PREVIOUS_SUPPLIER">Previous supplier</SelectItem>
                 <SelectItem value="CURRENT_SUPPLIER">Current supplier</SelectItem>
@@ -784,13 +783,24 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
               )}
             </div>
             
-            <Button 
-              type="submit" 
-              disabled={!isFormValid() || isSubmitting}
-              className="min-w-[120px]"
-            >
-              {isSubmitting ? "Submitting..." : "Submit for Approval"}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button 
+                type="button"
+                variant="outline"
+                onClick={handleSaveDraft}
+                disabled={isSubmitting}
+                className="min-w-[120px]"
+              >
+                Save Draft
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={!isFormValid() || isSubmitting}
+                className="min-w-[120px]"
+              >
+                {isSubmitting ? "Submitting..." : "Submit for Approval"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

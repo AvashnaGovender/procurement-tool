@@ -279,10 +279,20 @@ export async function GET(request: NextRequest) {
     // Get all drafts and rejected initiations for the user
     const initiations = await prisma.supplierInitiation.findMany({
       where: {
-        initiatedById: session.user.id,
-        status: {
-          in: ['DRAFT', 'REJECTED'] as any
-        }
+        OR: [
+          {
+            initiatedById: session.user.id,
+            status: {
+              in: ['DRAFT', 'REJECTED'] as any
+            }
+          },
+          // Also allow loading by specific ID if user owns it
+          {
+            id: body.draftId,
+            initiatedById: session.user.id,
+            status: 'REJECTED' as any
+          }
+        ]
       },
       orderBy: {
         updatedAt: 'desc'

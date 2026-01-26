@@ -4,64 +4,45 @@
  */
 
 export const PRODUCT_SERVICE_CATEGORIES = [
-  // Mining & Industrial
-  "Mining Equipment & Machinery",
-  "Conveyors & Material Handling",
-  "Safety Equipment & PPE",
-  "Industrial Tools & Hardware",
-  "Hydraulics & Pneumatics",
-  
-  // Engineering & Maintenance
-  "Engineering Services",
-  "Maintenance & Repair Services",
-  "Fabrication & Welding",
-  "Electrical Equipment & Services",
-  "Mechanical Components",
-  
-  // Construction & Infrastructure
-  "Construction Materials",
-  "Steel & Metal Products",
-  "Concrete & Aggregates",
-  "Building Supplies",
-  
-  // IT & Technology
-  "IT Services & Software",
-  "Computer Hardware & Equipment",
-  "Telecommunications",
-  "Automation & Control Systems",
-  
-  // Office & Administrative
-  "Office Supplies & Stationery",
-  "Office Furniture & Equipment",
-  "Printing & Signage",
-  "Catering & Food Services",
-  
-  // Professional Services
-  "Consulting Services",
-  "Legal Services",
   "Accounting & Financial Services",
-  "HR & Recruitment Services",
-  "Training & Development",
-  
-  // Logistics & Transport
-  "Transport & Logistics Services",
-  "Fuel & Lubricants",
-  "Fleet Management",
-  "Warehousing & Storage",
-  
-  // Health & Safety
-  "Health & Safety Services",
-  "Medical Supplies & Equipment",
-  "Environmental Services",
-  "Security Services",
-  
-  // Utilities & Facilities
+  "Automation & Control Systems",
+  "Building Supplies",
+  "Catering & Food Services",
   "Cleaning & Janitorial Services",
-  "Facilities Management",
-  "Waste Management",
+  "Computer Hardware & Equipment",
+  "Concrete & Aggregates",
+  "Consulting Services",
+  "Construction Materials",
+  "Conveyors & Material Handling",
+  "Electrical Equipment & Services",
   "Energy & Utilities",
-  
-  // Other
+  "Engineering Services",
+  "Environmental Services",
+  "Fabrication & Welding",
+  "Facilities Management",
+  "Fleet Management",
+  "Fuel & Lubricants",
+  "Health & Safety Services",
+  "HR & Recruitment Services",
+  "Hydraulics & Pneumatics",
+  "Industrial Tools & Hardware",
+  "IT Services & Software",
+  "Legal Services",
+  "Maintenance & Repair Services",
+  "Mechanical Components",
+  "Medical Supplies & Equipment",
+  "Mining Equipment & Machinery",
+  "Office Furniture & Equipment",
+  "Office Supplies & Stationery",
+  "Printing & Signage",
+  "Safety Equipment & PPE",
+  "Security Services",
+  "Steel & Metal Products",
+  "Telecommunications",
+  "Training & Development",
+  "Transport & Logistics Services",
+  "Warehousing & Storage",
+  "Waste Management",
   "Other Products/Services"
 ] as const
 

@@ -28,6 +28,7 @@ interface SupplierInitiation {
   businessUnit: string
   requesterName: string
   submittedAt: string
+  initiatedById: string
   managerApproval?: {
     status: string
     approver: string
@@ -289,6 +290,21 @@ export default function SupplierInitiationsPage() {
                               <Eye className="h-4 w-4 mr-1" />
                               View
                             </Button>
+                            
+                            {/* Show Edit button for rejected initiations created by current user */}
+                            {initiation.status === 'REJECTED' && initiation.initiatedById === session?.user?.id && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                asChild
+                              >
+                                <Link href={`/suppliers/initiate?draftId=${initiation.id}`}>
+                                  <AlertCircle className="h-4 w-4 mr-1" />
+                                  Revise & Resubmit
+                                </Link>
+                              </Button>
+                            )}
+                            
                             {canApprove(initiation) && (
                               <>
                                 <Button
@@ -371,30 +387,33 @@ export default function SupplierInitiationsPage() {
                                     </div>
                                   )}
                                 </div>
-                                <div>
-                                  <Label className="text-sm font-medium text-gray-600">Procurement Approval</Label>
-                                  <div className="flex items-center gap-2 mb-1">
-                                    {getStatusIcon(initiation.procurementApproval?.status || 'PENDING')}
-                                    <span className="text-sm">
-                                      {initiation.procurementApproval?.status || 'PENDING'}
-                                    </span>
+                                {/* Only show Procurement Approval if Manager has approved */}
+                                {initiation.managerApproval?.status === 'APPROVED' && (
+                                  <div>
+                                    <Label className="text-sm font-medium text-gray-600">Procurement Approval</Label>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      {getStatusIcon(initiation.procurementApproval?.status || 'PENDING')}
+                                      <span className="text-sm">
+                                        {initiation.procurementApproval?.status || 'PENDING'}
+                                      </span>
+                                    </div>
+                                    {initiation.procurementApproval?.approver && (
+                                      <p className="text-xs text-gray-500">by {initiation.procurementApproval.approver}</p>
+                                    )}
+                                    {initiation.procurementApproval?.status === 'REJECTED' && initiation.procurementApproval?.comments && (
+                                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                                        <p className="text-xs font-medium text-red-900 mb-1">Rejection Reason:</p>
+                                        <p className="text-xs text-red-800">{initiation.procurementApproval.comments}</p>
+                                      </div>
+                                    )}
+                                    {initiation.procurementApproval?.status === 'APPROVED' && initiation.procurementApproval?.comments && (
+                                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                                        <p className="text-xs font-medium text-green-900 mb-1">Comments:</p>
+                                        <p className="text-xs text-green-800">{initiation.procurementApproval.comments}</p>
+                                      </div>
+                                    )}
                                   </div>
-                                  {initiation.procurementApproval?.approver && (
-                                    <p className="text-xs text-gray-500">by {initiation.procurementApproval.approver}</p>
-                                  )}
-                                  {initiation.procurementApproval?.status === 'REJECTED' && initiation.procurementApproval?.comments && (
-                                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                                      <p className="text-xs font-medium text-red-900 mb-1">Rejection Reason:</p>
-                                      <p className="text-xs text-red-800">{initiation.procurementApproval.comments}</p>
-                                    </div>
-                                  )}
-                                  {initiation.procurementApproval?.status === 'APPROVED' && initiation.procurementApproval?.comments && (
-                                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
-                                      <p className="text-xs font-medium text-green-900 mb-1">Comments:</p>
-                                      <p className="text-xs text-green-800">{initiation.procurementApproval.comments}</p>
-                                    </div>
-                                  )}
-                                </div>
+                                )}
                               </div>
                               <div className="pt-4 border-t">
                                 <Label className="text-sm font-medium text-gray-600 mb-2">Reason for Onboarding:</Label>
