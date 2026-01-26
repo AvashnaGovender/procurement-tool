@@ -40,6 +40,7 @@ interface SupplierInitiation {
     approvedAt?: string
     comments?: string
   }
+  purchaseType?: string
   regularPurchase: boolean
   annualPurchaseValue?: number
   onceOffPurchase: boolean
@@ -340,9 +341,10 @@ export default function SupplierInitiationsPage() {
                                 <div>
                                   <Label className="text-sm font-medium text-gray-600">Purchase Type</Label>
                                   <p className="text-sm">
-                                    {initiation.regularPurchase && 'Regular Purchase'}
-                                    {initiation.regularPurchase && initiation.onceOffPurchase && ', '}
-                                    {initiation.onceOffPurchase && 'Once-off Purchase'}
+                                    {initiation.purchaseType === 'REGULAR' && 'Regular Purchase'}
+                                    {initiation.purchaseType === 'ONCE_OFF' && 'Once-off Purchase'}
+                                    {initiation.purchaseType === 'SHARED_IP' && 'Shared IP'}
+                                    {!initiation.purchaseType && (initiation.regularPurchase ? 'Regular Purchase' : initiation.onceOffPurchase ? 'Once-off Purchase' : 'N/A')}
                                     {initiation.annualPurchaseValue && ` (R${initiation.annualPurchaseValue.toLocaleString()})`}
                                   </p>
                                 </div>
