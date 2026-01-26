@@ -369,9 +369,11 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     })
 
     const docNames: Record<string, string> = {
-      'companyRegistration': 'Company Registration',
+      'cipcCertificate': 'CIPC Certificate (Company Registration)',
+      'companyRegistration': 'Company Registration', // Legacy key
       'bankConfirmation': 'Bank Confirmation Letter',
-      'bbbeeAccreditation': 'B-BBEE Certificate',
+      'bbbeeScorecard': 'BBBEE Scorecard Report or Affidavit',
+      'bbbeeAccreditation': 'B-BBEE Certificate', // Legacy key
       'nda': 'Non-Disclosure Agreement (NDA)',
       'creditApplication': 'Credit Application Form',
       'taxClearance': 'Tax Clearance Certificate or Letter of Good Standing'
@@ -602,7 +604,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
           // Check if email was sent successfully
           if (data.emailError) {
             // Approval succeeded but email failed - show warning with option to resend
-            setSuccessMessage(`Supplier approved successfully!\n\n��ᴩ� Warning: Failed to send approval email: ${data.emailError}\n\nYou can use the "Resend Approval Email" button to send the email manually.`)
+            setSuccessMessage(`Supplier approved successfully!\n\n⚠️ Warning: Failed to send approval email: ${data.emailError}\n\nYou can use the "Resend Approval Email" button to send the email manually.`)
             setSuccessDialogOpen(true)
           } else {
             // Everything succeeded
@@ -744,16 +746,16 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const mapDocumentNameToCategory = (name: string): string | null => {
     const nameLower = name.toLowerCase()
     if (nameLower.includes('nda') || nameLower.includes('non-disclosure')) return 'nda'
+    if (nameLower.includes('cipc') || nameLower.includes('company registration')) return 'cipcCertificate'
     if (nameLower.includes('tax clearance')) return 'taxClearance'
     if (nameLower.includes('good standing')) return 'goodStanding'
-    if (nameLower.includes('bbbee') || nameLower.includes('b-bbee')) return 'bbbeeAccreditation'
+    if (nameLower.includes('bbbee') || nameLower.includes('b-bbee')) return 'bbbeeScorecard'
     if (nameLower.includes('bank confirmation')) return 'bankConfirmation'
     if (nameLower.includes('vat')) return 'vatCertificate'
     if (nameLower.includes('credit application')) return 'creditApplication'
     if (nameLower.includes('cm29') || nameLower.includes('directors')) return 'cm29Directors'
     if (nameLower.includes('shareholder')) return 'shareholderCerts'
     if (nameLower.includes('proof of shareholding')) return 'proofOfShareholding'
-    if (nameLower.includes('bbbee scorecard')) return 'bbbeeScorecard'
     if (nameLower.includes('health') && nameLower.includes('safety')) return 'healthSafety'
     if (nameLower.includes('quality')) return 'qualityCert'
     if (nameLower.includes('sector registration')) return 'sectorRegistrations'
@@ -982,7 +984,7 @@ Procurement Team`
       if (data.success) {
         setAiJobId(data.jobId)
         setAiProcessing(true)
-        setAiLogs(['���� Starting AI analysis in background...'])
+        setAiLogs(['🤖 Starting AI analysis in background...'])
         setAiSummary(null)
         setAiProgress(0)
         setAiCurrentStep('Initializing...')
@@ -1348,7 +1350,7 @@ Procurement Team`
                     const documentCount = Object.keys(allUploadedFiles).length
                     // Don't infer SHARED_IP just because NDA exists - might be from old version
                     // Only infer ONCE_OFF if very few documents
-                    if (documentCount <= 2 && allUploadedFiles.bankConfirmation && allUploadedFiles.companyRegistration) {
+                    if (documentCount <= 2 && allUploadedFiles.bankConfirmation && (allUploadedFiles.companyRegistration || allUploadedFiles.cipcCertificate)) {
                       purchaseType = 'ONCE_OFF'
                     }
                     // Default to REGULAR
@@ -1362,13 +1364,15 @@ Procurement Team`
                   
                   // Map document keys to display format with names and icons
                   const docDisplayMap: Record<string, { name: string, icon: string }> = {
-                    'nda': { name: 'Non-Disclosure Agreement (NDA)', icon: '����' },
-                    'companyRegistration': { name: 'Company Registration (CIPC Documents)', icon: '����' },
-                    'taxClearance': { name: 'Tax Clearance Certificate', icon: '���+' },
-                    'goodStanding': { name: 'Letter of Good Standing', icon: '���+' },
-                    'bankConfirmation': { name: 'Bank Confirmation Letter', icon: '��Ū' },
-                    'bbbeeAccreditation': { name: 'B-BBEE Certificate', icon: 'ԡ�' },
-                    'creditApplication': { name: 'Credit Application Form', icon: '��Ʀ' }
+                    'nda': { name: 'Non-Disclosure Agreement (NDA)', icon: '📄' },
+                    'cipcCertificate': { name: 'CIPC Certificate (Company Registration)', icon: '🏢' },
+                    'companyRegistration': { name: 'CIPC Certificate (Company Registration)', icon: '🏢' }, // Legacy key
+                    'taxClearance': { name: 'Tax Clearance Certificate', icon: '📋' },
+                    'goodStanding': { name: 'Letter of Good Standing', icon: '✅' },
+                    'bankConfirmation': { name: 'Bank Confirmation Letter', icon: '🏦' },
+                    'bbbeeScorecard': { name: 'BBBEE Scorecard Report or Affidavit', icon: '⭐' },
+                    'bbbeeAccreditation': { name: 'BBBEE Scorecard Report or Affidavit', icon: '⭐' }, // Legacy key
+                    'creditApplication': { name: 'Credit Application Form', icon: '💳' }
                   }
                   
                   // Build mandatory documents list
@@ -1380,7 +1384,7 @@ Procurement Team`
                       mandatoryDocs.push({
                         key: 'taxOrGoodStanding',
                         name: 'Tax Clearance Certificate OR Letter of Good Standing',
-                        icon: '���+',
+                        icon: '📋',
                         checkKeys: ['taxClearance', 'goodStanding']
                       })
                     } else {
@@ -1417,7 +1421,7 @@ Procurement Team`
                             <div className="space-y-3">
                               <div>
                                 <strong className="text-red-900 text-base block mb-2">
-                                  ��ᴩ� Missing Compulsory Documents ({missingDocs.length} of {mandatoryDocs.length})
+                                  ⚠️ Missing Compulsory Documents ({missingDocs.length} of {mandatoryDocs.length})
                                 </strong>
                                 <p className="text-sm text-red-800 mb-3">
                                   The following mandatory documents have not been uploaded by the supplier. Please request these documents before approving.
@@ -1737,7 +1741,7 @@ Procurement Team`
                         <p className="text-sm text-gray-600">{aiCurrentStep}</p>
                       )}
                       <p className="text-xs text-gray-500">
-                        ���� You can navigate away - the analysis will continue in the background
+                        💡 You can navigate away - the analysis will continue in the background
                       </p>
                     </div>
                   )}
@@ -1849,41 +1853,41 @@ Procurement Team`
                               <strong className="text-red-900 text-base">Missing MANDATORY Documents ({aiSummary.complianceCheck.missingDocuments.length}/5):</strong>
                               <div className="space-y-3 mt-3">
                                 {aiSummary.complianceCheck.missingDocuments.map((doc: string) => {
-                                  let docInfo = { title: '', required: '', icon: '����' }
+                                  let docInfo = { title: '', required: '', icon: '📄' }
                                   const supplier_bbbee = supplier.bbbeeLevel || 'Not specified'
                                   const supplier_bank = supplier.bankName || 'Not specified'
                                   const supplier_account = supplier.accountNumber ? `****${supplier.accountNumber.slice(-4)}` : 'Not specified'
                                   const supplier_branch = supplier.branchName || 'Not specified'
                                   
-                                  if (doc === 'companyRegistration') {
+                                  if (doc === 'companyRegistration' || doc === 'cipcCertificate') {
                                     docInfo = {
-                                      title: 'CIPC Registration Documents',
+                                      title: 'CIPC Certificate (Company Registration)',
                                       required: `Must validate: Company name "${supplier.companyName}", Registration # "${supplier.registrationNumber}", Physical address`,
-                                      icon: '����'
+                                      icon: '🏢'
                                     }
-                                  } else if (doc === 'bbbeeAccreditation') {
+                                  } else if (doc === 'bbbeeAccreditation' || doc === 'bbbeeScorecard') {
                                     docInfo = {
-                                      title: 'B-BBEE Certificate',
+                                      title: 'BBBEE Scorecard Report or Affidavit',
                                       required: `Must validate: Status Level "${supplier_bbbee}", Black ownership %, Black female %, Certificate not expired`,
-                                      icon: 'ԡ�'
+                                      icon: '⭐'
                                     }
                                   } else if (doc === 'taxClearance') {
                                     docInfo = {
                                       title: 'Tax Clearance Certificate OR Letter of Good Standing',
                                       required: `Either document accepted. Must validate: Taxpayer name matches "${supplier.companyName}", Purpose says "Good Standing", Age < 3 months, SARS authenticity`,
-                                      icon: '���+'
+                                      icon: '📋'
                                     }
                                   } else if (doc === 'bankConfirmation') {
                                     docInfo = {
                                       title: 'Bank Confirmation Letter',
                                       required: `Must validate: Bank "${supplier_bank}", Account # "${supplier_account}", Branch "${supplier_branch}", Account type, Age < 3 months`,
-                                      icon: '��Ū'
+                                      icon: '🏦'
                                     }
                                   } else if (doc === 'nda') {
                                     docInfo = {
                                       title: 'Non-Disclosure Agreement (NDA)',
                                       required: 'Must be signed and initialed on all pages. Download template from supplier portal.',
-                                      icon: '����'
+                                      icon: '📄'
                                     }
                                   }
                                   
@@ -1910,7 +1914,7 @@ Procurement Team`
                         <Alert className="mt-4 bg-orange-50 border-orange-400">
                           <AlertDescription>
                             <div className="space-y-3">
-                              <strong className="text-orange-900 text-base">��ᴩ� Claimed Certifications Not Uploaded ({aiSummary.complianceCheck.claimedButMissing.length}):</strong>
+                              <strong className="text-orange-900 text-base">⚠️ Claimed Certifications Not Uploaded ({aiSummary.complianceCheck.claimedButMissing.length}):</strong>
                               <div className="text-sm text-orange-800 mb-2">
                                 Supplier indicated they have these certifications in the form but did not upload the certificates.
                               </div>
@@ -1918,7 +1922,7 @@ Procurement Team`
                                 {aiSummary.complianceCheck.claimedButMissing.map((item: { doc: string, certName: string }) => (
                                   <div key={item.doc} className="bg-white border border-orange-200 rounded p-3">
                                     <div className="flex items-start gap-2">
-                                      <span className="text-xl">��ᴩ�</span>
+                                      <span className="text-xl">⚠️</span>
                                       <div className="flex-1">
                                         <div className="font-semibold text-orange-900">{item.certName}</div>
                                         <div className="text-xs text-orange-700 mt-1">Please request certificate upload or clarify if supplier no longer has this certification.</div>
@@ -1980,7 +1984,7 @@ Procurement Team`
                           <AlertCircle className="h-5 w-5 text-red-600" />
                           <AlertDescription>
                             <div className="space-y-3">
-                              <strong className="text-red-900 text-base">��ᴩ� DOCUMENT TYPE MISMATCHES DETECTED ({mismatches.length}):</strong>
+                              <strong className="text-red-900 text-base">⚠️ DOCUMENT TYPE MISMATCHES DETECTED ({mismatches.length}):</strong>
                               <div className="text-sm text-red-800 mb-2">
                                 The following documents were uploaded to incorrect categories. Please verify the correct documents were uploaded.
                               </div>
@@ -2042,10 +2046,10 @@ Procurement Team`
                         <strong>AI Recommendation:</strong>
                         <p className="mt-2">
                           {(aiSummary.overallScore ?? 0) >= 80 
-                            ? 'ԣ� This supplier meets all requirements and is recommended for approval.' 
+                            ? '✅ This supplier meets all requirements and is recommended for approval.' 
                             : (aiSummary.overallScore ?? 0) >= 60 
-                            ? '��ᴩ� This supplier has minor issues. Review and request clarifications before approval.'
-                            : '��� This supplier has significant compliance gaps. Additional documentation is required.'}
+                            ? '⚠️ This supplier has minor issues. Review and request clarifications before approval.'
+                            : '❌ This supplier has significant compliance gaps. Additional documentation is required.'}
                         </p>
                         {(() => {
                           // Check if NDA is uploaded in any version
@@ -2069,7 +2073,7 @@ Procurement Team`
                           return hasNDA && (
                             <div className="mt-3 pt-3 border-t border-current/20">
                               <p className="font-semibold text-sm flex items-center gap-2">
-                                <span className="text-lg">����</span>
+                                <span className="text-lg">🔍</span>
                                 CRITICAL: Manual NDA Verification Required
                               </p>
                               <ul className="mt-2 space-y-1 text-sm list-disc list-inside">
@@ -2218,8 +2222,8 @@ Procurement Team`
                   <Alert className={supplier.status === 'APPROVED' ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}>
                     <AlertDescription className={supplier.status === 'APPROVED' ? 'text-green-800' : 'text-red-800'}>
                       {supplier.status === 'APPROVED' 
-                        ? 'ԣ� This supplier has been approved. No further actions are available.' 
-                        : '��� This supplier has been rejected. No further actions are available.'}
+                        ? '✅ This supplier has been approved. No further actions are available.' 
+                        : '❌ This supplier has been rejected. No further actions are available.'}
                     </AlertDescription>
                   </Alert>
                 )}
@@ -2464,7 +2468,7 @@ Procurement Team`
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-900 mb-2">��ᴩ� Important Note:</h4>
+              <h4 className="font-medium text-blue-900 mb-2">💡 Important Note:</h4>
               <p className="text-sm text-blue-800">
                 This revision request will be sent to the <strong>initiator only</strong>. The supplier will 
                 <strong> NOT</strong> be notified. This allows the initiator to review and correct the initiation 
