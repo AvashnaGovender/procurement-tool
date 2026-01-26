@@ -306,6 +306,7 @@ model SupplierInitiation {
   relationshipDeclaration   String
   
   // Purchase Information
+  purchaseType              String?                   @db.Text // 'REGULAR', 'ONCE_OFF', or 'SHARED_IP'
   regularPurchase           Boolean                   @default(false)
   annualPurchaseValue        Float?
   creditApplication          Boolean                   @default(false)
