@@ -61,6 +61,8 @@ export default function SupplierInitiationsPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [viewInitiation, setViewInitiation] = useState<SupplierInitiation | null>(null)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
   const toggleRow = (id: string) => {
     const newExpanded = new Set(expandedRows)
@@ -112,11 +114,14 @@ export default function SupplierInitiationsPage() {
         setApprovalComments('')
         fetchInitiations() // Refresh the list
       } else {
-        alert('Failed to process approval')
+        const errorData = await response.json().catch(() => ({}))
+        setErrorMessage(errorData.error || 'Failed to process approval')
+        setErrorDialogOpen(true)
       }
     } catch (error) {
       console.error('Error processing approval:', error)
-      alert('Failed to process approval')
+      setErrorMessage('Failed to process approval')
+      setErrorDialogOpen(true)
     } finally {
       setSubmittingApproval(false)
     }
@@ -136,11 +141,14 @@ export default function SupplierInitiationsPage() {
         setInitiationToDelete(null)
         fetchInitiations() // Refresh the list
       } else {
-        alert('Failed to delete initiation')
+        const errorData = await response.json().catch(() => ({}))
+        setErrorMessage(errorData.error || 'Failed to delete initiation')
+        setErrorDialogOpen(true)
       }
     } catch (error) {
       console.error('Error deleting initiation:', error)
-      alert('Failed to delete initiation')
+      setErrorMessage('Failed to delete initiation')
+      setErrorDialogOpen(true)
     } finally {
       setDeleting(false)
     }
@@ -509,6 +517,26 @@ export default function SupplierInitiationsPage() {
                 {deleting ? 'Deleting...' : 'Delete'}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error Dialog */}
+      <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              Error
+            </DialogTitle>
+            <DialogDescription>
+              {errorMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button onClick={() => setErrorDialogOpen(false)}>
+              OK
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

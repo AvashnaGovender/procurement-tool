@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Building2, CheckCircle, AlertCircle, Users, DollarSign, ArrowLeft, Home } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
@@ -27,6 +28,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(draftId || null)
   const [loadingDraft, setLoadingDraft] = useState(!!draftId)
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
   const [formData, setFormData] = useState({
     businessUnit: [] as string[],
     processReadUnderstood: false,
@@ -203,15 +208,18 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
       if (response.ok) {
         const result = await response.json()
         setCurrentDraftId(result.initiationId)
-        alert('Draft saved successfully!')
+        setSuccessMessage('Draft saved successfully!')
+        setSuccessDialogOpen(true)
       } else {
-        const errorData = await response.json()
+        const errorData = await response.json().catch(() => ({}))
         console.error('API Error:', errorData)
-        alert(`Failed to save draft: ${errorData.error || 'Unknown error'}`)
+        setErrorMessage(errorData.error || errorData.message || 'Failed to save draft')
+        setErrorDialogOpen(true)
       }
     } catch (error) {
       console.error('Error saving draft:', error)
-      alert(`Failed to save draft: ${error instanceof Error ? error.message : 'Network error'}`)
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to save draft: Network error')
+      setErrorDialogOpen(true)
     } finally {
       setIsSavingDraft(false)
     }
@@ -282,15 +290,17 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         const result = await response.json()
         onSubmissionComplete?.(result.initiationId)
       } else {
-        const errorData = await response.json()
+        const errorData = await response.json().catch(() => ({}))
         console.error('API Error:', errorData)
         // Show more detailed error message if available
-        const errorMessage = errorData.message || errorData.error || 'Unknown error'
-        alert(`Failed to submit initiation: ${errorMessage}`)
+        const errorMsg = errorData.message || errorData.error || 'Failed to submit initiation'
+        setErrorMessage(errorMsg)
+        setErrorDialogOpen(true)
       }
     } catch (error) {
       console.error('Error submitting initiation:', error)
-      alert(`Failed to submit initiation: ${error instanceof Error ? error.message : 'Network error'}`)
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to submit initiation: Network error')
+      setErrorDialogOpen(true)
     } finally {
       setIsSubmitting(false)
     }
@@ -785,6 +795,46 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         </CardContent>
       </Card>
       </form>
+
+      {/* Error Dialog */}
+      <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              Error
+            </DialogTitle>
+            <DialogDescription>
+              {errorMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button onClick={() => setErrorDialogOpen(false)}>
+              OK
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Dialog */}
+      <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="h-5 w-5" />
+              Success
+            </DialogTitle>
+            <DialogDescription>
+              {successMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button onClick={() => setSuccessDialogOpen(false)}>
+              OK
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
