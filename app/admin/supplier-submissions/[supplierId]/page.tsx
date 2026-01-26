@@ -142,7 +142,8 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   }
 
   return (
-    <div className="min-h-screen">
+    <>
+      {/* Top Bar */}
       <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8">
         <div>
           <h1 className="text-xl font-bold">Supplier: {supplier.companyName}</h1>
@@ -153,29 +154,28 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
         </Badge>
       </header>
       
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto p-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Supplier Details</CardTitle>
-              <CardDescription>Full details page is being rebuilt to fix layout issues</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <strong>Contact Person:</strong> {supplier.contactPerson}
-                </div>
-                <div>
-                  <strong>Email:</strong> {supplier.contactEmail}
-                </div>
-                <div>
-                  <strong>Phone:</strong> {supplier.contactPhone || 'N/A'}
-                </div>
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto p-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Supplier Details</CardTitle>
+            <CardDescription>Full details page is being rebuilt to fix layout issues</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <strong>Contact Person:</strong> {supplier.contactPerson}
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <div>
+                <strong>Email:</strong> {supplier.contactEmail}
+              </div>
+              <div>
+                <strong>Phone:</strong> {supplier.contactPhone || 'N/A'}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </main>
-    </div>
+    </>
   )
 }
