@@ -132,8 +132,8 @@ export async function POST(request: NextRequest) {
 
     // File categories
     const fileCategories = [
-      'companyRegistration', 'cm29Directors', 'shareholderCerts', 'proofOfShareholding',
-      'bbbeeAccreditation', 'bbbeeScorecard', 'taxClearance', 'vatCertificate',
+      'cipcCertificate', 'companyRegistration', 'cm29Directors', 'shareholderCerts', 'proofOfShareholding',
+      'bbbeeScorecard', 'bbbeeAccreditation', 'taxClearance', 'vatCertificate',
       'bankConfirmation', 'nda', 'healthSafety', 'creditApplication',
       'qualityCert', 'goodStanding', 'sectorRegistrations', 'organogram', 'companyProfile'
     ]
