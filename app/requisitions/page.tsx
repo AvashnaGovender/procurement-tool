@@ -5,7 +5,7 @@ import { RequisitionFilters } from "@/components/requisitions/requisition-filter
 
 export default function RequisitionsPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
       <RequisitionHeader />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
@@ -20,6 +20,6 @@ export default function RequisitionsPage() {
           </div>
         </div>
       </main>
-    </div>
+    </>
   )
 }
