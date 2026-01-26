@@ -625,7 +625,18 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
           })
         })
 
-        const data = await response.json()
+        // Check if response is ok
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: `Server error: ${response.status} ${response.statusText}` }))
+          setErrorMessage(`Failed to request final approval: ${errorData.error || 'Unknown error'}`)
+          setErrorDialogOpen(true)
+          return
+        }
+
+        const data = await response.json().catch((parseError) => {
+          console.error('Error parsing response:', parseError)
+          return { success: false, error: 'Invalid response from server' }
+        })
         
         if (data.success) {
           setSuccessMessage(`Final approval request sent successfully!\n\nAn email has been sent to the Procurement Manager for final approval.`)
@@ -2228,20 +2239,23 @@ Procurement Team`
                   </Alert>
                 )}
                 
-                {/* Delete button - available for admin and PM */}
-                {(session?.user?.role === 'ADMIN' || session?.user?.role === 'PROCUREMENT_MANAGER') && (
-                  <div className="pt-4 border-t space-y-2">
-                    {/* Resend Email button - show if supplier is approved but email might have failed */}
-                    {supplier.status === 'APPROVED' && (
-                      <Button
-                        variant="outline"
-                        onClick={handleResendEmail}
-                        className="w-full"
-                      >
-                        <Mail className="h-4 w-4 mr-2" />
-                        Resend Approval Email
-                      </Button>
-                    )}
+                {/* Resend Email button - show if supplier is approved but email might have failed */}
+                {supplier.status === 'APPROVED' && (session?.user?.role === 'ADMIN' || session?.user?.role === 'PROCUREMENT_MANAGER') && (
+                  <div className="pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={handleResendEmail}
+                      className="w-full"
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      Resend Approval Email
+                    </Button>
+                  </div>
+                )}
+                
+                {/* Delete button - available for admin only */}
+                {session?.user?.role === 'ADMIN' && (
+                  <div className="pt-4 border-t">
                     <Button
                       variant="outline"
                       onClick={handleDeleteClick}
