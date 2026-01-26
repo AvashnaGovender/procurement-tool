@@ -33,7 +33,14 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
   const [successDialogOpen, setSuccessDialogOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [customCategory, setCustomCategory] = useState('')
-  const [customCategories, setCustomCategories] = useState<string[]>([])
+  const [customCategories, setCustomCategories] = useState<string[]>(() => {
+    // Load custom categories from localStorage on initial mount
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('customProductCategories')
+      return saved ? JSON.parse(saved) : []
+    }
+    return []
+  })
   const [formData, setFormData] = useState({
     businessUnit: [] as string[],
     processReadUnderstood: false,
@@ -129,9 +136,38 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
   const handleAddCustomCategory = () => {
     if (!customCategory.trim()) return
     
-    // Add to custom categories list and sort alphabetically
     const newCategory = customCategory.trim()
-    setCustomCategories(prev => [...prev, newCategory].sort((a, b) => a.localeCompare(b)))
+    
+    // Check if category already exists (case-insensitive)
+    const existsInStandard = PRODUCT_SERVICE_CATEGORIES.some(
+      cat => cat.toLowerCase() === newCategory.toLowerCase()
+    )
+    const existsInCustom = customCategories.some(
+      cat => cat.toLowerCase() === newCategory.toLowerCase()
+    )
+    
+    if (existsInStandard || existsInCustom) {
+      // If it already exists, just select it
+      setFormData(prev => ({
+        ...prev,
+        productServiceCategory: existsInStandard 
+          ? PRODUCT_SERVICE_CATEGORIES.find(cat => cat.toLowerCase() === newCategory.toLowerCase()) || newCategory
+          : customCategories.find(cat => cat.toLowerCase() === newCategory.toLowerCase()) || newCategory
+      }))
+      setCustomCategory('')
+      return
+    }
+    
+    // Add to custom categories list and sort alphabetically
+    const updatedCategories = [...customCategories, newCategory].sort((a, b) => a.localeCompare(b))
+    
+    // Update state
+    setCustomCategories(updatedCategories)
+    
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('customProductCategories', JSON.stringify(updatedCategories))
+    }
     
     // Set as selected value
     setFormData(prev => ({
@@ -229,6 +265,11 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         setCurrentDraftId(result.initiationId)
         setSuccessMessage('Draft saved successfully!')
         setSuccessDialogOpen(true)
+        
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 1500)
       } else {
         const errorData = await response.json().catch(() => ({}))
         console.error('API Error:', errorData)
