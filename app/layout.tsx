@@ -8,7 +8,7 @@ import { SessionProvider } from '@/components/providers/session-provider'
 import { RootLayoutWrapper } from '@/components/layout/root-layout-wrapper'
 
 export const metadata: Metadata = {
-  title: 'Procurement Manager - Schauenburg Systems',
+  title: 'Schauenburg Systems - Procurement Portal',
   description: 'Comprehensive procurement management system',
 }
 

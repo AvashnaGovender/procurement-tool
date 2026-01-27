@@ -74,11 +74,24 @@ export async function POST(request: NextRequest) {
 
     // Update onboarding record if it exists
     if (supplier.onboarding) {
+      // If there's an initiation and it was rejected, reset it back to submitted status
+      if (supplier.onboarding.initiationId) {
+        await prisma.supplierInitiation.update({
+          where: { id: supplier.onboarding.initiationId },
+          data: {
+            status: 'SUBMITTED',
+            submittedAt: new Date()
+          }
+        })
+      }
+
       await prisma.supplierOnboarding.update({
         where: { id: supplier.onboarding.id },
         data: {
           currentStep: 'AWAITING_FINAL_APPROVAL',
-          overallStatus: 'AWAITING_FINAL_APPROVAL'
+          overallStatus: 'AWAITING_FINAL_APPROVAL',
+          revisionRequested: false, // Clear revision flag when requesting final approval
+          revisionNotes: null
         }
       })
 

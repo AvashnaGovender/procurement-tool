@@ -84,10 +84,12 @@ interface Supplier {
   authorizationAgreement?: boolean | null
   onboarding?: {
     requiredDocuments?: string[]
+    overallStatus?: string
     initiation?: {
       purchaseType?: string
       creditApplication?: boolean
       initiatedById?: string
+      status?: string
     } | null
   } | null
 }
@@ -2120,8 +2122,10 @@ Procurement Team`
                 {/* Only show action buttons if supplier is not approved or rejected */}
                 {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' ? (
                   <div className="flex flex-col gap-4">
-                    {/* Show "Request Final Approval" if current user is the initiator and status is not AWAITING_FINAL_APPROVAL */}
-                    {supplier.onboarding?.initiation?.initiatedById === session?.user?.id && supplier.status !== 'AWAITING_FINAL_APPROVAL' && (
+                    {/* Show "Request Final Approval" if current user is the initiator and either status is not AWAITING_FINAL_APPROVAL OR revisions were requested by PM */}
+                    {supplier.onboarding?.initiation?.initiatedById === session?.user?.id && 
+                     (supplier.status !== 'AWAITING_FINAL_APPROVAL' || 
+                      supplier.onboarding?.initiation?.status === 'REJECTED') && (
                       <>
                         {!areAllMandatoryDocumentsVerified() && (
                           <Alert className="bg-yellow-50 border-yellow-300">
@@ -2158,8 +2162,26 @@ Procurement Team`
                       </>
                     )}
                     
-                    {/* Show "Approve Supplier", "Reject Supplier", and "Request Revision from Initiator" buttons if current user is PM and status is AWAITING_FINAL_APPROVAL */}
-                    {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status === 'AWAITING_FINAL_APPROVAL' && (
+                    {/* Show message if PM is waiting for initiator to resubmit after requesting revisions */}
+                    {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status === 'UNDER_REVIEW' && supplier.onboarding?.initiation?.status === 'REJECTED' && (
+                      <Alert className="bg-blue-50 border-blue-300">
+                        <AlertCircle className="h-5 w-5 text-blue-600" />
+                        <AlertDescription className="text-blue-800">
+                          <div className="space-y-2">
+                            <div>
+                              <strong>Waiting for Initiator:</strong> You have requested revisions from the initiator. 
+                              The initiator will review and resubmit the initiation for your final approval.
+                            </div>
+                            <div className="text-sm mt-2">
+                              The supplier has NOT been notified. Once the initiator resubmits, you will be able to review and approve.
+                            </div>
+                          </div>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    
+                    {/* Show "Approve Supplier", "Reject Supplier", and "Request Revision from Initiator" buttons if current user is PM and status is AWAITING_FINAL_APPROVAL AND initiation is not rejected */}
+                    {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status === 'AWAITING_FINAL_APPROVAL' && supplier.onboarding?.initiation?.status !== 'REJECTED' && (
                       <div className="space-y-4">
                         {/* Credit Controller Assignment */}
                         <div className="space-y-2 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
@@ -2220,8 +2242,10 @@ Procurement Team`
                       </Alert>
                     )}
                     
-                    {/* Show message if PM and not AWAITING_FINAL_APPROVAL */}
-                    {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status !== 'AWAITING_FINAL_APPROVAL' && (
+                    {/* Show message if PM and not AWAITING_FINAL_APPROVAL (except when waiting for initiator revision) */}
+                    {session?.user?.role === 'PROCUREMENT_MANAGER' && 
+                     supplier.status !== 'AWAITING_FINAL_APPROVAL' && 
+                     !(supplier.status === 'UNDER_REVIEW' && supplier.onboarding?.initiation?.status === 'REJECTED') && (
                       <Alert>
                         <AlertDescription>
                           Waiting for initiator to request final approval.

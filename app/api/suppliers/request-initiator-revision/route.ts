@@ -103,6 +103,14 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Update supplier status back to UNDER_REVIEW (no longer awaiting final approval)
+    await prisma.supplier.update({
+      where: { id: supplierId },
+      data: {
+        status: 'UNDER_REVIEW'
+      }
+    })
+
     // Update onboarding status
     await prisma.supplierOnboarding.update({
       where: { id: onboarding.id },
