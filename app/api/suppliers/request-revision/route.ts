@@ -589,11 +589,11 @@ async function sendInitiatorRevisionNotificationEmail(
       <p class="greeting">Dear ${initiator.name},</p>
       
       <div class="info-badge">
-        ⚠️ Revision Requested by Procurement Manager
+        ⚠️ Revision Requested
       </div>
       
       <p>
-        The Procurement Manager has requested revisions for the supplier you initiated. 
+        Revisions have been requested for the supplier you initiated. 
         The supplier has been notified and will need to update their submission before 
         the approval process can continue.
       </p>
@@ -616,7 +616,7 @@ async function sendInitiatorRevisionNotificationEmail(
         <strong>What this means:</strong>
       </p>
       <ul style="color: #374151; line-height: 1.8;">
-        <li>The Procurement Manager has reviewed the supplier's submission</li>
+        <li>The supplier's submission has been reviewed</li>
         <li>Some documents or information need to be updated or corrected</li>
         <li>The supplier has been notified and will update their submission</li>
         <li>You will be notified once the supplier resubmits and the review continues</li>
