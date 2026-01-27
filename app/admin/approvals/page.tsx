@@ -569,7 +569,7 @@ export default function ApprovalsPage() {
 
         {/* Approval Dialog */}
         <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>
                 {approvalAction === 'approve' ? 'Approve' : 'Reject'} Supplier Initiation
@@ -584,7 +584,8 @@ export default function ApprovalsPage() {
             </DialogHeader>
             
             {selectedInitiation && (
-              <div className="space-y-4">
+              <div className="flex flex-col flex-1 min-h-0">
+                <div className="flex-1 overflow-y-auto pr-2 space-y-4">
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-4">
                   <h4 className="font-medium text-slate-900 mb-3">Complete Initiation Details:</h4>
                   
@@ -698,8 +699,9 @@ export default function ApprovalsPage() {
                     required={approvalAction === 'reject'}
                   />
                 </div>
+                </div>
                 
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2 pt-4 border-t mt-4">
                   <Button
                     variant="outline"
                     onClick={() => setApprovalDialogOpen(false)}

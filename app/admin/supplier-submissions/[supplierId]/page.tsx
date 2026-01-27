@@ -2346,7 +2346,7 @@ Procurement Team`
 
       {/* Approve Confirmation Dialog */}
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-green-600">
               {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
@@ -2360,6 +2360,7 @@ Procurement Team`
             </DialogDescription>
           </DialogHeader>
           
+          <div className="flex-1 overflow-y-auto pr-2">
           <div className="space-y-4 py-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h4 className="font-medium text-green-900 mb-2">Supplier Information:</h4>
@@ -2410,8 +2411,9 @@ Procurement Team`
               </div>
             )}
           </div>
+          </div>
 
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end space-x-2 pt-4 border-t mt-4 flex-shrink-0">
             <Button variant="outline" onClick={() => {
               setApproveDialogOpen(false)
               setSignedCreditApplicationFile(null)
@@ -2441,7 +2443,7 @@ Procurement Team`
 
       {/* Reject Confirmation Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-red-600">Reject Supplier</DialogTitle>
             <DialogDescription>
@@ -2449,6 +2451,7 @@ Procurement Team`
             </DialogDescription>
           </DialogHeader>
           
+          <div className="flex-1 overflow-y-auto pr-2">
           <div className="space-y-4 py-4">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <h4 className="font-medium text-red-900 mb-2">Supplier Information:</h4>
@@ -2472,8 +2475,9 @@ Procurement Team`
               />
             </div>
           </div>
+          </div>
 
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end space-x-2 pt-4 border-t mt-4 flex-shrink-0">
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
               Cancel
             </Button>

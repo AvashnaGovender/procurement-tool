@@ -450,7 +450,7 @@ export default function SupplierInitiationsPage() {
 
       {/* Approval Dialog */}
       <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {approvalAction === 'approve' ? 'Approve' : 'Reject'} Supplier Initiation
@@ -463,7 +463,8 @@ export default function SupplierInitiationsPage() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4">
+          <div className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
             <div>
               <Label htmlFor="comments">Comments (Optional)</Label>
               <Textarea
@@ -474,8 +475,9 @@ export default function SupplierInitiationsPage() {
                 rows={3}
               />
             </div>
+            </div>
             
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-4 border-t mt-4">
               <Button
                 variant="outline"
                 onClick={() => setApprovalDialogOpen(false)}
