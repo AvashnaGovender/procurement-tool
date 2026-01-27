@@ -26,6 +26,7 @@ function SupplierOnboardingForm() {
   const [documentsToRevise, setDocumentsToRevise] = useState<string[]>([])
   const [existingFiles, setExistingFiles] = useState<{[key: string]: string[]}>({})
   const [creditApplication, setCreditApplication] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<string | null>(null)
   
   // Form state
   const [formData, setFormData] = useState({
@@ -80,6 +81,7 @@ function SupplierOnboardingForm() {
           setFormData(data.formData)
           setExistingFiles(data.uploadedFiles || {})
           setCreditApplication(data.creditApplication || false)
+          setPaymentMethod(data.paymentMethod || null)
           if (data.revisionNotes) {
             setRevisionNotes(data.revisionNotes)
           }
@@ -137,18 +139,21 @@ function SupplierOnboardingForm() {
   const handlePreview = (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Validate credit application document (now always required)
-    // Check both newly uploaded files and existing files
-    const hasCreditApp = (files.creditApplication && files.creditApplication.length > 0) || 
-                         (existingFiles.creditApplication && existingFiles.creditApplication.length > 0)
-    
-    // Only validate credit app if not in revision mode OR if credit app is specifically requested for revision
-    const isRevisionMode = revisionNotes && documentsToRevise.length > 0
-    const needsCreditApp = !isRevisionMode || documentsToRevise.includes('creditApplication')
-    
-    if (needsCreditApp && !hasCreditApp) {
-      setError("Credit Application Form is required. Please upload the document.")
-      return
+    // Skip credit application validation if payment method is COD
+    if (paymentMethod !== 'COD') {
+      // Validate credit application document (now always required for non-COD)
+      // Check both newly uploaded files and existing files
+      const hasCreditApp = (files.creditApplication && files.creditApplication.length > 0) || 
+                           (existingFiles.creditApplication && existingFiles.creditApplication.length > 0)
+      
+      // Only validate credit app if not in revision mode OR if credit app is specifically requested for revision
+      const isRevisionMode = revisionNotes && documentsToRevise.length > 0
+      const needsCreditApp = !isRevisionMode || documentsToRevise.includes('creditApplication')
+      
+      if (needsCreditApp && !hasCreditApp) {
+        setError("Credit Application Form is required. Please upload the document.")
+        return
+      }
     }
     
     setShowPreview(true)
@@ -158,19 +163,22 @@ function SupplierOnboardingForm() {
     setLoading(true)
     setError("")
 
-    // Validate credit application document (now always required)
-    // Check both newly uploaded files and existing files
-    const hasCreditApp = (files.creditApplication && files.creditApplication.length > 0) || 
-                         (existingFiles.creditApplication && existingFiles.creditApplication.length > 0)
-    
-    // Only validate credit app if not in revision mode OR if credit app is specifically requested for revision
-    const isRevisionMode = revisionNotes && documentsToRevise.length > 0
-    const needsCreditApp = !isRevisionMode || documentsToRevise.includes('creditApplication')
-    
-    if (needsCreditApp && !hasCreditApp) {
-      setError("Credit Application Form is required. Please upload the document.")
-      setLoading(false)
-      return
+    // Skip credit application validation if payment method is COD
+    if (paymentMethod !== 'COD') {
+      // Validate credit application document (now always required for non-COD)
+      // Check both newly uploaded files and existing files
+      const hasCreditApp = (files.creditApplication && files.creditApplication.length > 0) || 
+                           (existingFiles.creditApplication && existingFiles.creditApplication.length > 0)
+      
+      // Only validate credit app if not in revision mode OR if credit app is specifically requested for revision
+      const isRevisionMode = revisionNotes && documentsToRevise.length > 0
+      const needsCreditApp = !isRevisionMode || documentsToRevise.includes('creditApplication')
+      
+      if (needsCreditApp && !hasCreditApp) {
+        setError("Credit Application Form is required. Please upload the document.")
+        setLoading(false)
+        return
+      }
     }
 
     try {
@@ -617,6 +625,14 @@ function SupplierOnboardingForm() {
                 { key: 'nda', label: 'Non-Disclosure Agreement (NDA) - Signed *', required: true },
                 { key: 'creditApplication', label: 'Credit Application Form *', required: true },
               ]
+              // Filter out NDA and Credit Application if payment method is COD
+              .filter(({ key }) => {
+                // Hide NDA and Credit Application for COD payment
+                if (paymentMethod === 'COD' && (key === 'nda' || key === 'creditApplication')) {
+                  return false
+                }
+                return true
+              })
               // Filter to show only documents that need revision if in revision mode
               .filter(({ key }) => {
                 // If no revision requested, show all documents

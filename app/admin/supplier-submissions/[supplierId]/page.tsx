@@ -88,6 +88,7 @@ interface Supplier {
     initiation?: {
       purchaseType?: string
       creditApplication?: boolean
+      paymentMethod?: string | null
       initiatedById?: string
       status?: string
     } | null
@@ -344,14 +345,16 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     // Get purchase type and credit application
     let purchaseType: PurchaseType = 'REGULAR'
     let creditApplication = false
+    let paymentMethod = null
     
     if (supplier.onboarding.initiation) {
       purchaseType = supplier.onboarding.initiation.purchaseType as PurchaseType || 'REGULAR'
       creditApplication = supplier.onboarding.initiation.creditApplication || false
+      paymentMethod = supplier.onboarding.initiation.paymentMethod || null
     }
 
     // Get mandatory documents
-    const mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication)
+    const mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication, paymentMethod)
     
     // Get all uploaded files from all versions
     const allUploadedFiles: Record<string, string[]> = {}
@@ -1369,11 +1372,12 @@ Procurement Team`
                     // Default to REGULAR
                   }
                   
-                  // Get credit application status
+                  // Get credit application status and payment method
                   const creditApplication = supplier.onboarding?.initiation?.creditApplication || false
+                  const paymentMethod = supplier.onboarding?.initiation?.paymentMethod || null
                   
-                  // Get mandatory documents based on purchase type and credit application
-                  const mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication)
+                  // Get mandatory documents based on purchase type, credit application, and payment method
+                  const mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication, paymentMethod)
                   
                   // Map document keys to display format with names and icons
                   const docDisplayMap: Record<string, { name: string, icon: string }> = {

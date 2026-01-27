@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
             purchaseType: true,
             creditApplication: true,
             supplierContactPerson: true,
-            productServiceCategory: true
+            productServiceCategory: true,
+            paymentMethod: true
           }
         }
       }
@@ -86,18 +87,19 @@ export async function GET(request: NextRequest) {
     // Get uploaded files info from airtableData if available
     const uploadedFiles = supplier.airtableData?.uploadedFiles || {}
 
-    // Get purchase type and credit application status
+    // Get purchase type, credit application status, and payment method
     const purchaseType = onboarding.initiation?.purchaseType || onboarding.requiredDocuments.length > 0 
       ? (onboarding.requiredDocuments.includes('nda') ? 'SHARED_IP' : 
          onboarding.requiredDocuments.length <= 2 ? 'ONCE_OFF' : 'REGULAR')
       : null
     
     const creditApplication = onboarding.initiation?.creditApplication || false
+    const paymentMethod = onboarding.initiation?.paymentMethod || null
     
-    // Use stored requiredDocuments if available, otherwise calculate from purchaseType and creditApplication
+    // Use stored requiredDocuments if available, otherwise calculate from purchaseType, creditApplication, and paymentMethod
     const requiredDocuments = onboarding.requiredDocuments.length > 0 
       ? onboarding.requiredDocuments 
-      : (purchaseType ? getRequiredDocuments(purchaseType as any, creditApplication) : [])
+      : (purchaseType ? getRequiredDocuments(purchaseType as any, creditApplication, paymentMethod) : [])
 
     return NextResponse.json({
       success: true,
@@ -108,6 +110,7 @@ export async function GET(request: NextRequest) {
       documentsToRevise: onboarding.documentsToRevise || [],
       purchaseType,
       creditApplication,
+      paymentMethod: onboarding.initiation?.paymentMethod || null,
       requiredDocuments
     })
   } catch (error) {
