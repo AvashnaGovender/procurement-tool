@@ -151,13 +151,43 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate annual purchase value if regular purchase is selected
-    if (purchaseType === 'REGULAR' && (!annualPurchaseValue || parseFloat(annualPurchaseValue) <= 0)) {
+    if (purchaseType === 'REGULAR' && !annualPurchaseValue) {
       console.error('Validation failed - Invalid annual purchase value:', annualPurchaseValue)
       return NextResponse.json({ 
         success: false,
-        error: 'Please enter a valid annual purchase value for regular purchases',
-        message: 'Annual purchase value is required and must be greater than 0 for regular purchases'
+        error: 'Please select an annual purchase value for regular purchases',
+        message: 'Annual purchase value is required for regular purchases'
       }, { status: 400 })
+    }
+
+    // Convert annual purchase value range to number
+    let annualPurchaseValueNumber: number | null = null
+    if (annualPurchaseValue) {
+      // Check if it's already a number (for backward compatibility)
+      if (typeof annualPurchaseValue === 'number') {
+        annualPurchaseValueNumber = annualPurchaseValue
+      } else if (typeof annualPurchaseValue === 'string' && !isNaN(parseFloat(annualPurchaseValue)) && isFinite(parseFloat(annualPurchaseValue))) {
+        // If it's a numeric string, parse it
+        annualPurchaseValueNumber = parseFloat(annualPurchaseValue)
+      } else {
+        // Convert string range to number
+        switch (annualPurchaseValue) {
+          case "0-100k":
+            annualPurchaseValueNumber = 100000
+            break
+          case "100k-500k":
+            annualPurchaseValueNumber = 500000
+            break
+          case "500k-1M":
+            annualPurchaseValueNumber = 1000000
+            break
+          case "1M+":
+            annualPurchaseValueNumber = 2000000
+            break
+          default:
+            annualPurchaseValueNumber = null
+        }
+      }
     }
 
     // Validate credit application reason if credit application is not selected (not required for Once-off Purchase)
@@ -325,7 +355,7 @@ export async function POST(request: NextRequest) {
           purchaseType: purchaseType as 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP',
           paymentMethod: paymentMethod || null,
           codReason: paymentMethod === 'COD' ? codReason : null,
-          annualPurchaseValue: annualPurchaseValue ? parseFloat(annualPurchaseValue) : null,
+          annualPurchaseValue: annualPurchaseValueNumber,
           creditApplication,
           creditApplicationReason: creditApplication ? null : creditApplicationReason,
           regularPurchase: purchaseType === 'REGULAR',
@@ -353,7 +383,7 @@ export async function POST(request: NextRequest) {
           purchaseType: purchaseType as 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP',
           paymentMethod: paymentMethod || null,
           codReason: paymentMethod === 'COD' ? codReason : null,
-          annualPurchaseValue: annualPurchaseValue ? parseFloat(annualPurchaseValue) : null,
+          annualPurchaseValue: annualPurchaseValueNumber,
           creditApplication,
           creditApplicationReason: creditApplication ? null : creditApplicationReason,
           regularPurchase: purchaseType === 'REGULAR',
@@ -457,7 +487,7 @@ A new supplier initiation request has been submitted and requires your approval.
 - <strong>Product/Service Category:</strong> ${productServiceCategory}
 - <strong>Requested by:</strong> ${requesterName}
 - <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
-${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> ${formatAnnualPurchaseValue(parseFloat(annualPurchaseValue))}` : ''}
+${annualPurchaseValueNumber ? `- <strong>Annual Purchase Value:</strong> ${formatAnnualPurchaseValue(annualPurchaseValueNumber)}` : ''}
 - <strong>Payment Method:</strong> ${paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)'}
 ${paymentMethod === 'COD' && codReason ? `- <strong>COD Reason:</strong> ${codReason}` : ''}
 - <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}
@@ -506,7 +536,7 @@ A new supplier initiation request has been submitted and requires approval.
 - <strong>Product/Service Category:</strong> ${productServiceCategory}
 - <strong>Requested by:</strong> ${requesterName}
 - <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
-${annualPurchaseValue ? `- <strong>Annual Purchase Value:</strong> ${formatAnnualPurchaseValue(parseFloat(annualPurchaseValue))}` : ''}
+${annualPurchaseValueNumber ? `- <strong>Annual Purchase Value:</strong> ${formatAnnualPurchaseValue(annualPurchaseValueNumber)}` : ''}
 - <strong>Payment Method:</strong> ${paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)'}
 ${paymentMethod === 'COD' && codReason ? `- <strong>COD Reason:</strong> ${codReason}` : ''}
 - <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}

@@ -305,6 +305,9 @@ model SupplierInitiation {
   productServiceCategory    String
   requesterName             String
   relationshipDeclaration   String
+  supplierLocation          String?          // 'LOCAL' or 'FOREIGN'
+  currency                  String?          // Currency code (USD, GBP, EUR, etc.) - required if FOREIGN
+  customCurrency            String?          // Custom currency if "Other" was selected
   
   // Purchase Information
   purchaseType              String?                   @db.Text // 'REGULAR', 'ONCE_OFF', or 'SHARED_IP'

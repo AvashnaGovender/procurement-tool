@@ -63,21 +63,27 @@ export async function POST(request: NextRequest) {
     // Convert annual purchase value range to number
     let annualPurchaseValueNumber: number | null = null
     if (annualPurchaseValue) {
-      switch (annualPurchaseValue) {
-        case "0-100k":
-          annualPurchaseValueNumber = 100000
-          break
-        case "100k-500k":
-          annualPurchaseValueNumber = 500000
-          break
-        case "500k-1M":
-          annualPurchaseValueNumber = 1000000
-          break
-        case "1M+":
-          annualPurchaseValueNumber = 2000000
-          break
-        default:
-          annualPurchaseValueNumber = null
+      // Check if it's already a number (for backward compatibility)
+      if (typeof annualPurchaseValue === 'number') {
+        annualPurchaseValueNumber = annualPurchaseValue
+      } else {
+        // Convert string range to number
+        switch (annualPurchaseValue) {
+          case "0-100k":
+            annualPurchaseValueNumber = 100000
+            break
+          case "100k-500k":
+            annualPurchaseValueNumber = 500000
+            break
+          case "500k-1M":
+            annualPurchaseValueNumber = 1000000
+            break
+          case "1M+":
+            annualPurchaseValueNumber = 2000000
+            break
+          default:
+            annualPurchaseValueNumber = null
+        }
       }
     }
 

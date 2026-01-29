@@ -41,6 +41,15 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     }
     return []
   })
+  const [customCurrencyInput, setCustomCurrencyInput] = useState('')
+  const [customCurrencies, setCustomCurrencies] = useState<string[]>(() => {
+    // Load custom currencies from localStorage on initial mount
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('customCurrencies')
+      return saved ? JSON.parse(saved) : []
+    }
+    return []
+  })
   const [formData, setFormData] = useState({
     businessUnit: [] as string[],
     processReadUnderstood: false,
@@ -58,7 +67,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     annualPurchaseValue: "",
     creditApplication: false,
     creditApplicationReason: "",
-    onboardingReason: ""
+    onboardingReason: "",
+    supplierLocation: "", // "LOCAL" or "FOREIGN"
+    currency: "", // USD, GBP, EUR, or custom
+    customCurrency: ""
   })
 
   // Auto-fill requester name from session when it loads
@@ -121,7 +133,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
             annualPurchaseValue: annualPurchaseValueStr,
             creditApplication: draft.creditApplication || false,
             creditApplicationReason: draft.creditApplicationReason || "",
-            onboardingReason: draft.onboardingReason || ""
+            onboardingReason: draft.onboardingReason || "",
+            supplierLocation: draft.supplierLocation || "",
+            currency: draft.currency || "",
+            customCurrency: draft.customCurrency || ""
           })
         }
       }
@@ -185,6 +200,55 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     setCustomCategory('')
   }
 
+  const handleAddCustomCurrency = () => {
+    if (!customCurrencyInput.trim()) return
+    
+    const newCurrency = customCurrencyInput.trim().toUpperCase()
+    
+    // Standard currencies list
+    const standardCurrencies = ['USD', 'GBP', 'EUR', 'ZAR']
+    
+    // Check if currency already exists (case-insensitive)
+    const existsInStandard = standardCurrencies.some(
+      cur => cur.toUpperCase() === newCurrency
+    )
+    const existsInCustom = customCurrencies.some(
+      cur => cur.toUpperCase() === newCurrency
+    )
+    
+    if (existsInStandard || existsInCustom) {
+      // If it already exists, just select it
+      setFormData(prev => ({
+        ...prev,
+        currency: newCurrency,
+        customCurrency: ""
+      }))
+      setCustomCurrencyInput('')
+      return
+    }
+    
+    // Add to custom currencies list and sort alphabetically
+    const updatedCurrencies = [...customCurrencies, newCurrency].sort((a, b) => a.localeCompare(b))
+    
+    // Update state
+    setCustomCurrencies(updatedCurrencies)
+    
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('customCurrencies', JSON.stringify(updatedCurrencies))
+    }
+    
+    // Set as selected value
+    setFormData(prev => ({
+      ...prev,
+      currency: newCurrency,
+      customCurrency: ""
+    }))
+    
+    // Clear input
+    setCustomCurrencyInput('')
+  }
+
   const handleBusinessUnitChange = (unit: string, checked: boolean) => {
     setFormData(prev => {
       const currentUnits = prev.businessUnit || []
@@ -214,27 +278,6 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         ? formData.relationshipDeclarationOther 
         : formData.relationshipDeclaration
 
-      // Convert annual purchase value range to number (using max value of range for storage)
-      let annualPurchaseValueNumber: number | null = null
-      if (formData.annualPurchaseValue) {
-        switch (formData.annualPurchaseValue) {
-          case "0-100k":
-            annualPurchaseValueNumber = 100000
-            break
-          case "100k-500k":
-            annualPurchaseValueNumber = 500000
-            break
-          case "500k-1M":
-            annualPurchaseValueNumber = 1000000
-            break
-          case "1M+":
-            annualPurchaseValueNumber = 2000000 // Representing 1M+ with 2M
-            break
-          default:
-            annualPurchaseValueNumber = null
-        }
-      }
-
       const submitData = {
         ...(currentDraftId && { id: currentDraftId }),
         businessUnit: Array.isArray(formData.businessUnit) ? formData.businessUnit : (formData.businessUnit ? [formData.businessUnit] : []),
@@ -250,7 +293,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         purchaseType: formData.purchaseType || 'REGULAR',
         paymentMethod: formData.paymentMethod,
         codReason: formData.paymentMethod === 'COD' ? formData.codReason : null,
-        annualPurchaseValue: annualPurchaseValueNumber,
+        annualPurchaseValue: formData.annualPurchaseValue, // Send string value, API will convert to number
         creditApplication: formData.creditApplication,
         creditApplicationReason: formData.paymentMethod === 'COD' ? 'COD payment - credit not required' : formData.creditApplicationReason,
         regularPurchase: formData.purchaseType === 'REGULAR',
@@ -301,27 +344,6 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         ? formData.relationshipDeclarationOther 
         : formData.relationshipDeclaration
 
-      // Convert annual purchase value range to number (using max value of range for storage)
-      let annualPurchaseValueNumber: number | null = null
-      if (formData.annualPurchaseValue) {
-        switch (formData.annualPurchaseValue) {
-          case "0-100k":
-            annualPurchaseValueNumber = 100000
-            break
-          case "100k-500k":
-            annualPurchaseValueNumber = 500000
-            break
-          case "500k-1M":
-            annualPurchaseValueNumber = 1000000
-            break
-          case "1M+":
-            annualPurchaseValueNumber = 2000000 // Representing 1M+ with 2M
-            break
-          default:
-            annualPurchaseValueNumber = null
-        }
-      }
-
       const submitData = {
         ...(currentDraftId && { id: currentDraftId }),
         businessUnit: Array.isArray(formData.businessUnit) ? formData.businessUnit : (formData.businessUnit ? [formData.businessUnit] : []),
@@ -336,7 +358,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         purchaseType: formData.purchaseType || 'REGULAR',
         paymentMethod: formData.paymentMethod,
         codReason: formData.paymentMethod === 'COD' ? formData.codReason : null,
-        annualPurchaseValue: annualPurchaseValueNumber,
+        annualPurchaseValue: formData.annualPurchaseValue, // Send string value, API will convert to number
         creditApplication: formData.creditApplication,
         creditApplicationReason: formData.paymentMethod === 'COD' ? 'COD payment - credit not required' : formData.creditApplicationReason,
         regularPurchase: formData.purchaseType === 'REGULAR',
@@ -379,7 +401,9 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     const hasRelationshipDeclaration = formData.relationshipDeclaration === "OTHER" 
       ? !!formData.relationshipDeclarationOther 
       : !!formData.relationshipDeclaration
-    const hasSupplierInfo = !!formData.supplierName && !!formData.supplierEmail && !!formData.supplierContactPerson && !!formData.productServiceCategory && !!formData.requesterName && hasRelationshipDeclaration
+    const hasSupplierLocation = !!formData.supplierLocation
+    const hasCurrency = formData.supplierLocation !== 'FOREIGN' || !!formData.currency // Foreign requires currency
+    const hasSupplierInfo = !!formData.supplierName && !!formData.supplierEmail && !!formData.supplierContactPerson && !!formData.productServiceCategory && !!formData.requesterName && hasRelationshipDeclaration && hasSupplierLocation && hasCurrency
     const hasPurchaseType = !!formData.purchaseType // Must be REGULAR or SHARED_IP
     const hasPaymentMethod = !!formData.paymentMethod // Must be COD or AC
     const hasCodReason = formData.paymentMethod !== 'COD' || !!formData.codReason // COD requires reason
@@ -610,6 +634,103 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="supplierLocation">Supplier Location *</Label>
+              <Select 
+                value={formData.supplierLocation} 
+                onValueChange={(value) => {
+                  handleInputChange('supplierLocation', value)
+                  // Clear currency fields when switching to LOCAL
+                  if (value === 'LOCAL') {
+                    handleInputChange('currency', '')
+                    handleInputChange('customCurrency', '')
+                  }
+                }}
+              >
+                <SelectTrigger 
+                  id="supplierLocation"
+                  className={!formData.supplierLocation ? "border-red-300" : ""}
+                >
+                  <SelectValue placeholder="Select supplier location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOCAL">Local</SelectItem>
+                  <SelectItem value="FOREIGN">Foreign</SelectItem>
+                </SelectContent>
+              </Select>
+              {!formData.supplierLocation && (
+                <p className="text-sm text-red-600">Please select supplier location</p>
+              )}
+            </div>
+
+            {/* Currency selection - only show if FOREIGN */}
+            {formData.supplierLocation === 'FOREIGN' && (
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency *</Label>
+                <Select 
+                  value={formData.currency} 
+                  onValueChange={(value) => {
+                    handleInputChange('currency', value)
+                    // Clear custom currency input when switching away from "Other"
+                    if (value !== 'OTHER') {
+                      handleInputChange('customCurrency', '')
+                    }
+                  }}
+                >
+                  <SelectTrigger 
+                    id="currency"
+                    className={!formData.currency ? "border-red-300" : ""}
+                  >
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD - US Dollar</SelectItem>
+                    <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                    <SelectItem value="EUR">EUR - Euro</SelectItem>
+                    {customCurrencies.map((currency) => (
+                      <SelectItem key={currency} value={currency}>
+                        {currency}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="OTHER">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                {!formData.currency && (
+                  <p className="text-sm text-red-600">Please select currency</p>
+                )}
+                
+                {/* Show custom currency input when "Other" is selected */}
+                {formData.currency === 'OTHER' && (
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      value={customCurrencyInput}
+                      onChange={(e) => setCustomCurrencyInput(e.target.value.toUpperCase())}
+                      placeholder="Enter currency code (e.g., JPY)"
+                      className="flex-1"
+                      maxLength={10}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleAddCustomCurrency()
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleAddCustomCurrency}
+                      disabled={!customCurrencyInput.trim()}
+                      size="sm"
+                      className="px-3"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="requesterName">Requester Name *</Label>
             <Input
@@ -642,7 +763,6 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
               <SelectContent>
                 <SelectItem value="NO_EXISTING_RELATIONSHIP">No existing relationship</SelectItem>
                 <SelectItem value="PREVIOUS_SUPPLIER">Previous supplier</SelectItem>
-                <SelectItem value="CURRENT_SUPPLIER">Current supplier</SelectItem>
                 <SelectItem value="RELATED_PARTY">Related party</SelectItem>
                 <SelectItem value="FAMILY_MEMBER">Family member</SelectItem>
                 <SelectItem value="BUSINESS_PARTNER">Business partner</SelectItem>
