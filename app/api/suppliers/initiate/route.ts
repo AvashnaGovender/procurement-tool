@@ -65,7 +65,10 @@ export async function POST(request: NextRequest) {
       annualPurchaseValue,
       creditApplication,
       creditApplicationReason,
-      onboardingReason
+      onboardingReason,
+      supplierLocation,
+      currency,
+      customCurrency
     } = body
 
     // Validate required fields
@@ -361,6 +364,9 @@ export async function POST(request: NextRequest) {
           regularPurchase: purchaseType === 'REGULAR',
           onceOffPurchase: purchaseType === 'ONCE_OFF',
           onboardingReason,
+          supplierLocation: supplierLocation || null,
+          currency: currency || null,
+          customCurrency: customCurrency || null,
           status: 'SUBMITTED',
           submittedAt: new Date()
         }
@@ -389,6 +395,9 @@ export async function POST(request: NextRequest) {
           regularPurchase: purchaseType === 'REGULAR',
           onceOffPurchase: purchaseType === 'ONCE_OFF',
           onboardingReason,
+          supplierLocation: supplierLocation || null,
+          currency: currency || null,
+          customCurrency: customCurrency || null,
           initiatedById: session.user.id,
           status: 'SUBMITTED',
           submittedAt: new Date()

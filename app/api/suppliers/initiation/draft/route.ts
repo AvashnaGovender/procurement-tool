@@ -37,7 +37,10 @@ export async function POST(request: NextRequest) {
       creditApplicationReason,
       onceOffPurchase,
       regularPurchase,
-      onboardingReason
+      onboardingReason,
+      supplierLocation,
+      currency,
+      customCurrency
     } = body
 
     // Validate required fields for draft (more lenient than submission)
@@ -153,6 +156,9 @@ export async function POST(request: NextRequest) {
           regularPurchase: regularPurchase ?? (purchaseType === 'REGULAR' ? true : existingInitiation.regularPurchase),
           onceOffPurchase: onceOffPurchase ?? existingInitiation.onceOffPurchase,
           onboardingReason: onboardingReason || existingInitiation.onboardingReason,
+          supplierLocation: supplierLocation ?? existingInitiation.supplierLocation,
+          currency: currency ?? existingInitiation.currency,
+          customCurrency: customCurrency ?? existingInitiation.customCurrency,
           status: 'DRAFT' // Keep as draft
         }
       })
@@ -185,6 +191,9 @@ export async function POST(request: NextRequest) {
         regularPurchase: regularPurchase ?? (purchaseType === 'REGULAR'),
         onceOffPurchase: onceOffPurchase || false,
         onboardingReason: onboardingReason || '',
+        supplierLocation: supplierLocation || null,
+        currency: currency || null,
+        customCurrency: customCurrency || null,
         initiatedById: session.user.id,
         status: 'DRAFT'
       }
