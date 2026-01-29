@@ -298,7 +298,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         creditApplicationReason: formData.paymentMethod === 'COD' ? 'COD payment - credit not required' : formData.creditApplicationReason,
         regularPurchase: formData.purchaseType === 'REGULAR',
         onceOffPurchase: false,
-        onboardingReason: formData.onboardingReason
+        onboardingReason: formData.onboardingReason,
+        supplierLocation: formData.supplierLocation,
+        currency: formData.currency,
+        customCurrency: formData.customCurrency
       }
 
       const response = await fetch('/api/suppliers/initiation/draft', {
@@ -363,7 +366,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         creditApplicationReason: formData.paymentMethod === 'COD' ? 'COD payment - credit not required' : formData.creditApplicationReason,
         regularPurchase: formData.purchaseType === 'REGULAR',
         onceOffPurchase: false, // No longer used, but keep for backward compatibility
-        onboardingReason: formData.onboardingReason
+        onboardingReason: formData.onboardingReason,
+        supplierLocation: formData.supplierLocation,
+        currency: formData.currency,
+        customCurrency: formData.customCurrency
       }
 
       const response = await fetch('/api/suppliers/initiate', {
