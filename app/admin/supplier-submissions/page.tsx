@@ -142,9 +142,13 @@ export default function SupplierSubmissionsPage() {
 
     setDeleting(true)
     try {
+      console.log('Attempting to delete initiation:', initiationToDelete.id)
       const response = await fetch(`/api/suppliers/initiation/${initiationToDelete.id}`, {
         method: 'DELETE',
       })
+
+      console.log('Delete response status:', response.status, response.statusText)
+      console.log('Delete response headers:', Object.fromEntries(response.headers.entries()))
 
       if (response.ok) {
         setDeleteDialogOpen(false)
@@ -153,12 +157,16 @@ export default function SupplierSubmissionsPage() {
         alert('Initiation deleted successfully')
       } else {
         let errorMessage = 'Unknown error'
+        const responseText = await response.text()
+        console.log('Raw response body:', responseText)
+        
         try {
-          const errorData = await response.json()
+          const errorData = JSON.parse(responseText)
           console.error('Delete error:', errorData)
           errorMessage = errorData.error || errorData.message || `Server error: ${response.status} ${response.statusText}`
         } catch (jsonError) {
           console.error('Failed to parse error response:', jsonError)
+          console.error('Response was not JSON:', responseText.substring(0, 500))
           errorMessage = `Server error: ${response.status} ${response.statusText}`
         }
         alert(`Failed to delete initiation: ${errorMessage}`)

@@ -99,13 +99,22 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log('🗑️ DELETE request received for initiation')
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      console.log('❌ Unauthorized - no session')
+      return NextResponse.json({ 
+        success: false,
+        error: 'Unauthorized',
+        message: 'You must be logged in to delete an initiation'
+      }, { status: 401 })
     }
 
+    console.log('✅ User authenticated:', session.user.email, 'Role:', session.user.role)
+
     const { id: initiationId } = await params
+    console.log('🔍 Attempting to delete initiation:', initiationId)
 
     // Get the initiation to check its status and ownership
     const initiation = await prisma.supplierInitiation.findUnique({
@@ -113,19 +122,40 @@ export async function DELETE(
     })
 
     if (!initiation) {
-      return NextResponse.json({ error: 'Initiation not found' }, { status: 404 })
+      console.log('❌ Initiation not found:', initiationId)
+      return NextResponse.json({ 
+        success: false,
+        error: 'Initiation not found',
+        message: `No initiation found with ID: ${initiationId}`
+      }, { status: 404 })
     }
+
+    console.log('📋 Found initiation:', {
+      id: initiation.id,
+      status: initiation.status,
+      supplierName: initiation.supplierName,
+      initiatedBy: initiation.initiatedById
+    })
 
     // Check if user has permission to delete initiations
     const isAdmin = ['ADMIN', 'PROCUREMENT_MANAGER', 'APPROVER'].includes(session.user.role)
     const isOwner = initiation.initiatedById === session.user.id
+    
+    console.log('🔐 Permission check:', {
+      isAdmin,
+      isOwner,
+      userRole: session.user.role,
+      initiationStatus: initiation.status
+    })
     
     // Users can delete their own drafts and rejected requests
     // Admins can delete more statuses
     const canDelete = isAdmin || (isOwner && (initiation.status === 'DRAFT' || initiation.status === 'REJECTED'))
     
     if (!canDelete) {
+      console.log('❌ Permission denied')
       return NextResponse.json({ 
+        success: false,
         error: 'Forbidden',
         message: 'You can only delete your own drafts and rejected requests, or you need admin privileges.'
       }, { status: 403 })
@@ -136,6 +166,7 @@ export async function DELETE(
     const protectedStatuses = ['APPROVED', 'EMAIL_SENT', 'SUPPLIER_EMAILED']
     
     if (!allowedStatuses.includes(initiation.status)) {
+      console.log('❌ Status not allowed for deletion:', initiation.status)
       let errorMessage = `Cannot delete initiation with current status '${initiation.status}'. `
       
       if (protectedStatuses.includes(initiation.status)) {
@@ -145,9 +176,13 @@ export async function DELETE(
       }
       
       return NextResponse.json({ 
-        error: errorMessage
+        success: false,
+        error: errorMessage,
+        message: errorMessage
       }, { status: 400 })
     }
+
+    console.log('✅ Permission granted, proceeding with deletion...')
 
     // Delete the initiation and all related records in a transaction
     console.log('Attempting to delete initiation:', initiationId)
