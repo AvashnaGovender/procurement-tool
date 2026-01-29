@@ -152,13 +152,21 @@ export default function SupplierSubmissionsPage() {
         fetchInitiations() // Refresh the list
         alert('Initiation deleted successfully')
       } else {
-        const errorData = await response.json()
-        console.error('Delete error:', errorData)
-        alert(`Failed to delete initiation: ${errorData.error || 'Unknown error'}`)
+        let errorMessage = 'Unknown error'
+        try {
+          const errorData = await response.json()
+          console.error('Delete error:', errorData)
+          errorMessage = errorData.error || errorData.message || `Server error: ${response.status} ${response.statusText}`
+        } catch (jsonError) {
+          console.error('Failed to parse error response:', jsonError)
+          errorMessage = `Server error: ${response.status} ${response.statusText}`
+        }
+        alert(`Failed to delete initiation: ${errorMessage}`)
       }
     } catch (error) {
       console.error('Error deleting initiation:', error)
-      alert('Failed to delete initiation: Network error')
+      const errorMsg = error instanceof Error ? error.message : 'Network error'
+      alert(`Failed to delete initiation: ${errorMsg}`)
     } finally {
       setDeleting(false)
     }

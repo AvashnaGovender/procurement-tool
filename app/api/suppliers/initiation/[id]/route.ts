@@ -159,23 +159,44 @@ export async function DELETE(
         where: { initiationId }
       })
 
-      // Delete onboarding timeline entries if they exist
+      // Delete all onboarding-related records if they exist
       if (onboarding) {
+        // Delete onboarding timeline entries
         await tx.onboardingTimeline.deleteMany({
           where: { onboardingId: onboarding.id }
         })
         console.log(`✅ Deleted timeline entries for onboarding: ${onboarding.id}`)
+
+        // Delete supplier documents
+        await tx.supplierDocument.deleteMany({
+          where: { onboardingId: onboarding.id }
+        })
+        console.log(`✅ Deleted supplier documents for onboarding: ${onboarding.id}`)
+
+        // Delete email reminders
+        await tx.emailReminder.deleteMany({
+          where: { onboardingId: onboarding.id }
+        })
+        console.log(`✅ Deleted email reminders for onboarding: ${onboarding.id}`)
+
+        // Delete verification checks
+        await tx.verificationCheck.deleteMany({
+          where: { onboardingId: onboarding.id }
+        })
+        console.log(`✅ Deleted verification checks for onboarding: ${onboarding.id}`)
       }
 
       // Delete manager approval if exists
       await tx.managerApproval.deleteMany({
         where: { initiationId }
       })
+      console.log(`✅ Deleted manager approval for initiation: ${initiationId}`)
       
       // Delete procurement approval if exists
       await tx.procurementApproval.deleteMany({
         where: { initiationId }
       })
+      console.log(`✅ Deleted procurement approval for initiation: ${initiationId}`)
       
       // Delete onboarding if exists
       if (onboarding) {
@@ -200,8 +221,14 @@ export async function DELETE(
 
   } catch (error) {
     console.error('Error deleting initiation:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Error details:', errorMessage)
+    
     return NextResponse.json({ 
-      error: 'Failed to delete initiation' 
+      success: false,
+      error: 'Failed to delete initiation',
+      message: errorMessage,
+      details: error instanceof Error ? error.stack : undefined
     }, { status: 500 })
   }
 }
