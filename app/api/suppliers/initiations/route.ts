@@ -118,10 +118,11 @@ export async function GET(request: NextRequest) {
         AND: [
           // User filter (admins see all, users see their own)
           userFilterClause,
-          // Exclude initiations where supplier has submitted their form
+          // Show initiations that are still in progress
           // Show initiations that either:
           // 1. Don't have an onboarding record yet, OR
-          // 2. Have an onboarding record but supplier hasn't submitted form
+          // 2. Have an onboarding record but supplier hasn't submitted form, OR
+          // 3. Have an onboarding record, supplier submitted, but not yet approved/rejected (still under review or revision requested)
           {
             OR: [
               {
@@ -130,6 +131,16 @@ export async function GET(request: NextRequest) {
               {
                 onboarding: {
                   supplierFormSubmitted: false
+                }
+              },
+              {
+                onboarding: {
+                  supplierFormSubmitted: true,
+                  approvalStatus: {
+                    not: {
+                      in: ['APPROVED', 'REJECTED']
+                    }
+                  }
                 }
               }
             ]

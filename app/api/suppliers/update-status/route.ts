@@ -6,6 +6,8 @@ import nodemailer from 'nodemailer'
 import fs from 'fs'
 import path from 'path'
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
+import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
+import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
 import { readdir, readFile } from 'fs/promises'
 
 export async function POST(request: NextRequest) {
@@ -2029,12 +2031,12 @@ async function sendPMApprovalPackage(
     try {
       const pdfBuffer = await generateApprovalSummaryPDF({
         supplier: {
-          name: supplier.name,
+          name: supplier.companyName || supplier.supplierName || 'Unknown',
           supplierCode: supplier.supplierCode,
-          contactName: supplier.contactName,
+          contactName: supplier.contactPerson,
           contactEmail: supplier.contactEmail,
           contactPhone: supplier.contactPhone,
-          address: supplier.address,
+          address: supplier.physicalAddress,
           city: supplier.city,
           state: supplier.state,
           zipCode: supplier.zipCode,
@@ -2080,6 +2082,84 @@ async function sendPMApprovalPackage(
       // Continue even if PDF generation fails
     }
 
+    // Generate Supplier Form PDF
+    try {
+      const supplierFormPdfBuffer = await generateSupplierFormPDF({
+        supplierName: supplier.supplierName,
+        companyName: supplier.companyName,
+        contactPerson: supplier.contactPerson,
+        contactEmail: supplier.contactEmail,
+        contactPhone: supplier.contactPhone,
+        physicalAddress: supplier.physicalAddress,
+        postalAddress: supplier.postalAddress,
+        tradingName: supplier.tradingName,
+        registrationNumber: supplier.registrationNumber,
+        natureOfBusiness: supplier.natureOfBusiness,
+        productsAndServices: supplier.productsAndServices,
+        bankAccountName: supplier.bankAccountName,
+        bankName: supplier.bankName,
+        branchName: supplier.branchName,
+        branchNumber: supplier.branchNumber,
+        accountNumber: supplier.accountNumber,
+        typeOfAccount: supplier.typeOfAccount,
+        bbbeeLevel: supplier.bbbeeLevel,
+        taxId: supplier.taxId,
+        vatNumber: supplier.vatNumber
+      })
+
+      attachments.push({
+        filename: `Supplier_Form_${supplier.supplierCode}_${new Date().toISOString().split('T')[0]}.pdf`,
+        content: supplierFormPdfBuffer,
+        contentType: 'application/pdf'
+      })
+
+      console.log('✅ Supplier form PDF generated successfully')
+    } catch (supplierFormPdfError) {
+      console.error('Error generating supplier form PDF:', supplierFormPdfError)
+      // Continue even if PDF generation fails
+    }
+
+    // Generate Initiator Checklist PDF
+    try {
+      const checklistPdfBuffer = await generateInitiatorChecklistPDF({
+        supplierName: initiation.supplierName,
+        supplierEmail: initiation.supplierEmail,
+        supplierContactPerson: initiation.supplierContactPerson,
+        productServiceCategory: initiation.productServiceCategory,
+        requesterName: initiation.requesterName,
+        relationshipDeclaration: initiation.relationshipDeclaration,
+        processReadUnderstood: initiation.processReadUnderstood,
+        dueDiligenceCompleted: initiation.dueDiligenceCompleted,
+        purchaseType: initiation.purchaseType,
+        paymentMethod: initiation.paymentMethod,
+        codReason: initiation.codReason,
+        annualPurchaseValue: initiation.annualPurchaseValue,
+        currency: initiation.currency,
+        supplierLocation: initiation.supplierLocation,
+        creditApplication: initiation.creditApplication,
+        creditApplicationReason: initiation.creditApplicationReason,
+        onboardingReason: initiation.onboardingReason,
+        justification: initiation.justification,
+        businessUnit: initiation.businessUnit,
+        initiatedBy: {
+          name: initiation.initiatedBy.name,
+          email: initiation.initiatedBy.email
+        },
+        createdAt: initiation.createdAt
+      })
+
+      attachments.push({
+        filename: `Initiator_Checklist_${supplier.supplierCode}_${new Date().toISOString().split('T')[0]}.pdf`,
+        content: checklistPdfBuffer,
+        contentType: 'application/pdf'
+      })
+
+      console.log('✅ Initiator checklist PDF generated successfully')
+    } catch (checklistPdfError) {
+      console.error('Error generating initiator checklist PDF:', checklistPdfError)
+      // Continue even if PDF generation fails
+    }
+
     // Email HTML
     const emailHtml = `
 <!DOCTYPE html>
@@ -2088,7 +2168,7 @@ async function sendPMApprovalPackage(
   <style>
     body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
     .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: #1e40af; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+    .header { background-color: #ffffff; border-bottom: 3px solid #1e40af; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
     .content { background-color: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
     .footer { background-color: #f3f4f6; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-radius: 0 0 8px 8px; }
     .button { display: inline-block; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0; }
@@ -2100,7 +2180,7 @@ async function sendPMApprovalPackage(
   <div class="container">
     <div class="header">
       <img src="cid:logo" alt="Logo" style="max-width: 150px; margin-bottom: 10px;" />
-      <h1 style="margin: 0; font-size: 24px;">Supplier Approval Package</h1>
+      <h1 style="margin: 0; font-size: 24px; color: #1e40af;">Supplier Approval Package</h1>
     </div>
     
     <div class="content">
@@ -2111,7 +2191,7 @@ async function sendPMApprovalPackage(
       <div class="success-box">
         <strong>✓ Supplier Successfully Approved</strong>
         <p style="margin: 10px 0 0 0;">
-          You have approved <strong>${supplier.name}</strong> (Supplier Code: <strong>${supplier.supplierCode}</strong>)
+          You have approved <strong>${supplier.companyName || supplier.supplierName}</strong> (Supplier Code: <strong>${supplier.supplierCode}</strong>)
         </p>
       </div>
       
@@ -2123,7 +2203,9 @@ async function sendPMApprovalPackage(
         <strong>📎 Attached Documents:</strong>
         <ul style="margin: 10px 0;">
           <li><strong>Approval Summary PDF</strong> - Complete summary with supplier details, initiation checklist, and document list</li>
-          <li><strong>All Supplier Documents</strong> - ${attachments.length - 2} document(s) uploaded by the supplier</li>
+          <li><strong>Supplier Form PDF</strong> - All supplier-provided information and details</li>
+          <li><strong>Initiator Checklist PDF</strong> - Complete initiation requirements and justification</li>
+          <li><strong>Supplier Documents</strong> - ${attachments.length - 4} document(s) uploaded by the supplier (W9, Insurance, Banking Info, etc.)</li>
         </ul>
         <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
           Note: The fully signed credit application (if applicable) will be sent separately once received from the supplier.
@@ -2133,7 +2215,7 @@ async function sendPMApprovalPackage(
       <div style="margin: 30px 0;">
         <strong>Quick Summary:</strong>
         <ul style="margin: 10px 0;">
-          <li><strong>Supplier:</strong> ${supplier.name}</li>
+          <li><strong>Supplier:</strong> ${supplier.companyName || supplier.supplierName}</li>
           <li><strong>Code:</strong> ${supplier.supplierCode}</li>
           <li><strong>Purchase Type:</strong> ${initiation.purchaseType.replace(/_/g, ' ')}</li>
           <li><strong>Business Unit(s):</strong> ${Array.isArray(initiation.businessUnit) ? initiation.businessUnit.join(', ') : initiation.businessUnit}</li>
@@ -2174,12 +2256,12 @@ async function sendPMApprovalPackage(
 
     // Send email
     console.log(`📧 Sending comprehensive approval package to PM: ${pmUser.email}`)
-    console.log(`📎 Total attachments: ${attachments.length} (including ${documentsList.length} supplier documents)`)
+    console.log(`📎 Total attachments: ${attachments.length} (including 3 PDFs and ${documentsList.length} supplier documents)`)
     
     await transporter.sendMail({
       from: `"${smtpConfig.companyName || 'SS Supplier Onboarding'}" <${smtpConfig.fromEmail}>`,
       to: pmUser.email,
-      subject: `Supplier Approval Package - ${supplier.name} (${supplier.supplierCode})`,
+      subject: `Supplier Approval Package - ${supplier.companyName || supplier.supplierName} (${supplier.supplierCode})`,
       html: emailHtml,
       attachments: attachments
     })

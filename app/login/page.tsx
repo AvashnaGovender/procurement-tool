@@ -43,8 +43,26 @@ function LoginForm() {
       if (result?.ok) {
         // Check for callback URL from query params
         const callbackUrl = searchParams.get("callbackUrl")
+        
+        // Validate callback URL - prevent redirecting to pages the user doesn't have access to
         if (callbackUrl) {
-          router.push(callbackUrl)
+          // Restricted pages that require specific roles
+          const restrictedPaths = [
+            { path: '/admin/supplier-submissions', allowedRoles: ['PROCUREMENT_MANAGER', 'ADMIN'] },
+            { path: '/admin/approvals', allowedRoles: ['MANAGER', 'PROCUREMENT_MANAGER', 'ADMIN'] }
+          ]
+          
+          // Check if callback URL is a restricted path
+          const restricted = restrictedPaths.find(r => callbackUrl.startsWith(r.path))
+          
+          // If it's restricted and user doesn't have proper role, redirect to dashboard instead
+          // We don't have the session here yet, so we'll just redirect to dashboard for restricted paths
+          // The page itself will handle the authorization check
+          if (restricted) {
+            router.push("/dashboard")
+          } else {
+            router.push(callbackUrl)
+          }
         } else {
           router.push("/dashboard")
         }

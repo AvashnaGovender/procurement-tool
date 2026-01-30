@@ -25,8 +25,17 @@ export async function middleware(request: NextRequest) {
   // Check if user is authenticated for protected routes
   if (!token && !isPublicApiPath) {
     const loginUrl = new URL('/login', request.url)
-    // Preserve the original URL as callback for redirect after login
-    loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname)
+    
+    // Only preserve callback URL for non-restricted routes
+    // Restricted admin routes should not be saved as callback URLs
+    const restrictedPaths = ['/admin/supplier-submissions', '/admin/approvals']
+    const isRestrictedPath = restrictedPaths.some(path => request.nextUrl.pathname.startsWith(path))
+    
+    // Only set callback URL if it's not a restricted path
+    if (!isRestrictedPath) {
+      loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname)
+    }
+    
     return NextResponse.redirect(loginUrl)
   }
   

@@ -331,12 +331,14 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
               if (statusResponse.ok) {
                 console.log('✅ All mandatory documents verified - Status updated to AWAITING_FINAL_APPROVAL')
                 await fetchSupplier() // Refresh supplier data to show new status
+                setSuccessMessage('✅ All mandatory documents verified! Status updated to AWAITING_FINAL_APPROVAL.')
+                setSuccessDialogOpen(true)
               }
             } catch (error) {
               console.error('Error updating status:', error)
             }
           }
-        }, 500) // Small delay to ensure state is updated
+        }, 100) // Minimal delay to ensure state is updated
       } else {
         setErrorMessage('Failed to update verification status')
         setErrorDialogOpen(true)
@@ -1017,42 +1019,6 @@ Procurement Team`
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {!isEditing ? (
-                <Button
-                  variant="outline"
-                  onClick={handleEditClick}
-                  disabled={supplier.status === 'REJECTED'}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Supplier
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={handleCancelEdit}
-                    disabled={saving}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSaveEdit}
-                    disabled={saving}
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
-                </>
-              )}
             <Badge className={`${getStatusColor(supplier.status)} text-white px-4 py-2`}>
               {(() => {
                 // Check if this should be displayed as "AWAITING DOCUMENTS"
@@ -1093,39 +1059,15 @@ Procurement Team`
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs text-muted-foreground uppercase">Supplier Name</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.supplierName || ''}
-                        onChange={(e) => setEditData({ ...editData, supplierName: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
                     <p className="text-sm font-medium">{supplier.supplierName || 'N/A'}</p>
-                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Contact Person</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.contactPerson || ''}
-                        onChange={(e) => setEditData({ ...editData, contactPerson: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
                     <p className="text-sm font-medium">{supplier.contactPerson || 'N/A'}</p>
-                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Trading Name</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.tradingName || ''}
-                        onChange={(e) => setEditData({ ...editData, tradingName: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
                     <p className="text-sm font-medium">{supplier.tradingName || 'N/A'}</p>
-                    )}
                   </div>
                 </div>
               </CardContent>
@@ -1143,54 +1085,19 @@ Procurement Team`
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <label className="text-xs text-gray-500 uppercase">Physical Address</label>
-                    {isEditing ? (
-                      <Textarea
-                        value={editData.physicalAddress || ''}
-                        onChange={(e) => setEditData({ ...editData, physicalAddress: e.target.value })}
-                        className="mt-1"
-                        rows={3}
-                      />
-                    ) : (
                     <p className="text-sm font-medium whitespace-pre-wrap">{supplier.physicalAddress || 'N/A'}</p>
-                    )}
                   </div>
                   <div className="md:col-span-2">
                     <label className="text-xs text-gray-500 uppercase">Postal Address</label>
-                    {isEditing ? (
-                      <Textarea
-                        value={editData.postalAddress || ''}
-                        onChange={(e) => setEditData({ ...editData, postalAddress: e.target.value })}
-                        className="mt-1"
-                        rows={3}
-                      />
-                    ) : (
                     <p className="text-sm font-medium whitespace-pre-wrap">{supplier.postalAddress || 'N/A'}</p>
-                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">Contact Number</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.contactPhone || ''}
-                        onChange={(e) => setEditData({ ...editData, contactPhone: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
                     <p className="text-sm font-medium">{supplier.contactPhone || 'N/A'}</p>
-                    )}
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">E-mail Address</label>
-                    {isEditing ? (
-                      <Input
-                        type="email"
-                        value={editData.contactEmail || ''}
-                        onChange={(e) => setEditData({ ...editData, contactEmail: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
                     <p className="text-sm font-medium">{supplier.contactEmail || 'N/A'}</p>
-                    )}
                   </div>
                 </div>
               </CardContent>
@@ -1208,15 +1115,7 @@ Procurement Team`
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs text-gray-500 uppercase">BBBEE Status</label>
-                    {isEditing ? (
-                      <Input
-                        value={editData.bbbeeLevel || ''}
-                        onChange={(e) => setEditData({ ...editData, bbbeeLevel: e.target.value })}
-                        className="mt-1"
-                      />
-                    ) : (
                     <p className="text-sm font-medium">{supplier.bbbeeLevel || 'N/A'}</p>
-                    )}
                   </div>
                 </div>
               </CardContent>
@@ -1226,6 +1125,69 @@ Procurement Team`
           <TabsContent value="documents">
             {supplier.airtableData?.allVersions ? (
               <div className="space-y-6">
+                {/* Read-only notice for approved/rejected suppliers */}
+                {(supplier.status === 'APPROVED' || supplier.status === 'REJECTED') && (
+                  <Alert className={supplier.status === 'APPROVED' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
+                    <AlertCircle className={`h-4 w-4 ${supplier.status === 'APPROVED' ? 'text-green-600' : 'text-red-600'}`} />
+                    <AlertDescription className={supplier.status === 'APPROVED' ? 'text-green-800' : 'text-red-800'}>
+                      <strong>Read-Only Mode:</strong> This supplier has been {supplier.status.toLowerCase()}. Document verification checkboxes and analysis tools are disabled.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {/* All Docs Verified button for PM */}
+                {supplier.status === 'UNDER_REVIEW' && (session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && (
+                  <Card className="border-green-200 bg-green-50">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-green-900 mb-1">Ready for Final Approval?</h3>
+                          <p className="text-sm text-green-800">
+                            Once you've verified all mandatory documents, click this button to mark the supplier as ready for final approval.
+                          </p>
+                        </div>
+                        <Button
+                          onClick={async () => {
+                            if (areAllMandatoryDocumentsVerified()) {
+                              try {
+                                const response = await fetch('/api/suppliers/update-status', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    supplierId: supplier.id,
+                                    status: 'AWAITING_FINAL_APPROVAL'
+                                  })
+                                })
+                                
+                                if (response.ok) {
+                                  setSuccessMessage('✅ Status updated to AWAITING_FINAL_APPROVAL. You can now proceed to the Actions tab to approve the supplier.')
+                                  setSuccessDialogOpen(true)
+                                  await fetchSupplier()
+                                } else {
+                                  const data = await response.json()
+                                  setErrorMessage(`Failed to update status: ${data.error || 'Unknown error'}`)
+                                  setErrorDialogOpen(true)
+                                }
+                              } catch (error) {
+                                console.error('Error updating status:', error)
+                                setErrorMessage('Failed to update status')
+                                setErrorDialogOpen(true)
+                              }
+                            } else {
+                              setErrorMessage('❌ Cannot update status: Not all mandatory documents are verified. Please verify all required documents first.')
+                              setErrorDialogOpen(true)
+                            }
+                          }}
+                          className="ml-4 bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <CheckCheck className="h-4 w-4 mr-2" />
+                          All Docs Verified
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                
                 {/* Check for missing mandatory documents across all versions */}
                 {(() => {
                   // Combine uploaded files from all versions
@@ -1544,11 +1506,12 @@ Procurement Team`
                                   <Checkbox
                                     id={`verify-${verificationKey}`}
                                     checked={isVerified}
+                                    disabled={supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED'}
                                     onCheckedChange={() => handleVerificationToggle(versionData.version, category, file, isVerified)}
                                   />
                                   <label
                                     htmlFor={`verify-${verificationKey}`}
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                    className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED' ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
                                   >
                                     Verified
                                   </label>
@@ -1557,11 +1520,12 @@ Procurement Team`
                                   <Checkbox
                                     id={`incorrect-${verificationKey}`}
                                     checked={isIncorrect}
+                                    disabled={supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED'}
                                     onCheckedChange={() => handleIncorrectToggle(versionData.version, category, file, isIncorrect)}
                                   />
                                   <label
                                     htmlFor={`incorrect-${verificationKey}`}
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-red-600"
+                                    className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-red-600 ${supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED' ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
                                   >
                                     Incorrect
                                   </label>
@@ -1635,7 +1599,7 @@ Procurement Team`
                 <CardContent className="space-y-4">
                   <Button 
                     onClick={handleAIAnalysis}
-                    disabled={aiProcessing}
+                    disabled={aiProcessing || supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED'}
                     className="w-full sm:w-auto"
                   >
                     {aiProcessing ? (
@@ -2026,11 +1990,20 @@ Procurement Team`
                 <CardDescription>Update the supplier status</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <Alert>
-                  <AlertDescription>
-                    Current Status: <strong>{supplier.status}</strong>
-                  </AlertDescription>
-                </Alert>
+                {(supplier.status === 'APPROVED' || supplier.status === 'REJECTED') ? (
+                  <Alert className={supplier.status === 'APPROVED' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}>
+                    <CheckCircle className={`h-4 w-4 ${supplier.status === 'APPROVED' ? 'text-green-600' : 'text-red-600'}`} />
+                    <AlertDescription className={supplier.status === 'APPROVED' ? 'text-green-800' : 'text-red-800'}>
+                      <strong>{supplier.status === 'APPROVED' ? 'Supplier Approved' : 'Supplier Rejected'}:</strong> This supplier has been {supplier.status.toLowerCase()}. {supplier.status === 'APPROVED' ? 'No further actions are required.' : 'A new onboarding can be initiated if circumstances change.'}
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Alert>
+                    <AlertDescription>
+                      Current Status: <strong>{supplier.status}</strong>
+                    </AlertDescription>
+                  </Alert>
+                )}
                 
                 {/* Only show action buttons if supplier is not approved or rejected */}
                 {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' ? (
