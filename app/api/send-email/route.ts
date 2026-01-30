@@ -349,7 +349,7 @@ async function sendEmailViaService({
         `
         
         const mailOptions = {
-          from: `"${config.companyName || 'Schauenburg Systems'}" <${config.fromEmail}>`,
+          from: `"${config.companyName || 'SS Supplier Onboarding'}" <${config.fromEmail}>`,
           to: to,
           subject: subject,
           html: htmlContent,

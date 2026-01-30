@@ -317,7 +317,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
     `
 
     const mailOptions = {
-      from: `"${smtpConfig.companyName || 'Schauenburg Systems'}" <${smtpConfig.fromEmail || smtpConfig.user}>`,
+      from: `"${smtpConfig.companyName || 'SS Supplier Onboarding'}" <${smtpConfig.fromEmail || smtpConfig.user}>`,
       to: to,
       subject: emailSubject,
       html: htmlContent,

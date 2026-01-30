@@ -227,7 +227,7 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
               You can track their progress in the supplier submissions dashboard.
             </p>
             <Button className="mt-4" asChild>
-              <a href="/admin/supplier-submissions">View Supplier Submissions</a>
+              <a href="/admin/approvals?tab=reviews">View Document Reviews</a>
             </Button>
           </CardContent>
         </Card>

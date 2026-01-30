@@ -105,9 +105,6 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [companyNameConfirm, setCompanyNameConfirm] = useState("")
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
-  const [initiatorRevisionDialogOpen, setInitiatorRevisionDialogOpen] = useState(false)
-  const [initiatorRevisionNotes, setInitiatorRevisionNotes] = useState("")
-  const [initiatorRevisionSubmitting, setInitiatorRevisionSubmitting] = useState(false)
   const [rejectReason, setRejectReason] = useState("")
   const [revisionDialogOpen, setRevisionDialogOpen] = useState(false)
   const [revisionNotes, setRevisionNotes] = useState("")
@@ -461,54 +458,6 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const handleRejectClick = () => {
     setRejectDialogOpen(true)
     setRejectReason("")
-  }
-
-  const handleInitiatorRevisionClick = () => {
-    setInitiatorRevisionDialogOpen(true)
-    setInitiatorRevisionNotes("")
-  }
-
-  const confirmInitiatorRevision = async () => {
-    if (!initiatorRevisionNotes.trim()) {
-      setErrorMessage('Revision notes are required. Please specify what needs to be revised.')
-      setErrorDialogOpen(true)
-      return
-    }
-
-    if (initiatorRevisionSubmitting) {
-      return
-    }
-
-    setInitiatorRevisionSubmitting(true)
-    try {
-      const response = await fetch('/api/suppliers/request-initiator-revision', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          supplierId: supplier?.id, 
-          revisionNotes: initiatorRevisionNotes.trim()
-        })
-      })
-
-      const data = await response.json()
-      
-      if (data.success) {
-        setSuccessMessage(`Revision request sent to initiator successfully!\n\nAn email has been sent to the initiator. The supplier has NOT been notified.`)
-        setSuccessDialogOpen(true)
-        await fetchSupplier()
-        setInitiatorRevisionDialogOpen(false)
-        setInitiatorRevisionNotes("")
-      } else {
-        setErrorMessage(`Failed to send revision request: ${data.error}`)
-        setErrorDialogOpen(true)
-      }
-    } catch (error) {
-      console.error('Error requesting initiator revision:', error)
-      setErrorMessage('Failed to send revision request. Please try again.')
-      setErrorDialogOpen(true)
-    } finally {
-      setInitiatorRevisionSubmitting(false)
-    }
   }
 
   const confirmApprove = async () => {
@@ -2166,26 +2115,8 @@ Procurement Team`
                       </>
                     )}
                     
-                    {/* Show message if PM is waiting for initiator to resubmit after requesting revisions */}
-                    {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status === 'UNDER_REVIEW' && supplier.onboarding?.initiation?.status === 'REJECTED' && (
-                      <Alert className="bg-blue-50 border-blue-300">
-                        <AlertCircle className="h-5 w-5 text-blue-600" />
-                        <AlertDescription className="text-blue-800">
-                          <div className="space-y-2">
-                            <div>
-                              <strong>Waiting for Initiator:</strong> You have requested revisions from the initiator. 
-                              The initiator will review and resubmit the initiation for your final approval.
-                            </div>
-                            <div className="text-sm mt-2">
-                              The supplier has NOT been notified. Once the initiator resubmits, you will be able to review and approve.
-                            </div>
-                          </div>
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                    
-                    {/* Show "Approve Supplier", "Reject Supplier", and "Request Revision from Initiator" buttons if current user is PM and status is AWAITING_FINAL_APPROVAL AND initiation is not rejected */}
-                    {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status === 'AWAITING_FINAL_APPROVAL' && supplier.onboarding?.initiation?.status !== 'REJECTED' && (
+                    {/* Show "Approve Supplier" and "Reject Supplier" buttons if current user is PM and status is AWAITING_FINAL_APPROVAL */}
+                    {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status === 'AWAITING_FINAL_APPROVAL' && (
                       <div className="space-y-4">
                         {/* Credit Controller Assignment */}
                         <div className="space-y-2 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
@@ -2226,10 +2157,6 @@ Procurement Team`
                           <Button onClick={handleRejectClick} variant="destructive" className="bg-red-600 hover:bg-red-700">
                             <X className="h-4 w-4 mr-2" />
                             Reject Supplier
-                          </Button>
-                          <Button onClick={handleInitiatorRevisionClick} variant="outline" className="border-orange-500 text-orange-700 hover:bg-orange-50">
-                            <Edit className="h-4 w-4 mr-2" />
-                            Request Revision from Initiator
                           </Button>
                         </div>
                       </div>
@@ -2487,81 +2414,6 @@ Procurement Team`
             </Button>
             <Button variant="destructive" onClick={confirmReject}>
               Reject Supplier
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Initiator Revision Request Dialog */}
-      <Dialog open={initiatorRevisionDialogOpen} onOpenChange={setInitiatorRevisionDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-orange-600">Request Revision from Initiator</DialogTitle>
-            <DialogDescription>
-              Request the initiator to review and update the supplier initiation. The supplier will NOT be notified.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <h4 className="font-medium text-orange-900 mb-2">Supplier Information:</h4>
-              <div className="text-sm text-orange-800 space-y-1">
-                <div><strong>Company:</strong> {supplier?.companyName}</div>
-                <div><strong>Email:</strong> {supplier?.contactEmail}</div>
-                <div><strong>Status:</strong> {supplier?.status}</div>
-                <div><strong>Initiator:</strong> {supplier?.onboarding?.initiation?.initiatedBy?.name || 'Unknown'}</div>
-              </div>
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-900 mb-2">💡 Important Note:</h4>
-              <p className="text-sm text-blue-800">
-                This revision request will be sent to the <strong>initiator only</strong>. The supplier will 
-                <strong> NOT</strong> be notified. This allows the initiator to review and correct the initiation 
-                details before the supplier is involved in the process.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Revision Notes:
-              </label>
-              <p className="text-xs text-gray-600 mb-2">
-                Please specify what needs to be reviewed or corrected in the supplier initiation.
-              </p>
-              <Textarea
-                placeholder="Please specify what needs to be reviewed or corrected..."
-                value={initiatorRevisionNotes}
-                onChange={(e) => setInitiatorRevisionNotes(e.target.value)}
-                className="border-orange-300 focus:border-orange-500 min-h-[300px]"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-2 flex-shrink-0 pt-4 border-t">
-            <Button 
-              variant="outline" 
-              onClick={() => setInitiatorRevisionDialogOpen(false)}
-              disabled={initiatorRevisionSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={confirmInitiatorRevision}
-              disabled={!initiatorRevisionNotes.trim() || initiatorRevisionSubmitting}
-              className="bg-orange-600 hover:bg-orange-700"
-            >
-              {initiatorRevisionSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Request Revision from Initiator
-                </>
-              )}
             </Button>
           </div>
         </DialogContent>

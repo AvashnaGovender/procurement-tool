@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Table, 
   TableBody, 
@@ -16,8 +17,10 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table"
-import { CheckCircle, XCircle, Clock, User, Building2, DollarSign, AlertCircle, Eye, ChevronDown, ChevronRight } from "lucide-react"
+import { CheckCircle, XCircle, Clock, User, Building2, DollarSign, AlertCircle, Eye, ChevronDown, ChevronRight, FileCheck, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Home, Loader2 } from "lucide-react"
 import { useSession } from "next-auth/react"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 
 interface SupplierInitiation {
   id: string
@@ -60,6 +63,34 @@ interface SupplierInitiation {
   customCurrency?: string
 }
 
+interface Supplier {
+  id: string
+  supplierCode: string
+  companyName: string
+  contactEmail: string
+  contactPerson: string
+  status: string
+  createdAt: string
+  onboarding?: {
+    id: string
+    revisionCount: number
+    revisionRequested: boolean
+    emailSent: boolean
+    supplierFormSubmitted: boolean
+    currentStep: string
+    overallStatus: string
+    initiation?: {
+      annualPurchaseValue?: number
+      supplierLocation?: string
+      currency?: string
+      customCurrency?: string
+    }
+  }
+}
+
+type SortField = 'supplierCode' | 'companyName' | 'status' | 'createdAt'
+type SortDirection = 'asc' | 'desc'
+
 // Helper function to get currency symbol
 function getCurrencySymbol(currency: string | null | undefined, supplierLocation: string | null | undefined): string {
   if (!currency || supplierLocation === 'LOCAL') {
@@ -94,6 +125,10 @@ function formatAnnualPurchaseValue(value: number | null | undefined, currency: s
 
 export default function ApprovalsPage() {
   const { data: session, status } = useSession()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Initiation Approvals tab state
   const [initiations, setInitiations] = useState<SupplierInitiation[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedInitiation, setSelectedInitiation] = useState<SupplierInitiation | null>(null)
@@ -104,6 +139,17 @@ export default function ApprovalsPage() {
   const [submittingApproval, setSubmittingApproval] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  
+  // Document Reviews tab state
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [suppliersLoading, setSuppliersLoading] = useState(false)
+  const [supplierSearchTerm, setSupplierSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [sortField, setSortField] = useState<SortField>('createdAt')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  
+  // Tab control
+  const [activeTab, setActiveTab] = useState(searchParams?.get('tab') || 'initiations')
 
   const toggleRow = (id: string) => {
     const newExpanded = new Set(expandedRows)
@@ -125,9 +171,13 @@ export default function ApprovalsPage() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      fetchInitiations()
+      if (activeTab === 'initiations') {
+        fetchInitiations()
+      } else if (activeTab === 'reviews') {
+        fetchSuppliers()
+      }
     }
-  }, [status])
+  }, [status, activeTab])
 
   const fetchInitiations = async () => {
     // Don't fetch if not authenticated
@@ -159,6 +209,22 @@ export default function ApprovalsPage() {
       console.error('❌ Error fetching initiations:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSuppliers = async () => {
+    setSuppliersLoading(true)
+    try {
+      const response = await fetch('/api/suppliers/list')
+      const data = await response.json()
+      
+      if (data.success) {
+        setSuppliers(data.suppliers || [])
+      }
+    } catch (error) {
+      console.error('Error fetching suppliers:', error)
+    } finally {
+      setSuppliersLoading(false)
     }
   }
 
@@ -275,6 +341,92 @@ export default function ApprovalsPage() {
     return 'Pending'
   }
 
+  // Helper functions for suppliers tab
+  const getSupplierStatusColor = (status: string) => {
+    switch (status.toUpperCase()) {
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800'
+      case 'UNDER_REVIEW': return 'bg-blue-100 text-blue-800'
+      case 'AWAITING_FINAL_APPROVAL': return 'bg-purple-100 text-purple-800'
+      case 'APPROVED': return 'bg-green-100 text-green-800'
+      case 'REJECTED': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getSupplierStatusIcon = (status: string) => {
+    switch (status.toUpperCase()) {
+      case 'PENDING': return <Clock className="h-4 w-4" />
+      case 'UNDER_REVIEW': return <Eye className="h-4 w-4" />
+      case 'AWAITING_FINAL_APPROVAL': return <AlertCircle className="h-4 w-4" />
+      case 'APPROVED': return <CheckCircle className="h-4 w-4" />
+      case 'REJECTED': return <XCircle className="h-4 w-4" />
+      default: return <Clock className="h-4 w-4" />
+    }
+  }
+
+  const sortSuppliers = (suppliers: Supplier[]) => {
+    return [...suppliers].sort((a, b) => {
+      let comparison = 0
+      
+      switch (sortField) {
+        case 'supplierCode':
+          comparison = a.supplierCode.localeCompare(b.supplierCode)
+          break
+        case 'companyName':
+          comparison = a.companyName.localeCompare(b.companyName)
+          break
+        case 'status':
+          comparison = a.status.localeCompare(b.status)
+          break
+        case 'createdAt':
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          break
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
+  }
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 inline" />
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="h-4 w-4 ml-1 inline" />
+      : <ArrowDown className="h-4 w-4 ml-1 inline" />
+  }
+
+  const filteredSuppliers = sortSuppliers(
+    suppliers.filter(supplier => {
+      const matchesSearch = supplierSearchTerm === "" || 
+        supplier.companyName.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
+        supplier.supplierCode.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
+        supplier.contactEmail.toLowerCase().includes(supplierSearchTerm.toLowerCase())
+      
+      const matchesStatus = statusFilter === "all" || supplier.status === statusFilter
+      
+      return matchesSearch && matchesStatus
+    })
+  )
+
+  const statusCounts = {
+    all: suppliers.length,
+    PENDING: suppliers.filter(s => s.status === 'PENDING').length,
+    UNDER_REVIEW: suppliers.filter(s => s.status === 'UNDER_REVIEW').length,
+    AWAITING_FINAL_APPROVAL: suppliers.filter(s => s.status === 'AWAITING_FINAL_APPROVAL').length,
+    APPROVED: suppliers.filter(s => s.status === 'APPROVED').length,
+    REJECTED: suppliers.filter(s => s.status === 'REJECTED').length,
+  }
+
   const filteredInitiations = initiations.filter(initiation => {
     const matchesSearch = 
       initiation.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -308,38 +460,71 @@ export default function ApprovalsPage() {
   }
 
   return (
-    <div className="bg-slate-100 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Approvals</h1>
-          <p className="text-slate-600 mt-2">Review and approve supplier initiation requests</p>
-          {/* Debug: Show current user */}
-          {session && (
-            <div className="mt-2 text-sm text-gray-500">
-              Logged in as: {session.user.email} ({session.user.role})
-            </div>
-          )}
+    <div className="bg-slate-100 min-h-screen">
+      {/* Top Bar */}
+      <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard">
+              <Home className="h-4 w-4 mr-2" />
+              Dashboard
+            </Link>
+          </Button>
         </div>
+        {session && (
+          <div className="text-sm text-gray-500">
+            {session.user.email} ({session.user.role})
+          </div>
+        )}
+      </header>
 
-        {/* Search */}
-        <Card className="mb-6 bg-white border-slate-200">
-          <CardContent className="pt-6">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search by supplier name, requester, or category..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="p-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-slate-900">PM Approvals</h1>
+            <p className="text-slate-600 mt-2">Review initiation approvals and supplier document submissions</p>
+          </div>
 
-        {/* Initiations Table */}
-        <Card className="bg-white border-slate-200">
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="initiations" className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4" />
+                Initiation Approvals
+                {filteredInitiations.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">{filteredInitiations.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="reviews" className="flex items-center gap-2">
+                <FileCheck className="h-4 w-4" />
+                Document Reviews
+                {suppliers.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">{suppliers.length}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Initiation Approvals Tab */}
+            <TabsContent value="initiations">
+              {/* Search */}
+              <Card className="mb-6 bg-white border-slate-200">
+                <CardContent className="pt-6">
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Search by supplier name, requester, or category..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Initiations Table */}
+              <Card className="bg-white border-slate-200">
           <CardContent className="pt-6">
             {loading ? (
               <div className="flex items-center justify-center py-12">
@@ -710,6 +895,163 @@ export default function ApprovalsPage() {
             )}
           </DialogContent>
         </Dialog>
+      </TabsContent>
+
+      {/* Document Reviews Tab */}
+      <TabsContent value="reviews">
+        {/* Search and Filter */}
+        <Card className="mb-6 bg-white border-slate-200">
+          <CardContent className="pt-6">
+            <div className="flex gap-4 mb-4">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search by company name, code, or email..."
+                  value={supplierSearchTerm}
+                  onChange={(e) => setSupplierSearchTerm(e.target.value)}
+                  className="bg-white border-slate-300"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={fetchSuppliers}
+                disabled={suppliersLoading}
+              >
+                <RefreshCw className={`h-4 w-4 ${suppliersLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+            
+            {/* Status Filter */}
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant={statusFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("all")}
+              >
+                All ({statusCounts.all})
+              </Button>
+              <Button
+                variant={statusFilter === "PENDING" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("PENDING")}
+              >
+                Pending ({statusCounts.PENDING})
+              </Button>
+              <Button
+                variant={statusFilter === "UNDER_REVIEW" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("UNDER_REVIEW")}
+              >
+                Under Review ({statusCounts.UNDER_REVIEW})
+              </Button>
+              <Button
+                variant={statusFilter === "AWAITING_FINAL_APPROVAL" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("AWAITING_FINAL_APPROVAL")}
+              >
+                Final Approval ({statusCounts.AWAITING_FINAL_APPROVAL})
+              </Button>
+              <Button
+                variant={statusFilter === "APPROVED" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("APPROVED")}
+              >
+                Approved ({statusCounts.APPROVED})
+              </Button>
+              <Button
+                variant={statusFilter === "REJECTED" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("REJECTED")}
+              >
+                Rejected ({statusCounts.REJECTED})
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Suppliers Table */}
+        <Card className="bg-white border-slate-200">
+          <CardContent className="pt-6">
+            {suppliersLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+              </div>
+            ) : filteredSuppliers.length === 0 ? (
+              <div className="text-center py-12 text-slate-500">
+                No suppliers found
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-slate-50"
+                      onClick={() => handleSort('supplierCode')}
+                    >
+                      Supplier Code {getSortIcon('supplierCode')}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-slate-50"
+                      onClick={() => handleSort('companyName')}
+                    >
+                      Company Name {getSortIcon('companyName')}
+                    </TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-slate-50"
+                      onClick={() => handleSort('status')}
+                    >
+                      Status {getSortIcon('status')}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-slate-50"
+                      onClick={() => handleSort('createdAt')}
+                    >
+                      Created {getSortIcon('createdAt')}
+                    </TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredSuppliers.map((supplier) => (
+                    <TableRow key={supplier.id}>
+                      <TableCell className="font-medium">{supplier.supplierCode}</TableCell>
+                      <TableCell>{supplier.companyName}</TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div>{supplier.contactPerson}</div>
+                          <div className="text-slate-500">{supplier.contactEmail}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getSupplierStatusColor(supplier.status)}>
+                          {getSupplierStatusIcon(supplier.status)}
+                          <span className="ml-1">{supplier.status.replace(/_/g, ' ')}</span>
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(supplier.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/admin/supplier-submissions/${supplier.id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Review
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
+        </div>
       </div>
     </div>
   )
