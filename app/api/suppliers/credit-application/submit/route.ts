@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
       data: {
         onboardingId: onboarding.id,
         step: 'REVIEW',
-        status: 'CREDIT_APPLICATION_SUBMITTED',
+        status: 'UNDER_REVIEW',
         action: 'Credit application form submitted',
         description: 'Supplier submitted fully signed credit application and credit account information',
         performedBy: 'Supplier',
