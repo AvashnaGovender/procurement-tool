@@ -212,12 +212,7 @@ export async function POST(request: NextRequest) {
                   <p style="margin: 5px 0; color: #78350f;">📎 Fully Signed Credit Application (${fileName})</p>
                 </div>
                 
-                <p style="margin-top: 25px;">
-                  <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/approvals?tab=reviews" 
-                     style="display: inline-block; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                    Review in Dashboard
-                  </a>
-                </p>
+                <p style="margin-top: 25px;"><a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/approvals?tab=reviews" style="display: inline-block; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Review in Dashboard</a></p>
                 
                 <p style="margin-top: 30px; color: #6b7280;">
                   Best regards,<br/>
