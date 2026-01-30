@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { 
   Table, 
@@ -124,22 +123,14 @@ type SortDirection = 'asc' | 'desc'
 
 export default function SupplierSubmissionsPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [initiations, setInitiations] = useState<SupplierInitiation[]>([])
   const [loading, setLoading] = useState(true)
-  const [initiationsLoading, setInitiationsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [sortField, setSortField] = useState<SortField>('createdAt')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [initiationToDelete, setInitiationToDelete] = useState<SupplierInitiation | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  const [viewDialogOpen, setViewDialogOpen] = useState(false)
-  const [viewInitiation, setViewInitiation] = useState<SupplierInitiation | null>(null)
 
   useEffect(() => {
     fetchSuppliers()
-    fetchInitiations()
   }, [])
 
   const fetchSuppliers = async () => {
@@ -155,22 +146,6 @@ export default function SupplierSubmissionsPage() {
       console.error('Error fetching suppliers:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchInitiations = async () => {
-    setInitiationsLoading(true)
-    try {
-      const response = await fetch('/api/suppliers/initiations')
-      const data = await response.json()
-      
-      if (Array.isArray(data)) {
-        setInitiations(data)
-      }
-    } catch (error) {
-      console.error('Error fetching initiations:', error)
-    } finally {
-      setInitiationsLoading(false)
     }
   }
 
@@ -374,7 +349,7 @@ export default function SupplierSubmissionsPage() {
             <p className="text-xs text-slate-600">Review and manage supplier onboarding applications and initiations</p>
           </div>
         </div>
-        <Button onClick={() => { fetchSuppliers(); fetchInitiations(); }} variant="outline" size="sm">
+        <Button onClick={() => { fetchSuppliers(); }} variant="outline" size="sm">
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
@@ -382,150 +357,7 @@ export default function SupplierSubmissionsPage() {
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto p-8 bg-slate-100">
-        <div className="max-w-7xl mx-auto">
-        {/* Main Tabs */}
-        <Tabs defaultValue="initiations" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-8 bg-white border-slate-200">
-            <TabsTrigger value="initiations" className="flex items-center gap-2 text-slate-700 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg">
-              <ClipboardList className="h-4 w-4" />
-              Supplier Initiations ({initiations.length})
-            </TabsTrigger>
-            <TabsTrigger value="submissions" className="flex items-center gap-2 text-slate-700 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg">
-              <Users className="h-4 w-4" />
-              Supplier Submissions ({suppliers.length})
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Initiations Tab */}
-          <TabsContent value="initiations" className="space-y-6">
-            <Card className="bg-white border-slate-200">
-              <CardHeader>
-                <CardTitle className="text-slate-900">Supplier Initiation Requests</CardTitle>
-                <CardDescription className="text-slate-600">
-                  Review and approve supplier onboarding initiation requests
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {initiationsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                  </div>
-                ) : initiations.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500">
-                    No initiation requests found
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {initiations.map((initiation) => (
-                      <Card key={initiation.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              {getInitiationStatusIcon(initiation.status)}
-                              <div>
-                                <h3 className="font-semibold text-slate-900">{initiation.supplierName}</h3>
-                                <p className="text-sm text-slate-600">
-                                  Requested by {initiation.requesterName}
-                                </p>
-                              </div>
-                            </div>
-                            <Badge className={getInitiationStatusColor(initiation.status)}>
-                              {initiation.status.replace(/_/g, ' ')}
-                            </Badge>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                            <div>
-                              <p className="text-sm font-medium text-slate-600">Business Unit</p>
-                              <p className="text-sm">
-                                {initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                                  ? 'Schauenburg Systems (Pty) Ltd 300' 
-                                  : 'Schauenburg (Pty) Ltd 200'
-                                }
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-slate-600">Purchase Type</p>
-                              <p className="text-sm">
-                                {initiation.regularPurchase && 'Regular Purchase'}
-                                {initiation.regularPurchase && initiation.onceOffPurchase && ', '}
-                                {initiation.onceOffPurchase && 'Once-off Purchase'}
-                              </p>
-                            </div>
-                            {initiation.annualPurchaseValue && (
-                              <div>
-                                <p className="text-sm font-medium text-slate-600">Annual Purchase Value</p>
-                                <p className="text-sm">{formatAnnualPurchaseValue(initiation.annualPurchaseValue, initiation.currency, initiation.supplierLocation)}</p>
-                              </div>
-                            )}
-                            <div>
-                              <p className="text-sm font-medium text-slate-600">Submitted</p>
-                              <p className="text-sm">
-                                {new Date(initiation.submittedAt).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="mb-4">
-                            <div>
-                              <p className="text-sm font-medium text-slate-600">Manager Approval</p>
-                              <div className="flex items-center gap-2">
-                                {getInitiationStatusIcon(initiation.managerApproval?.status || 'PENDING')}
-                                <span className="text-sm">
-                                  {initiation.managerApproval?.status || 'PENDING'}
-                                </span>
-                              </div>
-                            </div>
-                            {/* Procurement approval removed from workflow */}
-                          </div>
-
-                          <div className="flex items-center justify-between pt-4 border-t">
-                            <div className="text-sm text-slate-600">
-                              <p className="font-medium">Reason:</p>
-                              <p className="line-clamp-2">{initiation.onboardingReason}</p>
-                            </div>
-                            
-                            <div className="flex gap-2">
-                              {/* View button - always show */}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setViewInitiation(initiation)
-                                  setViewDialogOpen(true)
-                                }}
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                View
-                              </Button>
-                              
-                              {/* Only show delete button for deletable statuses */}
-                              {['SUBMITTED', 'MANAGER_APPROVED', 'PROCUREMENT_APPROVED', 'REJECTED'].includes(initiation.status) && (
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => {
-                                    setInitiationToDelete(initiation)
-                                    setDeleteDialogOpen(true)
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-1" />
-                                  Delete
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Submissions Tab */}
-          <TabsContent value="submissions" className="space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               <Card className="cursor-pointer hover:shadow-md transition-shadow bg-white border-slate-200 hover:bg-slate-50" onClick={() => setStatusFilter('all')}>
@@ -709,70 +541,6 @@ export default function SupplierSubmissionsPage() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* View Details Dialog */}
-        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Supplier Initiation Details</DialogTitle>
-              <DialogDescription>
-                Complete details of the supplier initiation request
-              </DialogDescription>
-            </DialogHeader>
-            
-            {viewInitiation && (
-              <SupplierInitiationStatus initiationId={viewInitiation.id} />
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Supplier Initiation</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete this supplier initiation request? This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              {initiationToDelete && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h4 className="font-medium text-red-900 mb-2">Initiation Details:</h4>
-                  <p className="text-sm text-red-800">
-                    <strong>Supplier:</strong> {initiationToDelete.supplierName}
-                  </p>
-                  <p className="text-sm text-red-800">
-                    <strong>Requested by:</strong> {initiationToDelete.requesterName}
-                  </p>
-                  <p className="text-sm text-red-800">
-                    <strong>Status:</strong> {initiationToDelete.status.replace(/_/g, ' ')}
-                  </p>
-                </div>
-              )}
-              
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setDeleteDialogOpen(false)}
-                  disabled={deleting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                >
-                  {deleting ? 'Deleting...' : 'Delete'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
         </div>
       </main>
     </>
