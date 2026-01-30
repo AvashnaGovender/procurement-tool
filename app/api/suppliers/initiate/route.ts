@@ -6,18 +6,37 @@ import { sendEmail } from '@/lib/email-sender'
 import { getRequiredDocuments } from '@/lib/document-requirements'
 import { BusinessUnit, InitiationStatus } from '@prisma/client'
 
+// Helper function to get currency symbol
+function getCurrencySymbol(currency: string | null | undefined, supplierLocation: string | null | undefined): string {
+  // If supplier is local or no currency specified, use Rands
+  if (!currency || supplierLocation === 'LOCAL') {
+    return 'R'
+  }
+  
+  // Map common currencies to their symbols
+  switch (currency.toUpperCase()) {
+    case 'USD': return '$'
+    case 'EUR': return '€'
+    case 'GBP': return '£'
+    case 'ZAR': return 'R'
+    default: return currency.toUpperCase() + ' ' // e.g., "JPY 100"
+  }
+}
+
 // Helper function to format annual purchase value as a range
-function formatAnnualPurchaseValue(value: number | null): string {
+function formatAnnualPurchaseValue(value: number | null, currency: string | null | undefined, supplierLocation: string | null | undefined): string {
   if (!value) return ''
   
+  const symbol = getCurrencySymbol(currency, supplierLocation)
+  
   if (value <= 100000) {
-    return 'R0 - R100,000'
+    return `${symbol}0 - ${symbol}100,000`
   } else if (value <= 500000) {
-    return 'R100,000 - R500,000'
+    return `${symbol}100,000 - ${symbol}500,000`
   } else if (value <= 1000000) {
-    return 'R500,000 - R1,000,000'
+    return `${symbol}500,000 - ${symbol}1,000,000`
   } else {
-    return 'R1,000,000+'
+    return `${symbol}1,000,000+`
   }
 }
 
@@ -495,8 +514,10 @@ A new supplier initiation request has been submitted and requires your approval.
 - <strong>Business Unit(s):</strong> ${businessUnits.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ')}
 - <strong>Product/Service Category:</strong> ${productServiceCategory}
 - <strong>Requested by:</strong> ${requesterName}
+- <strong>Supplier Location:</strong> ${supplierLocation === 'LOCAL' ? 'Local' : supplierLocation === 'FOREIGN' ? 'Foreign' : 'Not specified'}
+${supplierLocation === 'FOREIGN' && currency ? `- <strong>Currency:</strong> ${currency}` : ''}
 - <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
-${annualPurchaseValueNumber ? `- <strong>Annual Purchase Value:</strong> ${formatAnnualPurchaseValue(annualPurchaseValueNumber)}` : ''}
+${annualPurchaseValueNumber ? `- <strong>Annual Purchase Value:</strong> ${formatAnnualPurchaseValue(annualPurchaseValueNumber, currency, supplierLocation)}` : ''}
 - <strong>Payment Method:</strong> ${paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)'}
 ${paymentMethod === 'COD' && codReason ? `- <strong>COD Reason:</strong> ${codReason}` : ''}
 - <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}
@@ -544,8 +565,10 @@ A new supplier initiation request has been submitted and requires approval.
 - <strong>Business Unit(s):</strong> ${businessUnits.map(unit => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ')}
 - <strong>Product/Service Category:</strong> ${productServiceCategory}
 - <strong>Requested by:</strong> ${requesterName}
+- <strong>Supplier Location:</strong> ${supplierLocation === 'LOCAL' ? 'Local' : supplierLocation === 'FOREIGN' ? 'Foreign' : 'Not specified'}
+${supplierLocation === 'FOREIGN' && currency ? `- <strong>Currency:</strong> ${currency}` : ''}
 - <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
-${annualPurchaseValueNumber ? `- <strong>Annual Purchase Value:</strong> ${formatAnnualPurchaseValue(annualPurchaseValueNumber)}` : ''}
+${annualPurchaseValueNumber ? `- <strong>Annual Purchase Value:</strong> ${formatAnnualPurchaseValue(annualPurchaseValueNumber, currency, supplierLocation)}` : ''}
 - <strong>Payment Method:</strong> ${paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)'}
 ${paymentMethod === 'COD' && codReason ? `- <strong>COD Reason:</strong> ${codReason}` : ''}
 - <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}
