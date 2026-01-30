@@ -462,144 +462,109 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
 
   const confirmApprove = async () => {
     try {
-      // Check if user is PM approving, or initiator requesting final approval
-      const isPmApproving = session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL'
+      // Only PM can approve suppliers
+      // Check if credit application is required
+      const creditApplicationRequired = supplier?.onboarding?.initiation?.creditApplication || false
       
-      if (isPmApproving) {
-        // Check if credit application is required
-        const creditApplicationRequired = supplier?.onboarding?.initiation?.creditApplication || false
-        
-        // If credit application is required, check if signed file is uploaded
-        if (creditApplicationRequired && !signedCreditApplicationFile) {
-          setErrorMessage('Please upload the signed Credit Application document before approving. The signed document will be sent to the supplier.')
-          setErrorDialogOpen(true)
-          return
-        }
+      // If credit application is required, check if signed file is uploaded
+      if (creditApplicationRequired && !signedCreditApplicationFile) {
+        setErrorMessage('Please upload the signed Credit Application document before approving. The signed document will be sent to the supplier.')
+        setErrorDialogOpen(true)
+        return
+      }
 
-        // Upload signed credit application if provided
-        let signedCreditAppFileName = null
-        if (creditApplicationRequired && signedCreditApplicationFile) {
-          setUploadingSignedCreditApp(true)
-          try {
-            const formData = new FormData()
-            formData.append('file', signedCreditApplicationFile)
-            formData.append('supplierId', supplier?.id || '')
-            
-            const uploadResponse = await fetch('/api/suppliers/upload-signed-credit-application', {
-              method: 'POST',
-              body: formData
-            })
-            
-            const uploadData = await uploadResponse.json()
-            
-            if (!uploadData.success) {
-              setErrorMessage(`Failed to upload signed credit application: ${uploadData.error}`)
-              setErrorDialogOpen(true)
-              setUploadingSignedCreditApp(false)
-              return
-            }
-            
-            signedCreditAppFileName = uploadData.fileName
-          } catch (uploadError) {
-            console.error('Error uploading signed credit application:', uploadError)
-            setErrorMessage('Failed to upload signed credit application. Please try again.')
+      // Upload signed credit application if provided
+      let signedCreditAppFileName = null
+      if (creditApplicationRequired && signedCreditApplicationFile) {
+        setUploadingSignedCreditApp(true)
+        try {
+          const formData = new FormData()
+          formData.append('file', signedCreditApplicationFile)
+          formData.append('supplierId', supplier?.id || '')
+          
+          const uploadResponse = await fetch('/api/suppliers/upload-signed-credit-application', {
+            method: 'POST',
+            body: formData
+          })
+          
+          const uploadData = await uploadResponse.json()
+          
+          if (!uploadData.success) {
+            setErrorMessage(`Failed to upload signed credit application: ${uploadData.error}`)
             setErrorDialogOpen(true)
             setUploadingSignedCreditApp(false)
             return
-          } finally {
-            setUploadingSignedCreditApp(false)
           }
-        }
-
-        // Validate credit controller is selected
-        if (!creditController) {
-          setErrorMessage('Please select a credit controller before approving.')
-          setErrorDialogOpen(true)
-          return
-        }
-
-        // PM is approving the supplier
-        const response = await fetch('/api/suppliers/update-status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            supplierId: supplier?.id, 
-            status: 'APPROVED',
-            signedCreditApplicationFileName: signedCreditAppFileName,
-            creditController: creditController
-          })
-        })
-
-        // Check if response is ok
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error occurred' }))
-          setErrorMessage(`Failed to approve supplier: ${errorData.error || 'Unknown error'}`)
-          setErrorDialogOpen(true)
-          return
-        }
-
-        const data = await response.json().catch((parseError) => {
-          console.error('Error parsing response:', parseError)
-          // Even if parsing fails, the status might have been updated
-          // Refresh and show a generic success message
-          fetchSupplier()
-          setSuccessMessage(`Supplier approval request processed. Please refresh the page to see the updated status.`)
-          setSuccessDialogOpen(true)
-          return null
-        })
-        
-        if (!data) return // Error already handled above
-        
-        if (data.success) {
-          // Refresh supplier data first
-          await fetchSupplier()
-          setSignedCreditApplicationFile(null)
           
-          // Check if email was sent successfully
-          if (data.emailError) {
-            // Approval succeeded but email failed - show warning with option to resend
-            setSuccessMessage(`Supplier approved successfully!\n\n⚠️ Warning: Failed to send approval email: ${data.emailError}\n\nYou can use the "Resend Approval Email" button to send the email manually.`)
-            setSuccessDialogOpen(true)
-          } else {
-            // Everything succeeded
-            setSuccessMessage(`Supplier approved successfully!\n\nAn approval email has been sent to ${supplier?.contactEmail}`)
-            setSuccessDialogOpen(true)
-          }
-        } else {
-          setErrorMessage(`Failed to approve supplier: ${data.error || 'Unknown error'}`)
+          signedCreditAppFileName = uploadData.fileName
+        } catch (uploadError) {
+          console.error('Error uploading signed credit application:', uploadError)
+          setErrorMessage('Failed to upload signed credit application. Please try again.')
           setErrorDialogOpen(true)
+          setUploadingSignedCreditApp(false)
+          return
+        } finally {
+          setUploadingSignedCreditApp(false)
+        }
+      }
+
+      // Validate credit controller is selected
+      if (!creditController) {
+        setErrorMessage('Please select a credit controller before approving.')
+        setErrorDialogOpen(true)
+        return
+      }
+
+      // PM is approving the supplier
+      const response = await fetch('/api/suppliers/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          supplierId: supplier?.id, 
+          status: 'APPROVED',
+          signedCreditApplicationFileName: signedCreditAppFileName,
+          creditController: creditController
+        })
+      })
+
+      // Check if response is ok
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error occurred' }))
+        setErrorMessage(`Failed to approve supplier: ${errorData.error || 'Unknown error'}`)
+        setErrorDialogOpen(true)
+        return
+      }
+
+      const data = await response.json().catch((parseError) => {
+        console.error('Error parsing response:', parseError)
+        // Even if parsing fails, the status might have been updated
+        // Refresh and show a generic success message
+        fetchSupplier()
+        setSuccessMessage(`Supplier approval request processed. Please refresh the page to see the updated status.`)
+        setSuccessDialogOpen(true)
+        return null
+      })
+      
+      if (!data) return // Error already handled above
+      
+      if (data.success) {
+        // Refresh supplier data first
+        await fetchSupplier()
+        setSignedCreditApplicationFile(null)
+        
+        // Check if email was sent successfully
+        if (data.emailError) {
+          // Approval succeeded but email failed - show warning with option to resend
+          setSuccessMessage(`Supplier approved successfully!\n\n⚠️ Warning: Failed to send approval email: ${data.emailError}\n\nYou can use the "Resend Approval Email" button to send the email manually.`)
+          setSuccessDialogOpen(true)
+        } else {
+          // Everything succeeded
+          setSuccessMessage(`Supplier approved successfully!\n\nAn approval email has been sent to ${supplier?.contactEmail}`)
+          setSuccessDialogOpen(true)
         }
       } else {
-        // Initiator is requesting final approval
-        const response = await fetch('/api/suppliers/request-final-approval', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            supplierId: supplier?.id
-          })
-        })
-
-        // Check if response is ok
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: `Server error: ${response.status} ${response.statusText}` }))
-          setErrorMessage(`Failed to request final approval: ${errorData.error || 'Unknown error'}`)
-          setErrorDialogOpen(true)
-          return
-        }
-
-        const data = await response.json().catch((parseError) => {
-          console.error('Error parsing response:', parseError)
-          return { success: false, error: 'Invalid response from server' }
-        })
-        
-        if (data.success) {
-          setSuccessMessage(`Final approval request sent successfully!\n\nAn email has been sent to the Procurement Manager for final approval.`)
-          setSuccessDialogOpen(true)
-          await fetchSupplier()
-        } else {
-          setErrorMessage(`Failed to request final approval: ${data.error}`)
-          setErrorDialogOpen(true)
-        }
+        setErrorMessage(`Failed to approve supplier: ${data.error || 'Unknown error'}`)
+        setErrorDialogOpen(true)
       }
     } catch (error) {
       console.error('Error in approval process:', error)
@@ -2075,48 +2040,8 @@ Procurement Team`
                 {/* Only show action buttons if supplier is not approved or rejected */}
                 {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' ? (
                   <div className="flex flex-col gap-4">
-                    {/* Show "Request Final Approval" if current user is the initiator and either status is not AWAITING_FINAL_APPROVAL OR revisions were requested by PM */}
-                    {supplier.onboarding?.initiation?.initiatedById === session?.user?.id && 
-                     (supplier.status !== 'AWAITING_FINAL_APPROVAL' || 
-                      supplier.onboarding?.initiation?.status === 'REJECTED') && (
-                      <>
-                        {!areAllMandatoryDocumentsVerified() && (
-                          <Alert className="bg-yellow-50 border-yellow-300">
-                            <AlertCircle className="h-5 w-5 text-yellow-600" />
-                            <AlertDescription className="text-yellow-800">
-                              <div className="space-y-2">
-                                <div>
-                                  <strong>Action Required:</strong> Please verify all mandatory documents before requesting final approval.
-                                </div>
-                                <div className="text-sm mt-2">
-                                  <strong>Unverified mandatory documents:</strong>
-                                  <ul className="list-disc list-inside mt-1 space-y-1">
-                                    {getUnverifiedMandatoryDocuments().map((doc, idx) => (
-                                      <li key={idx}>{doc.name}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                                <div className="text-sm mt-2">
-                                  Go to the <strong>Documents</strong> tab to verify each mandatory document by checking the "Verified" checkbox next to each document.
-                                </div>
-                              </div>
-                            </AlertDescription>
-                          </Alert>
-                        )}
-                        <Button 
-                          onClick={handleApproveClick}
-                          disabled={!areAllMandatoryDocumentsVerified()}
-                          title={!areAllMandatoryDocumentsVerified() ? 'Please verify all mandatory documents first' : 'Request final approval'}
-                          className={!areAllMandatoryDocumentsVerified() ? 'opacity-50 cursor-not-allowed' : ''}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Request Final Approval
-                        </Button>
-                      </>
-                    )}
-                    
-                    {/* Show "Approve Supplier" and "Reject Supplier" buttons if current user is PM and status is AWAITING_FINAL_APPROVAL */}
-                    {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status === 'AWAITING_FINAL_APPROVAL' && (
+                    {/* Show "Approve Supplier" and "Reject Supplier" buttons for PM */}
+                    {session?.user?.role === 'PROCUREMENT_MANAGER' && (
                       <div className="space-y-4">
                         {/* Credit Controller Assignment */}
                         <div className="space-y-2 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
@@ -2162,24 +2087,11 @@ Procurement Team`
                       </div>
                     )}
                     
-                    {/* Show message if user is not initiator and status is not AWAITING_FINAL_APPROVAL */}
-                    {supplier.onboarding?.initiation?.initiatedById !== session?.user?.id && 
-                     supplier.status !== 'AWAITING_FINAL_APPROVAL' && 
-                     session?.user?.role !== 'PROCUREMENT_MANAGER' && (
+                    {/* Show message for non-PM users */}
+                    {session?.user?.role !== 'PROCUREMENT_MANAGER' && session?.user?.role !== 'ADMIN' && (
                       <Alert>
                         <AlertDescription>
-                          Only the initiator can request final approval for this supplier.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                    
-                    {/* Show message if PM and not AWAITING_FINAL_APPROVAL (except when waiting for initiator revision) */}
-                    {session?.user?.role === 'PROCUREMENT_MANAGER' && 
-                     supplier.status !== 'AWAITING_FINAL_APPROVAL' && 
-                     !(supplier.status === 'UNDER_REVIEW' && supplier.onboarding?.initiation?.status === 'REJECTED') && (
-                      <Alert>
-                        <AlertDescription>
-                          Waiting for initiator to request final approval.
+                          Only Procurement Managers can approve or reject supplier submissions.
                         </AlertDescription>
                       </Alert>
                     )}
@@ -2362,9 +2274,7 @@ Procurement Team`
                 </>
               ) : (
                 <>
-                  {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
-                    ? 'Approve Supplier' 
-                    : 'Request Final Approval'}
+                  Approve Supplier
                 </>
               )}
             </Button>

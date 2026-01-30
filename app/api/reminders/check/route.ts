@@ -394,7 +394,7 @@ async function checkBuyerReviews(config: any): Promise<number> {
       ?.replace(/{supplierName}/g, supplier.companyName)
       ?.replace(/{submittedDate}/g, format(new Date(supplier.onboarding.supplierFormSubmittedAt), 'PP'))
       ?.replace(/{hoursAgo}/g, hoursSinceSubmitted.toString())
-      ?.replace(/{reviewLink}/g, `${process.env.NEXTAUTH_URL}/admin/supplier-submissions/${supplier.id}`)
+      ?.replace(/{reviewLink}/g, `${process.env.NEXTAUTH_URL}/admin/approvals?tab=reviews`)
 
     try {
       await sendEmail({

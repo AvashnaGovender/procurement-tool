@@ -794,8 +794,8 @@ async function sendEmailNotifications(
                       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0;">
                         <tr>
                           <td align="center">
-                            <a href="${baseUrl}/suppliers/onboard?tab=review" style="display: inline-block; background: #0047AB; color: white; padding: 14px 40px; text-decoration: none; font-weight: 600; font-size: 16px;">
-                              Review Submission in Dashboard
+                            <a href="${baseUrl}/admin/approvals?tab=reviews" style="display: inline-block; background: #0047AB; color: white; padding: 14px 40px; text-decoration: none; font-weight: 600; font-size: 16px;">
+                              Review Document Submission
                             </a>
                           </td>
                         </tr>
