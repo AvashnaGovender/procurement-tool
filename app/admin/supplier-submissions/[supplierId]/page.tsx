@@ -577,8 +577,8 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
         
         // Check if email was sent successfully
         if (data.emailError) {
-          // Approval succeeded but email failed - show warning with option to resend
-          setSuccessMessage(`Supplier approved successfully!\n\n⚠️ Warning: Failed to send approval email: ${data.emailError}\n\nYou can use the "Resend Approval Email" button to send the email manually.`)
+          // Approval succeeded but email failed - show warning
+          setSuccessMessage(`Supplier approved successfully!\n\n⚠️ Warning: Failed to send approval email: ${data.emailError}\n\nPlease contact the supplier directly to inform them of the approval.`)
           setSuccessDialogOpen(true)
         } else {
           // Everything succeeded
@@ -850,34 +850,6 @@ Procurement Team`
     }
   }
 
-  const handleResendEmail = async () => {
-    if (!supplier) return
-
-    try {
-      const response = await fetch('/api/suppliers/resend-approval-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          supplierId: supplier.id
-        })
-      })
-
-      const data = await response.json()
-      
-      if (data.success) {
-        setSuccessMessage(`Approval email has been resent successfully to ${supplier.contactEmail}`)
-        setSuccessDialogOpen(true)
-        await fetchSupplier()
-      } else {
-        setErrorMessage(`Failed to resend email: ${data.error}`)
-        setErrorDialogOpen(true)
-      }
-    } catch (error) {
-      console.error('Error resending email:', error)
-      setErrorMessage('Failed to resend email. Please try again.')
-      setErrorDialogOpen(true)
-    }
-  }
 
   const handleDeleteClick = () => {
     setDeleteDialogOpen(true)
@@ -2127,20 +2099,6 @@ Procurement Team`
                         : '❌ This supplier has been rejected. No further actions are available.'}
                     </AlertDescription>
                   </Alert>
-                )}
-                
-                {/* Resend Email button - show if supplier is approved but email might have failed */}
-                {supplier.status === 'APPROVED' && (session?.user?.role === 'ADMIN' || session?.user?.role === 'PROCUREMENT_MANAGER') && (
-                  <div className="pt-4 border-t">
-                    <Button
-                      variant="outline"
-                      onClick={handleResendEmail}
-                      className="w-full"
-                    >
-                      <Mail className="h-4 w-4 mr-2" />
-                      Resend Approval Email
-                    </Button>
-                  </div>
                 )}
                 
                 {/* Delete button - available for admin only */}
