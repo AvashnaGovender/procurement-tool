@@ -1187,7 +1187,7 @@ async function sendManagerApprovalEmail(supplier: any, manager: { name: string, 
       }
     })
 
-    const supplierDetailUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-submissions/${supplier.id}`
+    const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
 
     // Create manager approval notification email content
     const emailSubject = `Supplier Approved - Procurement Manager Approval Complete: ${supplier.companyName}`
@@ -1357,7 +1357,7 @@ async function sendManagerApprovalEmail(supplier: any, manager: { name: string, 
         <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 0 auto;">
           <tr>
             <td align="center" style="background-color: #3b82f6; border-radius: 8px; padding: 0;">
-              <a href="${supplierDetailUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff !important; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">View Supplier Details</a>
+              <a href="${initiationsUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff !important; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">View Your Initiations</a>
             </td>
           </tr>
         </table>
@@ -1368,7 +1368,7 @@ async function sendManagerApprovalEmail(supplier: any, manager: { name: string, 
           Or copy and paste this link into your browser:
         </p>
         <p style="word-break: break-all; color: #3b82f6; font-size: 13px; padding: 10px; background-color: #f3f4f6; border-radius: 4px;">
-          ${supplierDetailUrl}
+          ${initiationsUrl}
         </p>
       </div>
       
@@ -1692,7 +1692,7 @@ async function sendManagerRejectionEmail(supplier: any, manager: { name: string,
       }
     })
 
-    const supplierDetailUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-submissions/${supplier.id}`
+    const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
 
     // Create manager rejection notification email content
     const emailSubject = `Supplier Rejected - Final Approval Declined: ${supplier.companyName}`
@@ -1869,7 +1869,7 @@ async function sendManagerRejectionEmail(supplier: any, manager: { name: string,
         <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 0 auto;">
           <tr>
             <td align="center" style="background-color: #3b82f6; border-radius: 8px; padding: 0;">
-              <a href="${supplierDetailUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff !important; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">View Supplier Details</a>
+              <a href="${initiationsUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff !important; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">View Your Initiations</a>
             </td>
           </tr>
         </table>
@@ -1880,7 +1880,7 @@ async function sendManagerRejectionEmail(supplier: any, manager: { name: string,
           Or copy and paste this link into your browser:
         </p>
         <p style="word-break: break-all; color: #3b82f6; font-size: 13px; padding: 10px; background-color: #f3f4f6; border-radius: 4px;">
-          ${supplierDetailUrl}
+          ${initiationsUrl}
         </p>
       </div>
       
