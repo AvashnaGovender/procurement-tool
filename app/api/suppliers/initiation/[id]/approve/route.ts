@@ -235,6 +235,13 @@ ${comments || 'No reason provided'}
 <strong>Next Steps:</strong>
 You can revise your initiation and resubmit it for approval. Please log in to the system and click "Revise & Resubmit" on the rejected initiation to make the necessary changes and submit again.
 
+<p style="margin-top: 25px;">
+  <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations" 
+     style="display: inline-block; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+    View Your Initiations
+  </a>
+</p>
+
 If you have any questions or would like to discuss this decision, please contact the Manager.
 
 Best regards,

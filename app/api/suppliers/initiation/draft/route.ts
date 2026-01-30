@@ -275,12 +275,15 @@ export async function GET(request: NextRequest) {
       let annualPurchaseValueRange: string | null = null
       if (initiation.annualPurchaseValue) {
         const value = initiation.annualPurchaseValue
-        console.log('📊 Converting annual purchase value:', value)
-        if (value <= 100000) {
+        console.log('📊 Converting annual purchase value:', value, 'Type:', typeof value)
+        // Handle both number and string inputs
+        const numericValue = typeof value === 'string' ? parseFloat(value) : value
+        
+        if (numericValue <= 100000) {
           annualPurchaseValueRange = "0-100k"
-        } else if (value <= 500000) {
+        } else if (numericValue <= 500000) {
           annualPurchaseValueRange = "100k-500k"
-        } else if (value <= 1000000) {
+        } else if (numericValue <= 1000000) {
           annualPurchaseValueRange = "500k-1M"
         } else {
           annualPurchaseValueRange = "1M+"
@@ -300,7 +303,7 @@ export async function GET(request: NextRequest) {
         success: true,
         initiation: {
           ...initiation,
-          annualPurchaseValue: annualPurchaseValueRange || initiation.annualPurchaseValue,
+          annualPurchaseValue: annualPurchaseValueRange || "", // Use empty string instead of falling back to numeric value
           relationshipDeclaration,
           relationshipDeclarationOther,
           status: initiation.status,
