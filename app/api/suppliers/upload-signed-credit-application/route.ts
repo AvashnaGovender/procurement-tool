@@ -83,10 +83,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify supplier is awaiting final approval
-    if (supplier.status !== 'AWAITING_FINAL_APPROVAL') {
+    // Verify supplier is in a state where credit application can be uploaded
+    const allowedStatuses = ['UNDER_REVIEW', 'AWAITING_FINAL_APPROVAL']
+    if (!allowedStatuses.includes(supplier.status)) {
       return NextResponse.json(
-        { success: false, error: 'Supplier is not awaiting final approval' },
+        { success: false, error: `Cannot upload credit application. Supplier status is ${supplier.status}. Upload is only allowed when status is UNDER_REVIEW or AWAITING_FINAL_APPROVAL.` },
         { status: 400 }
       )
     }
