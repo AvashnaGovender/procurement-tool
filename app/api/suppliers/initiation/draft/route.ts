@@ -275,6 +275,7 @@ export async function GET(request: NextRequest) {
       let annualPurchaseValueRange: string | null = null
       if (initiation.annualPurchaseValue) {
         const value = initiation.annualPurchaseValue
+        console.log('📊 Converting annual purchase value:', value)
         if (value <= 100000) {
           annualPurchaseValueRange = "0-100k"
         } else if (value <= 500000) {
@@ -284,6 +285,9 @@ export async function GET(request: NextRequest) {
         } else {
           annualPurchaseValueRange = "1M+"
         }
+        console.log('📊 Converted to range:', annualPurchaseValueRange)
+      } else {
+        console.log('⚠️ No annual purchase value found in initiation')
       }
 
       // Determine relationship declaration and "Other" value
@@ -296,9 +300,11 @@ export async function GET(request: NextRequest) {
         success: true,
         initiation: {
           ...initiation,
-          annualPurchaseValue: annualPurchaseValueRange,
+          annualPurchaseValue: annualPurchaseValueRange || initiation.annualPurchaseValue,
           relationshipDeclaration,
-          relationshipDeclarationOther
+          relationshipDeclarationOther,
+          status: initiation.status,
+          managerApproval: initiation.managerApproval
         }
       })
     }
