@@ -85,9 +85,11 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   // Determine the email type for appropriate header
   const isApprovalEmail = emailSubject.toLowerCase().includes('approval required') || 
                           emailSubject.toLowerCase().includes('approval pending')
+  const isApprovedEmail = emailSubject.toLowerCase().includes('approved') ||
+                          emailSubject.toLowerCase().includes('request approved')
   const isRejectionEmail = emailSubject.toLowerCase().includes('rejected') || 
                            emailSubject.toLowerCase().includes('rejection')
-  const isOnboardingRelated = isApprovalEmail || isRejectionEmail || 
+  const isOnboardingRelated = isApprovalEmail || isRejectionEmail || isApprovedEmail ||
                               emailSubject.toLowerCase().includes('initiation') ||
                               emailSubject.toLowerCase().includes('onboarding supplier')
   
@@ -95,6 +97,8 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   let headerText = 'Welcome to Schauenburg Systems' // Default for supplier onboarding invites
   if (isApprovalEmail) {
     headerText = 'Onboarding Supplier Approval Required'
+  } else if (isApprovedEmail) {
+    headerText = 'Supplier Onboarding Approval'
   } else if (isRejectionEmail) {
     headerText = 'Supplier Onboarding'
   } else if (isOnboardingRelated) {
