@@ -2192,14 +2192,10 @@ Procurement Team`
         <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-green-600">
-              {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
-                ? 'Approve Supplier' 
-                : 'Request Final Approval'}
+              Approve Supplier
             </DialogTitle>
             <DialogDescription>
-              {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier?.status === 'AWAITING_FINAL_APPROVAL' 
-                ? 'Are you sure you want to approve this supplier? An approval email will be automatically sent to the supplier.'
-                : 'Are you sure you want to request final approval for this supplier? An email will be automatically sent to the Procurement Manager for final approval.'}
+              Are you sure you want to approve this supplier? An approval email will be automatically sent to the supplier.
             </DialogDescription>
           </DialogHeader>
           
@@ -2216,7 +2212,6 @@ Procurement Team`
             
             {/* Credit Application Upload for PM */}
             {session?.user?.role === 'PROCUREMENT_MANAGER' && 
-             supplier?.status === 'AWAITING_FINAL_APPROVAL' && 
              supplier?.onboarding?.initiation?.creditApplication && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <h4 className="font-medium text-yellow-900 mb-2 flex items-center gap-2">
