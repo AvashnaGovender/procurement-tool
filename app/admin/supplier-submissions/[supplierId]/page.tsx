@@ -2242,7 +2242,7 @@ Procurement Team`
                   />
                   {signedCreditApplicationFile && (
                     <p className="text-xs text-green-700">
-                      ԣ� Selected: {signedCreditApplicationFile.name}
+                      ✓ Selected: {signedCreditApplicationFile.name}
                     </p>
                   )}
                 </div>

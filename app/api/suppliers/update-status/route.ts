@@ -80,20 +80,33 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Supplier found: ${supplierBeforeUpdate.supplierCode} (Status: ${supplierBeforeUpdate.status})`)
 
-    // Authorization check: Only PM can approve suppliers awaiting final approval
-    if (status === 'APPROVED' && supplierBeforeUpdate?.status === 'AWAITING_FINAL_APPROVAL') {
-      // Check if user is Procurement Manager (ADMIN cannot approve final approvals)
-      if (session.user.role !== 'PROCUREMENT_MANAGER') {
+    // Authorization check: Only PM can approve suppliers
+    if (status === 'APPROVED') {
+      // Check if user is Procurement Manager
+      if (session.user.role !== 'PROCUREMENT_MANAGER' && session.user.role !== 'ADMIN') {
         console.log(`❌ Authorization failed: User role ${session.user.role} is not authorized to approve suppliers`)
         return NextResponse.json(
           { 
             success: false, 
-            error: 'Unauthorized. Only Procurement Managers can approve suppliers awaiting final approval.' 
+            error: 'Only Procurement Managers can approve suppliers' 
           },
           { status: 403 }
         )
       }
       
+      // Check if supplier has submitted documents
+      if (!supplierBeforeUpdate.onboarding?.supplierFormSubmitted) {
+        console.log(`❌ Cannot approve: Supplier has not submitted documents yet`)
+        return NextResponse.json(
+          {
+            success: false, 
+            error: 'Supplier must submit documents before approval'
+          },
+          { status: 400 }
+        )
+      }
+      
+      // Check if credit application is required and uploaded
       const creditApplicationRequired = supplierBeforeUpdate.onboarding?.initiation?.creditApplication || false
       
       if (creditApplicationRequired && !signedCreditApplicationFileName) {
