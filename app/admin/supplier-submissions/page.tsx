@@ -52,7 +52,9 @@ function getCurrencySymbol(currency: string | null | undefined, supplierLocation
 function formatAnnualPurchaseValue(value: number | null | undefined, currency: string | null | undefined, supplierLocation: string | null | undefined): string {
   if (!value) return ''
   
+  console.log('Formatting annual purchase value:', { value, currency, supplierLocation })
   const symbol = getCurrencySymbol(currency, supplierLocation)
+  console.log('Currency symbol:', symbol)
   
   if (value <= 100000) {
     return `${symbol}0 - ${symbol}100,000`

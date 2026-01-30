@@ -873,7 +873,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           {/* Annual Purchase Value - Only for Regular */}
           {formData.purchaseType === 'REGULAR' && (
             <div className="space-y-2">
-              <Label htmlFor="annualPurchaseValue">Annual Purchase Value (R) *</Label>
+              <Label htmlFor="annualPurchaseValue">Annual Purchase Value Range *</Label>
               <Select 
                 value={formData.annualPurchaseValue} 
                 onValueChange={(value) => handleInputChange('annualPurchaseValue', value)}
@@ -885,10 +885,27 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                   <SelectValue placeholder="Select annual purchase value range" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0-100k">R0 - R100,000</SelectItem>
-                  <SelectItem value="100k-500k">R100,000 - R500,000</SelectItem>
-                  <SelectItem value="500k-1M">R500,000 - R1,000,000</SelectItem>
-                  <SelectItem value="1M+">R1,000,000+</SelectItem>
+                  {(() => {
+                    const getCurrencySymbol = () => {
+                      if (formData.supplierLocation === 'LOCAL' || !formData.currency) return 'R'
+                      switch (formData.currency.toUpperCase()) {
+                        case 'USD': return '$'
+                        case 'EUR': return '€'
+                        case 'GBP': return '£'
+                        case 'ZAR': return 'R'
+                        default: return formData.customCurrency || formData.currency.toUpperCase() + ' '
+                      }
+                    }
+                    const symbol = getCurrencySymbol()
+                    return (
+                      <>
+                        <SelectItem value="0-100k">{symbol}0 - {symbol}100,000</SelectItem>
+                        <SelectItem value="100k-500k">{symbol}100,000 - {symbol}500,000</SelectItem>
+                        <SelectItem value="500k-1M">{symbol}500,000 - {symbol}1,000,000</SelectItem>
+                        <SelectItem value="1M+">{symbol}1,000,000+</SelectItem>
+                      </>
+                    )
+                  })()}
                 </SelectContent>
               </Select>
               {!formData.annualPurchaseValue && (
