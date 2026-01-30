@@ -424,7 +424,7 @@ export default function SupplierSubmissionsPage() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          <div className="mb-4">
                             <div>
                               <p className="text-sm font-medium text-slate-600">Manager Approval</p>
                               <div className="flex items-center gap-2">
@@ -434,15 +434,7 @@ export default function SupplierSubmissionsPage() {
                                 </span>
                               </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-slate-600">Procurement Approval</p>
-                              <div className="flex items-center gap-2">
-                                {getInitiationStatusIcon(initiation.procurementApproval?.status || 'PENDING')}
-                                <span className="text-sm">
-                                  {initiation.procurementApproval?.status || 'PENDING'}
-                                </span>
-                              </div>
-                            </div>
+                            {/* Procurement approval removed from workflow */}
                           </div>
 
                           <div className="flex items-center justify-between pt-4 border-t">
