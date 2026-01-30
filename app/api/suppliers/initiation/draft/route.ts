@@ -240,6 +240,18 @@ export async function GET(request: NextRequest) {
               name: true,
               email: true
             }
+          },
+          managerApproval: {
+            select: {
+              status: true,
+              comments: true,
+              approver: {
+                select: {
+                  name: true,
+                  email: true
+                }
+              }
+            }
           }
         }
       })

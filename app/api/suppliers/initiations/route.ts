@@ -245,6 +245,9 @@ export async function GET(request: NextRequest) {
         creditApplication: initiation.creditApplication,
         creditApplicationReason: initiation.creditApplicationReason,
         onboardingReason: initiation.onboardingReason,
+        supplierLocation: initiation.supplierLocation,
+        currency: initiation.currency,
+        customCurrency: initiation.customCurrency,
         isDelegated,
         delegationType
       }

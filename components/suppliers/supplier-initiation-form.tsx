@@ -50,6 +50,11 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     }
     return []
   })
+  const [rejectionInfo, setRejectionInfo] = useState<{
+    status: string
+    comments?: string
+    rejectedBy?: string
+  } | null>(null)
   const [formData, setFormData] = useState({
     businessUnit: [] as string[],
     processReadUnderstood: false,
@@ -101,6 +106,15 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           const draft = data.initiation
           console.log('💰 Annual Purchase Value from API:', draft.annualPurchaseValue)
           setCurrentDraftId(draft.id)
+          
+          // Check if this is a rejected initiation and store rejection info
+          if (draft.status === 'REJECTED' && draft.managerApproval) {
+            setRejectionInfo({
+              status: draft.status,
+              comments: draft.managerApproval.comments,
+              rejectedBy: draft.managerApproval.approver
+            })
+          }
           
           // Convert businessUnit to array (handle both array and single value)
           const businessUnit = Array.isArray(draft.businessUnit) 
@@ -436,13 +450,34 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
 
   return (
     <div className="space-y-6">
-      {currentDraftId && (
+      {rejectionInfo ? (
+        <div className="bg-red-50 border-2 border-red-300 p-6 rounded-lg shadow-sm">
+          <div className="flex items-start gap-3">
+            <XCircle className="h-6 w-6 text-red-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-red-900 mb-2">
+                Initiation Rejected - Revision Required
+              </h3>
+              <p className="text-sm text-red-800 mb-3">
+                Your supplier initiation was rejected by {rejectionInfo.rejectedBy || 'the manager'}. 
+                Please review the rejection reason below, make the necessary changes, and resubmit.
+              </p>
+              {rejectionInfo.comments && (
+                <div className="bg-white p-4 rounded border border-red-200">
+                  <p className="text-xs font-medium text-red-900 mb-2">Rejection Reason:</p>
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{rejectionInfo.comments}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : currentDraftId ? (
         <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
           <p className="text-sm text-blue-900 font-medium">
             📝 Editing draft - Save or Submit when ready
           </p>
         </div>
-      )}
+      ) : null}
 
       <form onSubmit={handleSubmit} className="space-y-8">
       {/* Business Unit Selection */}
@@ -1002,7 +1037,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                 disabled={!isFormValid() || isSubmitting}
                 className="min-w-[120px]"
               >
-                {isSubmitting ? "Submitting..." : "Submit for Approval"}
+                {isSubmitting ? "Submitting..." : rejectionInfo ? "Resubmit for Approval" : "Submit for Approval"}
               </Button>
             </div>
           </div>

@@ -55,6 +55,41 @@ interface SupplierInitiation {
   relationshipDeclaration: string
   creditApplication: boolean
   creditApplicationReason?: string
+  supplierLocation?: string
+  currency?: string
+  customCurrency?: string
+}
+
+// Helper function to get currency symbol
+function getCurrencySymbol(currency: string | null | undefined, supplierLocation: string | null | undefined): string {
+  if (!currency || supplierLocation === 'LOCAL') {
+    return 'R'
+  }
+  
+  switch (currency.toUpperCase()) {
+    case 'USD': return '$'
+    case 'EUR': return '€'
+    case 'GBP': return '£'
+    case 'ZAR': return 'R'
+    default: return currency.toUpperCase() + ' '
+  }
+}
+
+// Helper function to format annual purchase value as a range
+function formatAnnualPurchaseValue(value: number | null | undefined, currency: string | null | undefined, supplierLocation: string | null | undefined): string {
+  if (!value) return ''
+  
+  const symbol = getCurrencySymbol(currency, supplierLocation)
+  
+  if (value <= 100000) {
+    return `${symbol}0 - ${symbol}100,000`
+  } else if (value <= 500000) {
+    return `${symbol}100,000 - ${symbol}500,000`
+  } else if (value <= 1000000) {
+    return `${symbol}500,000 - ${symbol}1,000,000`
+  } else {
+    return `${symbol}1,000,000+`
+  }
 }
 
 export default function ApprovalsPage() {
@@ -410,14 +445,33 @@ export default function ApprovalsPage() {
                                     <p className="text-sm">{initiation.productServiceCategory}</p>
                                   </div>
                                   <div>
+                                    <p className="text-sm font-medium text-slate-600">Supplier Location</p>
+                                    <p className="text-sm">
+                                      {initiation.supplierLocation === 'LOCAL' ? 'Local' : initiation.supplierLocation === 'FOREIGN' ? 'Foreign' : 'Not specified'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  {initiation.supplierLocation === 'FOREIGN' && initiation.currency && (
+                                    <div>
+                                      <p className="text-sm font-medium text-slate-600">Currency</p>
+                                      <p className="text-sm">{initiation.currency}</p>
+                                    </div>
+                                  )}
+                                  <div>
                                     <p className="text-sm font-medium text-slate-600">Purchase Type</p>
                                     <p className="text-sm">
                                       {initiation.regularPurchase && 'Regular Purchase'}
                                       {initiation.regularPurchase && initiation.onceOffPurchase && ', '}
                                       {initiation.onceOffPurchase && 'Once-off Purchase'}
-                                      {initiation.annualPurchaseValue && ` (R${initiation.annualPurchaseValue.toLocaleString()})`}
                                     </p>
                                   </div>
+                                  {initiation.annualPurchaseValue && (
+                                    <div>
+                                      <p className="text-sm font-medium text-slate-600">Annual Purchase Value</p>
+                                      <p className="text-sm">{formatAnnualPurchaseValue(initiation.annualPurchaseValue, initiation.currency, initiation.supplierLocation)}</p>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div>

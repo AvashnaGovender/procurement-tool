@@ -160,8 +160,16 @@ export async function POST(
         }
       })
 
-      // If manager rejects, notify initiator
+      // If manager rejects, update initiation status to REJECTED and notify initiator
       if (action === 'reject') {
+        // Update the initiation status to REJECTED so initiator can revise and resubmit
+        await prisma.supplierInitiation.update({
+          where: { id: initiationId },
+          data: {
+            status: 'REJECTED'
+          }
+        })
+
         try {
           const initiationDetails = await prisma.supplierInitiation.findUnique({
             where: { id: initiationId },
@@ -192,6 +200,9 @@ Your supplier initiation request has been rejected by the Manager.
 <strong>Rejection Reason:</strong>
 ${comments || 'No reason provided'}
 
+<strong>Next Steps:</strong>
+You can revise your initiation and resubmit it for approval. Please log in to the system and click "Revise & Resubmit" on the rejected initiation to make the necessary changes and submit again.
+
 If you have any questions or would like to discuss this decision, please contact the Manager.
 
 Best regards,
@@ -201,7 +212,7 @@ Schauenburg Systems Procurement System
             console.log('📧 Sending rejection notification to initiator:', initiationDetails.initiatedBy.email)
             const initiatorEmailResult = await sendEmail({
               to: initiationDetails.initiatedBy.email,
-              subject: 'Supplier Initiation Request Rejected',
+              subject: 'Supplier Initiation Request Rejected - Revision Required',
               content: initiatorEmailContent,
               supplierName: initiationDetails.supplierName,
               businessType: initiationDetails.productServiceCategory
