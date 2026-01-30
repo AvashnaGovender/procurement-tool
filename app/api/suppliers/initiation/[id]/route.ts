@@ -64,6 +64,11 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // Fetch onboarding info if it exists
+    const onboarding = await prisma.supplierOnboarding.findUnique({
+      where: { initiationId: initiation.id }
+    })
+
     return NextResponse.json({
       id: initiation.id,
       status: initiation.status,
@@ -83,7 +88,18 @@ export async function GET(
         comments: initiation.procurementApproval.comments
       } : null,
       emailSent: initiation.emailSent,
-      emailSentAt: initiation.emailSentAt
+      emailSentAt: initiation.emailSentAt,
+      onboarding: onboarding ? {
+        id: onboarding.id,
+        overallStatus: onboarding.overallStatus,
+        currentStep: onboarding.currentStep,
+        supplierFormSubmitted: onboarding.supplierFormSubmitted,
+        supplierFormSubmittedAt: onboarding.supplierFormSubmittedAt,
+        revisionRequested: onboarding.revisionRequested,
+        revisionCount: onboarding.revisionCount,
+        approvedAt: onboarding.approvedAt,
+        rejectedAt: onboarding.rejectedAt
+      } : null
     })
 
   } catch (error) {

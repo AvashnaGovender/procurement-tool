@@ -32,7 +32,7 @@ const navigation: NavigationItem[] = [
   { name: "Analytics", href: "/analytics", icon: TrendingUp, comingSoon: true },
   { name: "Suppliers", href: "/suppliers", icon: Users, comingSoon: false },
   { name: "Supplier Initiations", href: "/admin/supplier-initiations", icon: ClipboardList, comingSoon: false },
-  { name: "Approvals", href: "/admin/approvals", icon: CheckCircle, comingSoon: false, roles: ["MANAGER", "PROCUREMENT_MANAGER"] },
+  { name: "PM Approvals", href: "/admin/approvals", icon: CheckCircle, comingSoon: false, roles: ["MANAGER", "PROCUREMENT_MANAGER"] },
   { name: "Reports", href: "/reports", icon: BarChart3, comingSoon: true },
 ]
 

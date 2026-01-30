@@ -28,7 +28,7 @@ interface SupplierInitiation {
   supplierName: string
   supplierEmail: string
   supplierContactPerson: string
-  businessUnit: string
+  businessUnit: string | string[]
   requesterName: string
   submittedAt: string
   isDelegated?: boolean
@@ -618,9 +618,15 @@ export default function ApprovalsPage() {
                           <TableCell className="font-medium">{initiation.supplierName}</TableCell>
                           <TableCell>{initiation.requesterName}</TableCell>
                           <TableCell>
-                            {initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                              ? 'Schauenburg Systems (Pty) Ltd 300' 
-                              : 'Schauenburg (Pty) Ltd 200'
+                            {Array.isArray(initiation.businessUnit)
+                              ? initiation.businessUnit.map(unit => 
+                                  unit === 'SCHAUENBURG_SYSTEMS_200' 
+                                    ? 'Schauenburg Systems (Pty) Ltd 300' 
+                                    : 'Schauenburg (Pty) Ltd 200'
+                                ).join(', ')
+                              : initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
+                                ? 'Schauenburg Systems (Pty) Ltd 300' 
+                                : 'Schauenburg (Pty) Ltd 200'
                             }
                           </TableCell>
                           <TableCell>
@@ -825,10 +831,16 @@ export default function ApprovalsPage() {
                       </div>
                       <div>
                         <p><strong>Category:</strong> {selectedInitiation.productServiceCategory}</p>
-                        <p><strong>Business Unit:</strong> {
-                          selectedInitiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                            ? 'Schauenburg Systems (Pty) Ltd 300' 
-                            : 'Schauenburg (Pty) Ltd 200'
+                        <p><strong>Business Unit(s):</strong> {
+                          Array.isArray(selectedInitiation.businessUnit)
+                            ? selectedInitiation.businessUnit.map(unit => 
+                                unit === 'SCHAUENBURG_SYSTEMS_200' 
+                                  ? 'Schauenburg Systems (Pty) Ltd 300' 
+                                  : 'Schauenburg (Pty) Ltd 200'
+                              ).join(', ')
+                            : selectedInitiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
+                              ? 'Schauenburg Systems (Pty) Ltd 300' 
+                              : 'Schauenburg (Pty) Ltd 200'
                         }</p>
                       </div>
                     </div>

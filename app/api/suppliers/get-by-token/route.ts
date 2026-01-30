@@ -87,19 +87,22 @@ export async function GET(request: NextRequest) {
     // Get uploaded files info from airtableData if available
     const uploadedFiles = supplier.airtableData?.uploadedFiles || {}
 
-    // Get purchase type, credit application status, and payment method
-    const purchaseType = onboarding.initiation?.purchaseType || onboarding.requiredDocuments.length > 0 
-      ? (onboarding.requiredDocuments.includes('nda') ? 'SHARED_IP' : 
-         onboarding.requiredDocuments.length <= 2 ? 'ONCE_OFF' : 'REGULAR')
-      : null
-    
+    // Get purchase type, credit application status, and payment method from initiation
+    const purchaseType = onboarding.initiation?.purchaseType || 'REGULAR'
     const creditApplication = onboarding.initiation?.creditApplication || false
     const paymentMethod = onboarding.initiation?.paymentMethod || null
     
-    // Use stored requiredDocuments if available, otherwise calculate from purchaseType, creditApplication, and paymentMethod
-    const requiredDocuments = onboarding.requiredDocuments.length > 0 
-      ? onboarding.requiredDocuments 
-      : (purchaseType ? getRequiredDocuments(purchaseType as any, creditApplication, paymentMethod) : [])
+    console.log('📋 Document Requirements Calculation:')
+    console.log('   Purchase Type:', purchaseType)
+    console.log('   Credit Application:', creditApplication)
+    console.log('   Payment Method:', paymentMethod)
+    
+    // ALWAYS calculate requiredDocuments fresh based on current purchaseType, creditApplication, and paymentMethod
+    // This ensures we use the latest document requirements logic
+    const requiredDocuments = getRequiredDocuments(purchaseType as any, creditApplication, paymentMethod)
+    
+    console.log('   Required Documents:', requiredDocuments)
+    console.log('   Includes NDA?', requiredDocuments.includes('nda'))
 
     return NextResponse.json({
       success: true,

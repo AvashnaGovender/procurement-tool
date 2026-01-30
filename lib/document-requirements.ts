@@ -13,6 +13,8 @@ export function getRequiredDocuments(
   creditApplication: boolean,
   paymentMethod?: PaymentMethod | string | null
 ): string[] {
+  console.log('🔍 getRequiredDocuments called with:', { purchaseType, creditApplication, paymentMethod })
+  
   // Base mandatory documents for all suppliers
   let baseDocs = [
     'cipcCertificate',      // CIPC Certificate (Company Registration)
@@ -22,8 +24,14 @@ export function getRequiredDocuments(
   ]
 
   // Add NDA only for SHARED_IP purchase type (and only if payment method is NOT COD)
-  if (purchaseType === 'SHARED_IP' && paymentMethod !== 'COD') {
+  const shouldAddNDA = purchaseType === 'SHARED_IP' && paymentMethod !== 'COD'
+  console.log('   Should add NDA?', shouldAddNDA, '(purchaseType === SHARED_IP:', purchaseType === 'SHARED_IP', 'paymentMethod !== COD:', paymentMethod !== 'COD', ')')
+  
+  if (shouldAddNDA) {
     baseDocs.push('nda')                  // Non-Disclosure Agreement
+    console.log('   ✅ NDA added to required documents')
+  } else {
+    console.log('   ❌ NDA NOT added - purchase type is', purchaseType, 'not SHARED_IP')
   }
 
   // Add Credit Application only if payment method is NOT COD
@@ -37,7 +45,9 @@ export function getRequiredDocuments(
   ]
 
   // Return all documents (base + optional)
-  return [...baseDocs, ...optionalDocs]
+  const allDocs = [...baseDocs, ...optionalDocs]
+  console.log('   📋 Final required documents:', allDocs)
+  return allDocs
 }
 
 /**

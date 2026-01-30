@@ -57,7 +57,7 @@ interface SupplierInitiation {
   id: string
   status: string
   supplierName: string
-  businessUnit: string
+  businessUnit: string | string[]
   requesterName: string
   submittedAt: string
   createdAt: string
@@ -303,9 +303,15 @@ export default function SupplierInitiationsPage() {
                         <TableCell className="font-medium">{initiation.supplierName}</TableCell>
                         <TableCell>{initiation.requesterName}</TableCell>
                         <TableCell>
-                          {initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                            ? 'Schauenburg Systems (Pty) Ltd 300' 
-                            : 'Schauenburg (Pty) Ltd 200'
+                          {Array.isArray(initiation.businessUnit)
+                            ? initiation.businessUnit.map(unit => 
+                                unit === 'SCHAUENBURG_SYSTEMS_200' 
+                                  ? 'Schauenburg Systems (Pty) Ltd 300' 
+                                  : 'Schauenburg (Pty) Ltd 200'
+                              ).join(', ')
+                            : initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
+                              ? 'Schauenburg Systems (Pty) Ltd 300' 
+                              : 'Schauenburg (Pty) Ltd 200'
                           }
                         </TableCell>
                         <TableCell>

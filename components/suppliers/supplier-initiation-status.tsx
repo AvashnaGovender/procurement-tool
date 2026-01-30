@@ -14,7 +14,7 @@ interface InitiationData {
   id: string
   status: string
   supplierName: string
-  businessUnit: string
+  businessUnit: string | string[]
   submittedAt: string
   managerApproval?: {
     status: string
@@ -30,6 +30,17 @@ interface InitiationData {
   }
   emailSent: boolean
   emailSentAt?: string
+  onboarding?: {
+    id: string
+    overallStatus: string
+    currentStep: string
+    supplierFormSubmitted: boolean
+    supplierFormSubmittedAt?: string
+    revisionRequested: boolean
+    revisionCount: number
+    approvedAt?: string
+    rejectedAt?: string
+  }
 }
 
 export function SupplierInitiationStatus({ initiationId }: SupplierInitiationStatusProps) {
@@ -123,11 +134,17 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
               <p className="text-lg">{initiationData.supplierName}</p>
             </div>
             <div>
-              <h4 className="font-medium text-sm text-gray-600">Business Unit</h4>
+              <h4 className="font-medium text-sm text-gray-600">Business Unit{Array.isArray(initiationData.businessUnit) && initiationData.businessUnit.length > 1 ? 's' : ''}</h4>
               <p className="text-lg">
-                {initiationData.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                  ? 'Schauenburg Systems (Pty) Ltd 300' 
-                  : 'Schauenburg (Pty) Ltd 200'
+                {Array.isArray(initiationData.businessUnit)
+                  ? initiationData.businessUnit.map(unit => 
+                      unit === 'SCHAUENBURG_SYSTEMS_200' 
+                        ? 'Schauenburg Systems (Pty) Ltd 300' 
+                        : 'Schauenburg (Pty) Ltd 200'
+                    ).join(', ')
+                  : initiationData.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
+                    ? 'Schauenburg Systems (Pty) Ltd 300' 
+                    : 'Schauenburg (Pty) Ltd 200'
                 }
               </p>
             </div>
@@ -215,20 +232,152 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
         </Card>
       )}
 
+      {/* Onboarding Progress */}
+      {initiationData.onboarding && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Document Submission Status</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-sm text-gray-600">Current Status:</span>
+              <Badge className={
+                initiationData.onboarding.overallStatus === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                initiationData.onboarding.overallStatus === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                initiationData.onboarding.revisionRequested ? 'bg-orange-100 text-orange-800' :
+                'bg-blue-100 text-blue-800'
+              }>
+                {initiationData.onboarding.overallStatus === 'AWAITING_RESPONSE' && !initiationData.onboarding.supplierFormSubmitted && 'Awaiting Supplier Documents'}
+                {initiationData.onboarding.overallStatus === 'AWAITING_RESPONSE' && initiationData.onboarding.supplierFormSubmitted && 'Under PM Review'}
+                {initiationData.onboarding.overallStatus === 'UNDER_REVIEW' && 'Under PM Review'}
+                {initiationData.onboarding.revisionRequested && 'Revision Requested'}
+                {initiationData.onboarding.overallStatus === 'APPROVED' && 'Approved'}
+                {initiationData.onboarding.overallStatus === 'REJECTED' && 'Rejected'}
+              </Badge>
+            </div>
+
+            {/* Document Submission */}
+            <div className="border rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {initiationData.onboarding.supplierFormSubmitted ? (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Clock className="h-4 w-4 text-yellow-500" />
+                  )}
+                  <span className="font-medium">Supplier Document Submission</span>
+                </div>
+                <Badge className={initiationData.onboarding.supplierFormSubmitted ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                  {initiationData.onboarding.supplierFormSubmitted ? 'Submitted' : 'Pending'}
+                </Badge>
+              </div>
+              {initiationData.onboarding.supplierFormSubmitted && initiationData.onboarding.supplierFormSubmittedAt && (
+                <p className="text-sm text-gray-600">
+                  Submitted on: {new Date(initiationData.onboarding.supplierFormSubmittedAt).toLocaleString()}
+                </p>
+              )}
+              {initiationData.onboarding.revisionCount > 0 && (
+                <p className="text-sm text-orange-600 mt-1">
+                  Revisions requested: {initiationData.onboarding.revisionCount}
+                </p>
+              )}
+            </div>
+
+            {/* PM Review Status */}
+            {initiationData.onboarding.supplierFormSubmitted && (
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {initiationData.onboarding.approvedAt ? (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    ) : initiationData.onboarding.rejectedAt ? (
+                      <XCircle className="h-4 w-4 text-red-500" />
+                    ) : (
+                      <Clock className="h-4 w-4 text-blue-500" />
+                    )}
+                    <span className="font-medium">Procurement Manager Review</span>
+                  </div>
+                  <Badge className={
+                    initiationData.onboarding.approvedAt ? 'bg-green-100 text-green-800' :
+                    initiationData.onboarding.rejectedAt ? 'bg-red-100 text-red-800' :
+                    'bg-blue-100 text-blue-800'
+                  }>
+                    {initiationData.onboarding.approvedAt ? 'Approved' :
+                     initiationData.onboarding.rejectedAt ? 'Rejected' :
+                     'In Progress'}
+                  </Badge>
+                </div>
+                {initiationData.onboarding.approvedAt && (
+                  <p className="text-sm text-gray-600">
+                    Approved on: {new Date(initiationData.onboarding.approvedAt).toLocaleString()}
+                  </p>
+                )}
+                {initiationData.onboarding.rejectedAt && (
+                  <p className="text-sm text-gray-600">
+                    Rejected on: {new Date(initiationData.onboarding.rejectedAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Next Steps */}
-      {initiationData.status === 'SUPPLIER_EMAILED' && initiationData.emailSent && (
+      {initiationData.status === 'SUPPLIER_EMAILED' && initiationData.emailSent && !initiationData.onboarding?.approvedAt && (
         <Card>
           <CardHeader>
             <CardTitle>Next Steps</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-600">
-              The supplier has been notified and can now proceed with the onboarding process. 
-              You can track their progress in the supplier submissions dashboard.
+            {!initiationData.onboarding?.supplierFormSubmitted ? (
+              <>
+                <p className="text-gray-600">
+                  The supplier has been notified and can now proceed with the onboarding process. 
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  ⏳ <strong>Waiting for:</strong> Supplier to upload required documents
+                </p>
+              </>
+            ) : initiationData.onboarding?.revisionRequested ? (
+              <>
+                <p className="text-gray-600">
+                  The Procurement Manager has requested revisions from the supplier.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  ⏳ <strong>Waiting for:</strong> Supplier to resubmit documents with requested changes
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-600">
+                  The supplier has submitted their documents and they are currently being reviewed by the Procurement Manager.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  ⏳ <strong>Waiting for:</strong> Procurement Manager to review and approve documents
+                </p>
+              </>
+            )}
+            <p className="text-sm text-muted-foreground mt-2">
+              You can continue to monitor the status of this initiation from this page.
             </p>
-            <Button className="mt-4" asChild>
-              <a href="/admin/approvals?tab=reviews">View Document Reviews</a>
-            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Completion Message */}
+      {initiationData.onboarding?.approvedAt && (
+        <Card className="border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-green-800">
+              <CheckCircle className="h-5 w-5" />
+              Onboarding Complete
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-green-800">
+              The supplier onboarding process has been successfully completed! The supplier is now approved and can proceed with business operations.
+            </p>
           </CardContent>
         </Card>
       )}
