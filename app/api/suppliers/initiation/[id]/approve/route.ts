@@ -330,8 +330,8 @@ Your onboarding request has been reviewed and approved. We're excited to begin w
 <strong>Your Request Details:</strong>
 - Business Unit: ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200')}
 - Product/Service Category: ${initiationDetails.productServiceCategory}
-- Purchase Type: ${initiationDetails.purchaseType === 'REGULAR' ? 'Regular Purchase' : initiationDetails.purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
-${initiationDetails.annualPurchaseValue ? `- Annual Purchase Value: ${formatAnnualPurchaseValue(initiationDetails.annualPurchaseValue, initiationDetails.currency, initiationDetails.supplierLocation)}` : ''}
+${(initiationDetails as any).purchaseType ? `- Purchase Type: ${(initiationDetails as any).purchaseType === 'REGULAR' ? 'Regular Purchase' : (initiationDetails as any).purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}` : ''}
+${(initiationDetails as any).annualPurchaseValue ? `- Annual Purchase Value: ${formatAnnualPurchaseValue((initiationDetails as any).annualPurchaseValue, (initiationDetails as any).currency, (initiationDetails as any).supplierLocation)}` : ''}
 
 <strong>Next Step:</strong>
 Please complete your supplier registration by clicking the button below. You'll be guided through uploading the required documentation and compliance information.
@@ -366,7 +366,7 @@ Schauenburg Systems Procurement Team
           // Notify the initiator that their request was approved
           try {
             if (initiationDetails.initiatedBy) {
-              const approvalsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-submissions`
+              const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
               const initiatorEmailContent = `
 Dear ${initiationDetails.initiatedBy.name},
 
@@ -378,13 +378,13 @@ Great news! The supplier initiation request you submitted has been approved by y
 - <strong>Business Unit(s):</strong> ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200')}
 - <strong>Product/Service Category:</strong> ${initiationDetails.productServiceCategory}
 
-The supplier has been sent an email with instructions to complete their onboarding documentation. You can track the progress of this supplier onboarding in the Supplier Submissions dashboard.
+The supplier has been sent an email with instructions to complete their onboarding documentation. You can track the progress of this supplier onboarding in your Supplier Initiations dashboard.
 
 <div style="text-align: center; margin: 30px 0;">
-  <a href="${approvalsUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">View Supplier Submissions</a>
+  <a href="${initiationsUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">View Your Initiations</a>
 </div>
 
-Or copy this link to your browser: ${approvalsUrl}
+Or copy this link to your browser: ${initiationsUrl}
 
 Best regards,
 Schauenburg Systems Procurement Team
