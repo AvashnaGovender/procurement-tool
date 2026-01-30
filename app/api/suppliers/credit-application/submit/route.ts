@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { writeFile, mkdir } from 'fs/promises'
+import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
+import { sendEmail } from '@/lib/email-sender'
 
 export async function POST(request: NextRequest) {
   try {
@@ -144,6 +145,100 @@ export async function POST(request: NextRequest) {
         performedBy: 'Supplier',
       }
     })
+
+    // Send email notification to Procurement Managers
+    try {
+      // Get full supplier details
+      const supplierDetails = await prisma.supplier.findUnique({
+        where: { id: onboarding.supplier.id },
+        include: {
+          onboarding: {
+            include: {
+              initiation: {
+                include: {
+                  initiatedBy: {
+                    select: {
+                      name: true,
+                      email: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      })
+
+      if (!supplierDetails) {
+        throw new Error('Supplier details not found')
+      }
+
+      // Get all Procurement Managers
+      const procurementManagers = await prisma.user.findMany({
+        where: { role: 'PROCUREMENT_MANAGER' }
+      })
+
+      // Fallback to admins if no procurement managers
+      const recipients = procurementManagers.length > 0
+        ? procurementManagers
+        : await prisma.user.findMany({ where: { role: 'ADMIN' } })
+
+      if (recipients.length === 0) {
+        console.warn('No procurement managers or admins found to send notification')
+      } else {
+        // Read the PDF file for attachment
+        const pdfBuffer = await readFile(filePath)
+
+        // Send email to each PM
+        for (const pm of recipients) {
+          await sendEmail({
+            to: pm.email,
+            subject: `Credit Application Submitted - ${supplierDetails.name}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #1e40af;">Credit Application Submitted</h2>
+                
+                <p>Hello ${pm.name},</p>
+                
+                <p>The supplier <strong>${supplierDetails.name}</strong> (Code: ${supplierDetails.supplierCode}) has submitted their fully signed credit application and credit account information.</p>
+                
+                <div style="background-color: #f3f4f6; border-left: 4px solid #1e40af; padding: 15px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #1e40af;">Credit Account Information:</h3>
+                  <div style="white-space: pre-wrap; font-family: monospace; background-color: white; padding: 10px; border-radius: 4px;">${creditAccountInfo.trim()}</div>
+                </div>
+                
+                <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #92400e;">Attached Document:</h3>
+                  <p style="margin: 5px 0; color: #78350f;">📎 Fully Signed Credit Application (${fileName})</p>
+                </div>
+                
+                <p style="margin-top: 25px;">
+                  <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/approvals?tab=reviews" 
+                     style="display: inline-block; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                    Review in Dashboard
+                  </a>
+                </p>
+                
+                <p style="margin-top: 30px; color: #6b7280;">
+                  Best regards,<br/>
+                  <strong>SS Supplier Onboarding System</strong>
+                </p>
+              </div>
+            `,
+            attachments: [
+              {
+                filename: fileName,
+                content: pdfBuffer,
+                contentType: 'application/pdf'
+              }
+            ]
+          })
+        }
+      }
+    } catch (emailError) {
+      console.error('Error sending credit application notification email:', emailError)
+      // Don't fail the submission if email fails
+    }
 
     return NextResponse.json({
       success: true,

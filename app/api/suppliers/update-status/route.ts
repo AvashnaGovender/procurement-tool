@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import nodemailer from 'nodemailer'
 import fs from 'fs'
 import path from 'path'
+import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
+import { readdir, readFile } from 'fs/promises'
 
 export async function POST(request: NextRequest) {
   try {
@@ -255,6 +257,21 @@ export async function POST(request: NextRequest) {
               console.error('Failed to send manager email:', managerEmailError)
               // Don't fail if manager email fails, but log it
             }
+          }
+          
+          // Send comprehensive approval package to PM who approved
+          try {
+            const pmUser = await prisma.user.findUnique({
+              where: { id: session.user.id },
+              select: { name: true, email: true }
+            })
+            
+            if (pmUser) {
+              await sendPMApprovalPackage(supplier, initiation, pmUser, creditController)
+            }
+          } catch (pmEmailError) {
+            console.error('Failed to send PM approval package:', pmEmailError)
+            // Don't fail if PM email fails, but log it
           }
           
           // Update initiation status to SUPPLIER_EMAILED if email was sent successfully
@@ -576,15 +593,12 @@ async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string 
           Please complete the following steps:
         </p>
         <ol style="color: #78350f; margin: 15px 0; padding-left: 20px; line-height: 1.8;">
-          <li>Download the signed credit application document using the link below</li>
-          <li>Review and sign the document on behalf of your company</li>
-          <li>Complete the credit application form to upload the fully signed copy and provide credit account information</li>
+          <li>Click the button below to access the credit application form</li>
+          <li>Download and review the signed credit application document</li>
+          <li>Sign the document on behalf of your company</li>
+          <li>Upload the fully signed copy and provide credit account information</li>
         </ol>
-        <p style="margin: 15px 0;">
-          <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/suppliers/documents/${supplier.supplierCode}/signedCreditApplication/${encodeURIComponent(signedCreditAppFileName)}" 
-             style="display: inline-block; background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-right: 10px;">
-            Download Signed Credit Application
-          </a>
+        <p style="margin: 15px 0; text-align: center;">
           ${(() => {
             // Get credit application token from onboarding
             const onboarding = supplier.onboarding
@@ -1911,6 +1925,268 @@ async function sendManagerRejectionEmail(supplier: any, manager: { name: string,
     console.log('✅ Manager rejection notification email sent successfully to:', manager.email)
   } catch (error) {
     console.error('Error sending manager rejection notification email:', error)
+    throw error
+  }
+}
+
+async function sendPMApprovalPackage(
+  supplier: any,
+  initiation: any,
+  pmUser: { name: string; email: string },
+  creditController?: string | null
+) {
+  try {
+    console.log('📦 Preparing comprehensive approval package for PM:', pmUser.email)
+
+    // Load SMTP configuration
+    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
+    const configData = fs.readFileSync(configPath, 'utf8')
+    const smtpConfig = JSON.parse(configData)
+
+    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
+      throw new Error('SMTP configuration not properly set up')
+    }
+
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      host: smtpConfig.host,
+      port: smtpConfig.port || 587,
+      secure: smtpConfig.secure || false,
+      auth: {
+        user: smtpConfig.user,
+        pass: smtpConfig.pass,
+      },
+    })
+
+    // Gather all uploaded documents from the file system
+    const documentsPath = path.join(
+      process.cwd(),
+      'data',
+      'uploads',
+      'suppliers',
+      supplier.supplierCode
+    )
+    
+    const attachments: any[] = [
+      {
+        filename: 'logo.png',
+        path: path.join(process.cwd(), 'public', 'logo.png'),
+        cid: 'logo'
+      }
+    ]
+
+    // Collect all document files
+    const documentsList: any[] = []
+    
+    try {
+      if (fs.existsSync(documentsPath)) {
+        // Get all version directories
+        const versions = await readdir(documentsPath)
+        
+        for (const version of versions) {
+          const versionPath = path.join(documentsPath, version)
+          const stat = fs.statSync(versionPath)
+          
+          if (stat.isDirectory() && version.startsWith('v')) {
+            // Get all category directories
+            const categories = await readdir(versionPath)
+            
+            for (const category of categories) {
+              const categoryPath = path.join(versionPath, category)
+              const catStat = fs.statSync(categoryPath)
+              
+              if (catStat.isDirectory()) {
+                // Get all files in this category
+                const files = await readdir(categoryPath)
+                
+                for (const file of files) {
+                  const filePath = path.join(categoryPath, file)
+                  const fileBuffer = await readFile(filePath)
+                  
+                  attachments.push({
+                    filename: `${category}_${file}`,
+                    content: fileBuffer
+                  })
+                  
+                  documentsList.push({
+                    category: category,
+                    fileName: file,
+                    version: parseInt(version.replace('v', '')),
+                    uploadedAt: fs.statSync(filePath).mtime
+                  })
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (docError) {
+      console.error('Error collecting documents:', docError)
+      // Continue even if document collection fails
+    }
+
+    // Generate PDF Summary
+    try {
+      const pdfBuffer = await generateApprovalSummaryPDF({
+        supplier: {
+          name: supplier.name,
+          supplierCode: supplier.supplierCode,
+          contactName: supplier.contactName,
+          contactEmail: supplier.contactEmail,
+          contactPhone: supplier.contactPhone,
+          address: supplier.address,
+          city: supplier.city,
+          state: supplier.state,
+          zipCode: supplier.zipCode,
+          country: supplier.country,
+          website: supplier.website,
+          taxId: supplier.taxId,
+          dunsNumber: supplier.dunsNumber
+        },
+        initiation: {
+          supplierName: initiation.supplierName,
+          purchaseType: initiation.purchaseType,
+          creditApplication: initiation.creditApplication,
+          paymentMethod: initiation.paymentMethod,
+          businessUnit: initiation.businessUnit,
+          annualPurchaseValue: initiation.annualPurchaseValue,
+          currency: initiation.currency,
+          supplierLocation: initiation.supplierLocation,
+          justification: initiation.justification,
+          initiatedBy: {
+            name: initiation.initiatedBy.name,
+            email: initiation.initiatedBy.email
+          },
+          createdAt: initiation.createdAt
+        },
+        documents: documentsList,
+        approvedBy: {
+          name: pmUser.name,
+          email: pmUser.email
+        },
+        approvedAt: new Date(),
+        creditController: creditController
+      })
+
+      attachments.push({
+        filename: `Approval_Summary_${supplier.supplierCode}_${new Date().toISOString().split('T')[0]}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+      })
+      
+      console.log('✅ PDF summary generated successfully')
+    } catch (pdfError) {
+      console.error('Error generating PDF summary:', pdfError)
+      // Continue even if PDF generation fails
+    }
+
+    // Email HTML
+    const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #1e40af; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+    .content { background-color: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
+    .footer { background-color: #f3f4f6; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-radius: 0 0 8px 8px; }
+    .button { display: inline-block; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0; }
+    .info-box { background-color: #f0f9ff; border-left: 4px solid #1e40af; padding: 15px; margin: 20px 0; }
+    .success-box { background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="cid:logo" alt="Logo" style="max-width: 150px; margin-bottom: 10px;" />
+      <h1 style="margin: 0; font-size: 24px;">Supplier Approval Package</h1>
+    </div>
+    
+    <div class="content">
+      <h2 style="color: #1e40af;">Approval Complete</h2>
+      
+      <p>Hello ${pmUser.name},</p>
+      
+      <div class="success-box">
+        <strong>✓ Supplier Successfully Approved</strong>
+        <p style="margin: 10px 0 0 0;">
+          You have approved <strong>${supplier.name}</strong> (Supplier Code: <strong>${supplier.supplierCode}</strong>)
+        </p>
+      </div>
+      
+      <p>
+        This email contains a comprehensive approval package with all the information and documents for this supplier.
+      </p>
+      
+      <div class="info-box">
+        <strong>📎 Attached Documents:</strong>
+        <ul style="margin: 10px 0;">
+          <li><strong>Approval Summary PDF</strong> - Complete summary with supplier details, initiation checklist, and document list</li>
+          <li><strong>All Supplier Documents</strong> - ${attachments.length - 2} document(s) uploaded by the supplier</li>
+        </ul>
+        <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
+          Note: The fully signed credit application (if applicable) will be sent separately once received from the supplier.
+        </p>
+      </div>
+      
+      <div style="margin: 30px 0;">
+        <strong>Quick Summary:</strong>
+        <ul style="margin: 10px 0;">
+          <li><strong>Supplier:</strong> ${supplier.name}</li>
+          <li><strong>Code:</strong> ${supplier.supplierCode}</li>
+          <li><strong>Purchase Type:</strong> ${initiation.purchaseType.replace(/_/g, ' ')}</li>
+          <li><strong>Business Unit(s):</strong> ${Array.isArray(initiation.businessUnit) ? initiation.businessUnit.join(', ') : initiation.businessUnit}</li>
+          ${creditController ? `<li><strong>Credit Controller:</strong> ${creditController}</li>` : ''}
+        </ul>
+      </div>
+      
+      <p style="margin-top: 30px;">
+        <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/approvals?tab=reviews" class="button">
+          View in Dashboard
+        </a>
+      </p>
+      
+      <p style="margin-top: 30px; color: #666; font-size: 14px;">
+        This approval package contains all necessary information for processing the supplier onboarding. 
+        Please review the attached documents and proceed with any required next steps.
+      </p>
+      
+      <p style="margin-top: 30px;">
+        Best regards,<br/>
+        <strong>SS Supplier Onboarding System</strong>
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>Schauenburg Systems</p>
+      <p>
+        <a href="${smtpConfig.companyWebsite}" style="color: #1e40af; text-decoration: none;">${smtpConfig.companyWebsite}</a>
+      </p>
+      <p style="margin-top: 15px;">
+        This is an automated notification from the Supplier Onboarding System.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+    `
+
+    // Send email
+    console.log(`📧 Sending comprehensive approval package to PM: ${pmUser.email}`)
+    console.log(`📎 Total attachments: ${attachments.length} (including ${documentsList.length} supplier documents)`)
+    
+    await transporter.sendMail({
+      from: `"${smtpConfig.companyName || 'SS Supplier Onboarding'}" <${smtpConfig.fromEmail}>`,
+      to: pmUser.email,
+      subject: `Supplier Approval Package - ${supplier.name} (${supplier.supplierCode})`,
+      html: emailHtml,
+      attachments: attachments
+    })
+
+    console.log('✅ Comprehensive approval package sent successfully to PM:', pmUser.email)
+  } catch (error) {
+    console.error('Error sending PM approval package:', error)
     throw error
   }
 }
