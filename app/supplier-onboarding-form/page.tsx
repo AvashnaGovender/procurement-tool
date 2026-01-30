@@ -27,6 +27,7 @@ function SupplierOnboardingForm() {
   const [existingFiles, setExistingFiles] = useState<{[key: string]: string[]}>({})
   const [creditApplication, setCreditApplication] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null)
+  const [purchaseType, setPurchaseType] = useState<string | null>(null)
   
   // Form state
   const [formData, setFormData] = useState({
@@ -82,6 +83,12 @@ function SupplierOnboardingForm() {
           setExistingFiles(data.uploadedFiles || {})
           setCreditApplication(data.creditApplication || false)
           setPaymentMethod(data.paymentMethod || null)
+          setPurchaseType(data.purchaseType || null)
+          console.log('📋 Loaded supplier data:', { 
+            purchaseType: data.purchaseType, 
+            paymentMethod: data.paymentMethod,
+            requiredDocuments: data.requiredDocuments 
+          })
           if (data.revisionNotes) {
             setRevisionNotes(data.revisionNotes)
           }
@@ -625,11 +632,17 @@ function SupplierOnboardingForm() {
                 { key: 'nda', label: 'Non-Disclosure Agreement (NDA) - Signed *', required: true },
                 { key: 'creditApplication', label: 'Credit Application Form *', required: true },
               ]
-              // Filter out NDA and Credit Application if payment method is COD
+              // Filter out documents based on purchase type and payment method
               .filter(({ key }) => {
-                // Hide NDA and Credit Application for COD payment
-                if (paymentMethod === 'COD' && (key === 'nda' || key === 'creditApplication')) {
+                // Hide Credit Application for COD payment
+                if (paymentMethod === 'COD' && key === 'creditApplication') {
                   return false
+                }
+                // Hide NDA unless purchase type is SHARED_IP (and not COD)
+                if (key === 'nda') {
+                  const showNDA = purchaseType === 'SHARED_IP' && paymentMethod !== 'COD'
+                  console.log('🔍 NDA visibility check:', { purchaseType, paymentMethod, showNDA })
+                  return showNDA
                 }
                 return true
               })
