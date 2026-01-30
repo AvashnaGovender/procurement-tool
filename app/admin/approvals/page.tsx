@@ -161,13 +161,26 @@ export default function ApprovalsPage() {
     setExpandedRows(newExpanded)
   }
 
-  // Redirect to login if not authenticated
+  // Check authentication and role access
   useEffect(() => {
+    if (status === 'loading') return
+    
     if (status === 'unauthenticated') {
       // Redirect to login with return URL
       window.location.href = `/login?callbackUrl=${encodeURIComponent('/admin/approvals')}`
+      return
     }
-  }, [status])
+    
+    // Only MANAGER, PROCUREMENT_MANAGER and ADMIN can access this page
+    if (session && session.user.role !== 'MANAGER' && session.user.role !== 'PROCUREMENT_MANAGER' && session.user.role !== 'ADMIN') {
+      router.push('/dashboard')
+    }
+    
+    // If Manager tries to access reviews tab, redirect to initiations tab
+    if (session && session.user.role === 'MANAGER' && activeTab === 'reviews') {
+      setActiveTab('initiations')
+    }
+  }, [status, session, router, activeTab])
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -459,6 +472,36 @@ export default function ApprovalsPage() {
     )
   }
 
+  // Show unauthorized message if user doesn't have proper role
+  if (session && session.user.role !== 'MANAGER' && session.user.role !== 'PROCUREMENT_MANAGER' && session.user.role !== 'ADMIN') {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-100">
+        <Card className="max-w-md">
+          <CardHeader>
+            <div className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-6 w-6" />
+              <CardTitle>Access Restricted</CardTitle>
+            </div>
+            <CardDescription>
+              You do not have permission to access this page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-600 mb-4">
+              This page is only accessible to Managers, Procurement Managers and Administrators.
+            </p>
+            <Button onClick={() => router.push('/dashboard')} className="w-full">
+              Return to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Check if current user is PM or Admin (can see both tabs)
+  const isPMOrAdmin = session?.user.role === 'PROCUREMENT_MANAGER' || session?.user.role === 'ADMIN'
+
   return (
     <div className="bg-slate-100 min-h-screen">
       {/* Top Bar */}
@@ -482,8 +525,14 @@ export default function ApprovalsPage() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-slate-900">PM Approvals</h1>
-            <p className="text-slate-600 mt-2">Review initiation approvals and supplier document submissions</p>
+            <h1 className="text-3xl font-bold text-slate-900">
+              {isPMOrAdmin ? 'PM Approvals' : 'Approvals'}
+            </h1>
+            <p className="text-slate-600 mt-2">
+              {isPMOrAdmin 
+                ? 'Review initiation approvals and supplier document submissions' 
+                : 'Review and approve supplier initiation requests'}
+            </p>
           </div>
 
           {/* Tabs */}
@@ -496,13 +545,15 @@ export default function ApprovalsPage() {
                   <Badge variant="secondary" className="ml-2">{filteredInitiations.length}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="reviews" className="flex items-center gap-2">
-                <FileCheck className="h-4 w-4" />
-                Document Reviews
-                {suppliers.length > 0 && (
-                  <Badge variant="secondary" className="ml-2">{suppliers.length}</Badge>
-                )}
-              </TabsTrigger>
+              {isPMOrAdmin && (
+                <TabsTrigger value="reviews" className="flex items-center gap-2">
+                  <FileCheck className="h-4 w-4" />
+                  Document Reviews
+                  {suppliers.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">{suppliers.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
             </TabsList>
 
             {/* Initiation Approvals Tab */}
