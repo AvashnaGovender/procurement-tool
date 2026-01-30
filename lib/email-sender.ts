@@ -82,10 +82,24 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   // Use provided content (already templated from frontend)
   const emailSubject = subject || 'Supplier Onboarding - Welcome'
   
-  // Determine if this is an internal approval email (manager/procurement approval requests)
-  // Supplier onboarding emails should show "Welcome" header
+  // Determine the email type for appropriate header
   const isApprovalEmail = emailSubject.toLowerCase().includes('approval required') || 
                           emailSubject.toLowerCase().includes('approval pending')
+  const isRejectionEmail = emailSubject.toLowerCase().includes('rejected') || 
+                           emailSubject.toLowerCase().includes('rejection')
+  const isOnboardingRelated = isApprovalEmail || isRejectionEmail || 
+                              emailSubject.toLowerCase().includes('initiation') ||
+                              emailSubject.toLowerCase().includes('onboarding supplier')
+  
+  // Determine header text based on email type
+  let headerText = 'Welcome to Schauenburg Systems' // Default for supplier onboarding invites
+  if (isApprovalEmail) {
+    headerText = 'Onboarding Supplier Approval Required'
+  } else if (isRejectionEmail) {
+    headerText = 'Supplier Onboarding'
+  } else if (isOnboardingRelated) {
+    headerText = 'Supplier Onboarding'
+  }
   
   // Replace form link with onboarding-specific link if token is provided
   let emailContent = content
@@ -267,7 +281,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
           <tr>
             <td class="header" style="background-color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 3px solid #1e40af;">
               <img src="cid:logo" alt="Schauenburg Systems" class="logo" style="max-width: 150px; height: auto; margin-bottom: 20px; display: block;" />
-              <p class="header-text" style="color: #1e40af; font-size: 24px; font-weight: bold; margin: 0; line-height: 1.2;">${isApprovalEmail ? 'Onboarding Supplier Approval Required' : 'Welcome to Schauenburg Systems'}</p>
+              <p class="header-text" style="color: #1e40af; font-size: 24px; font-weight: bold; margin: 0; line-height: 1.2;">${headerText}</p>
             </td>
           </tr>
           
