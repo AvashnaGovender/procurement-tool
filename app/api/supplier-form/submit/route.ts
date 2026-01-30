@@ -333,56 +333,56 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Supplier created: ${supplier.id} (${supplier.companyName})`)
 
-    // Get initiator email for notifications
-    // Priority: 1) Initiator from onboarding, 2) Logged-in user, 3) Fallback to system admin
-    let recipientEmail = null
-    let recipientName = null
+    // Get Procurement Manager emails for notifications
+    // When supplier uploads documents, ONLY PM should be notified, NOT the initiator
+    let recipientEmails: string[] = []
+    let recipientNames: string[] = []
     
     try {
-      // First, try to get the initiator from the onboarding record
-      if (existingOnboarding?.initiatedById) {
-        const initiator = await prisma.user.findUnique({
-          where: { id: existingOnboarding.initiatedById }
+      // Get all Procurement Managers
+      const procurementManagers = await prisma.user.findMany({
+        where: { 
+          role: 'PROCUREMENT_MANAGER',
+          isActive: true 
+        },
+        select: {
+          email: true,
+          name: true
+        }
+      })
+      
+      if (procurementManagers.length > 0) {
+        recipientEmails = procurementManagers.map(pm => pm.email)
+        recipientNames = procurementManagers.map(pm => pm.name || pm.email.split('@')[0])
+        console.log('📧 Found Procurement Managers for notifications:', recipientEmails)
+      } else {
+        console.log('⚠️ No Procurement Managers found, falling back to Admin users')
+        // Fallback: Get admin users
+        const adminUsers = await prisma.user.findMany({
+          where: { 
+            role: 'ADMIN',
+            isActive: true 
+          },
+          select: {
+            email: true,
+            name: true
+          }
         })
         
-        if (initiator) {
-          recipientEmail = initiator.email
-          recipientName = initiator.name || initiator.email.split('@')[0]
-          console.log('📧 Using initiator email for notifications:', recipientEmail)
-        }
-      }
-      
-      // Fallback: Try to get logged-in user (if supplier is logged in)
-      if (!recipientEmail) {
-        const session = await getServerSession(authOptions)
-        
-        if (session?.user?.email) {
-          recipientEmail = session.user.email
-          recipientName = session.user.name || session.user.email.split('@')[0]
-          console.log('📧 Using logged-in user email for notifications:', recipientEmail)
-        }
-      }
-      
-      // Last resort: Get first admin user
-      if (!recipientEmail) {
-        const adminUser = await prisma.user.findFirst({
-          where: { role: 'ADMIN', isActive: true }
-        })
-        
-        if (adminUser) {
-          recipientEmail = adminUser.email
-          recipientName = adminUser.name || 'Admin'
-          console.log('📧 Using admin email as fallback for notifications:', recipientEmail)
+        if (adminUsers.length > 0) {
+          recipientEmails = adminUsers.map(admin => admin.email)
+          recipientNames = adminUsers.map(admin => admin.name || 'Admin')
+          console.log('📧 Using admin emails as fallback for notifications:', recipientEmails)
         }
       }
     } catch (error) {
-      console.log('⚠️ Could not determine recipient email, will use system default')
+      console.log('⚠️ Could not determine recipient emails, will use system default')
     }
 
     // Send email notifications
     try {
-      console.log('📧 Attempting to send email notifications...')
-      await sendEmailNotifications(supplier, supplierData, uploadedFiles, recipientEmail, recipientName, existingOnboarding)
+      console.log('📧 Attempting to send email notifications to Procurement Managers...')
+      await sendEmailNotifications(supplier, supplierData, uploadedFiles, recipientEmails, recipientNames, existingOnboarding)
       console.log('✅ Email notifications sent successfully')
     } catch (emailError) {
       console.error('⚠️ Email notification failed (form still submitted):')
@@ -417,13 +417,13 @@ async function sendEmailNotifications(
   supplier: any,
   supplierData: any,
   uploadedFiles: { [key: string]: string[] },
-  adminEmail: string | null,
-  adminName: string | null,
+  pmEmails: string[],
+  pmNames: string[],
   onboarding: any = null
 ) {
   try {
     console.log('📧 sendEmailNotifications called')
-    console.log('Admin email:', adminEmail)
+    console.log('PM emails:', pmEmails.join(', '))
     console.log('Supplier email:', supplierData.emailAddress)
     
     // Load SMTP configuration
@@ -457,16 +457,16 @@ async function sendEmailNotifications(
     const totalFiles = Object.values(uploadedFiles).reduce((acc, files) => acc + files.length, 0)
     const documentCategories = Object.keys(uploadedFiles).join(', ')
 
-    // Determine recipient email (use initiator/logged-in user's email or fallback to company email)
-    const recipientEmail = adminEmail || smtpConfig.fromEmail
-    const senderName = adminName || smtpConfig.companyName || 'Procurement Team'
+    // Use Procurement Manager emails or fallback to company email
+    const recipientEmails = pmEmails.length > 0 ? pmEmails : [smtpConfig.fromEmail]
+    const recipientNamesStr = pmNames.length > 0 ? pmNames.join(', ') : 'Procurement Team'
     
-    console.log('\n📧 ===== SENDING EMAIL TO INITIATOR =====')
-    console.log('   Recipient Email:', recipientEmail)
-    console.log('   Recipient Name:', senderName)
+    console.log('\n📧 ===== SENDING EMAIL TO PROCUREMENT MANAGERS =====')
+    console.log('   Recipient Emails:', recipientEmails.join(', '))
+    console.log('   Recipient Names:', recipientNamesStr)
     console.log('   Supplier:', supplierData.supplierName)
     console.log('   Total Files:', totalFiles)
-    console.log('==========================================\n')
+    console.log('====================================================\n')
     
     // Check if this is a revision
     const isRevision = onboarding?.revisionCount > 0
@@ -475,10 +475,10 @@ async function sendEmailNotifications(
     // Get base URL for email links
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
 
-    // 1. Send notification to initiator (person who created the supplier initiation request)
-    const adminNotification = {
+    // 1. Send notification to Procurement Managers (NOT initiator)
+    const pmNotification = {
       from: smtpConfig.fromEmail,
-      to: recipientEmail, // Send to initiator's email
+      to: recipientEmails.join(', '), // Send to all Procurement Managers
       subject: isRevision 
         ? `Supplier Revision Submitted: ${supplierData.supplierName} (Revision ${onboarding.revisionCount})`
         : `Supplier Documents Received: ${supplierData.supplierName}`,
@@ -673,7 +673,7 @@ async function sendEmailNotifications(
                           <tr>
                             <td style="padding: 20px;">
                               <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 18px;">🔄 Revision Submission (Version ${onboarding.revisionCount + 1})</h3>
-                              <p style="margin: 0 0 15px 0; color: #856404; font-weight: 600;">The supplier has updated their submission based on your revision request.</p>
+                              <p style="margin: 0 0 15px 0; color: #856404; font-weight: 600;">The supplier has updated their submission based on your revision request. Please review the changes.</p>
                               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: white;">
                                 <tr>
                                   <td style="padding: 15px;">
@@ -686,7 +686,7 @@ async function sendEmailNotifications(
                           </tr>
                         </table>
                       ` : `
-                        <p>A new supplier has completed the onboarding form and submitted their documentation for review.</p>
+                        <p>A supplier has completed the onboarding form and submitted their documentation for your review.</p>
                       `}
                       
                       <!-- Company Information -->
@@ -826,18 +826,18 @@ async function sendEmailNotifications(
       `
     }
 
-    console.log('📧 Sending admin notification...')
-    console.log('📨 Sending email to initiator...')
-    console.log('   From:', adminNotification.from)
-    console.log('   To:', adminNotification.to)
-    console.log('   Subject:', adminNotification.subject)
+    console.log('📧 Sending Procurement Manager notification...')
+    console.log('📨 Sending email to Procurement Managers...')
+    console.log('   From:', pmNotification.from)
+    console.log('   To:', pmNotification.to)
+    console.log('   Subject:', pmNotification.subject)
     
-    const adminResult = await transporter.sendMail(adminNotification)
+    const pmResult = await transporter.sendMail(pmNotification)
     
-    console.log(`✅ Initiator notification email sent successfully!`)
-    console.log('   To:', recipientEmail)
-    console.log('   Message ID:', adminResult.messageId)
-    console.log('   Response:', adminResult.response)
+    console.log(`✅ Procurement Manager notification email sent successfully!`)
+    console.log('   To:', recipientEmails.join(', '))
+    console.log('   Message ID:', pmResult.messageId)
+    console.log('   Response:', pmResult.response)
 
     // Supplier thank you email removed - suppliers only receive initial onboarding email and final approval email
     console.log('📧 Skipping supplier thank you email (only initial and approval emails are sent)')

@@ -27,9 +27,12 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  Trash2
+  Trash2,
+  ShieldAlert
 } from "lucide-react"
 import Link from "next/link"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { SupplierInitiationStatus } from "@/components/suppliers/supplier-initiation-status"
 
 // Helper function to get currency symbol
@@ -122,6 +125,8 @@ type SortField = 'supplierCode' | 'companyName' | 'contactPerson' | 'contactEmai
 type SortDirection = 'asc' | 'desc'
 
 export default function SupplierSubmissionsPage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -129,9 +134,27 @@ export default function SupplierSubmissionsPage() {
   const [sortField, setSortField] = useState<SortField>('createdAt')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
+  // Check if user has permission to access this page
   useEffect(() => {
-    fetchSuppliers()
-  }, [])
+    if (status === 'loading') return
+    
+    if (!session) {
+      router.push('/login')
+      return
+    }
+    
+    // Only PROCUREMENT_MANAGER and ADMIN can access this page
+    if (session.user.role !== 'PROCUREMENT_MANAGER' && session.user.role !== 'ADMIN') {
+      router.push('/dashboard')
+      return
+    }
+  }, [session, status, router])
+
+  useEffect(() => {
+    if (session?.user.role === 'PROCUREMENT_MANAGER' || session?.user.role === 'ADMIN') {
+      fetchSuppliers()
+    }
+  }, [session])
 
   const fetchSuppliers = async () => {
     setLoading(true)
@@ -331,6 +354,43 @@ export default function SupplierSubmissionsPage() {
       return (status === 'PENDING' && onboarding?.overallStatus === 'AWAITING_RESPONSE') ||
              (!onboarding?.supplierFormSubmitted && onboarding?.emailSent)
     }).length,
+  }
+
+  // Show loading state while checking authentication
+  if (status === 'loading') {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      </div>
+    )
+  }
+
+  // Show unauthorized message if user doesn't have proper role
+  if (!session || (session.user.role !== 'PROCUREMENT_MANAGER' && session.user.role !== 'ADMIN')) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-100">
+        <Card className="max-w-md">
+          <CardHeader>
+            <div className="flex items-center gap-2 text-red-600">
+              <ShieldAlert className="h-6 w-6" />
+              <CardTitle>Access Restricted</CardTitle>
+            </div>
+            <CardDescription>
+              You do not have permission to access this page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-600 mb-4">
+              This page is only accessible to Procurement Managers and Administrators. 
+              As an initiator, your role ends after the supplier uploads their documents.
+            </p>
+            <Button onClick={() => router.push('/dashboard')} className="w-full">
+              Return to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
