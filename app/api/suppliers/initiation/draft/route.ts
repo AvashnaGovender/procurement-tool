@@ -273,11 +273,20 @@ export async function GET(request: NextRequest) {
 
       // Convert annual purchase value back to range
       let annualPurchaseValueRange: string | null = null
-      if (initiation.annualPurchaseValue) {
+      console.log('📊 Raw initiation data:', {
+        id: initiation.id,
+        annualPurchaseValue: initiation.annualPurchaseValue,
+        type: typeof initiation.annualPurchaseValue,
+        purchaseType: initiation.purchaseType,
+        status: initiation.status
+      })
+      
+      if (initiation.annualPurchaseValue !== null && initiation.annualPurchaseValue !== undefined) {
         const value = initiation.annualPurchaseValue
         console.log('📊 Converting annual purchase value:', value, 'Type:', typeof value)
         // Handle both number and string inputs
         const numericValue = typeof value === 'string' ? parseFloat(value) : value
+        console.log('📊 Numeric value:', numericValue)
         
         if (numericValue <= 100000) {
           annualPurchaseValueRange = "0-100k"
@@ -290,7 +299,7 @@ export async function GET(request: NextRequest) {
         }
         console.log('📊 Converted to range:', annualPurchaseValueRange)
       } else {
-        console.log('⚠️ No annual purchase value found in initiation')
+        console.log('⚠️ Annual purchase value is null or undefined in initiation')
       }
 
       // Determine relationship declaration and "Other" value

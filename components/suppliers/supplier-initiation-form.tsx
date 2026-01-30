@@ -105,7 +105,8 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         console.log('📥 Draft data received:', data)
         if (data.success && data.initiation) {
           const draft = data.initiation
-          console.log('💰 Annual Purchase Value from API:', draft.annualPurchaseValue)
+          console.log('💰 Annual Purchase Value from API:', draft.annualPurchaseValue, 'Type:', typeof draft.annualPurchaseValue)
+          console.log('📋 Full draft object:', JSON.stringify(draft, null, 2))
           setCurrentDraftId(draft.id)
           
           // Check if this is a rejected initiation and store rejection info
@@ -129,12 +130,19 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
 
           // Determine purchase type from draft
           const purchaseType = draft.purchaseType || (draft.regularPurchase ? 'REGULAR' : (draft.onceOffPurchase ? 'ONCE_OFF' : 'SHARED_IP'))
+          console.log('📝 Purchase type determination:', {
+            draftPurchaseType: draft.purchaseType,
+            draftRegularPurchase: draft.regularPurchase,
+            determinedPurchaseType: purchaseType
+          })
           // Convert ONCE_OFF to SHARED_IP for new structure
           const normalizedPurchaseType = purchaseType === 'ONCE_OFF' ? 'SHARED_IP' : (purchaseType === 'REGULAR' ? 'REGULAR' : 'SHARED_IP')
+          console.log('📝 Normalized purchase type:', normalizedPurchaseType)
           
           // The API already converts the numeric value to string format, so just use it directly
           const annualPurchaseValueStr = draft.annualPurchaseValue || ""
           console.log('💰 Annual Purchase Value for form:', annualPurchaseValueStr)
+          console.log('🔍 Will annual purchase field show?', normalizedPurchaseType === 'REGULAR')
           
           setFormData({
             businessUnit: businessUnit || [],
