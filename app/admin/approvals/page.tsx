@@ -621,7 +621,7 @@ export default function ApprovalsPage() {
                           {selectedInitiation.onceOffPurchase && 'Once-off Purchase'}
                         </p>
                         {selectedInitiation.annualPurchaseValue && (
-                          <p className="mt-1"><strong>Annual Value:</strong> R{selectedInitiation.annualPurchaseValue.toLocaleString()}</p>
+                          <p className="mt-1"><strong>Annual Value:</strong> {formatAnnualPurchaseValue(selectedInitiation.annualPurchaseValue, selectedInitiation.currency, selectedInitiation.supplierLocation)}</p>
                         )}
                       </div>
                       <div>

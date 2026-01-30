@@ -4,6 +4,38 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-sender'
 
+// Helper function to get currency symbol
+function getCurrencySymbol(currency: string | null | undefined, supplierLocation: string | null | undefined): string {
+  if (!currency || supplierLocation === 'LOCAL') {
+    return 'R'
+  }
+  
+  switch (currency.toUpperCase()) {
+    case 'USD': return '$'
+    case 'EUR': return '€'
+    case 'GBP': return '£'
+    case 'ZAR': return 'R'
+    default: return currency.toUpperCase() + ' '
+  }
+}
+
+// Helper function to format annual purchase value as a range
+function formatAnnualPurchaseValue(value: number | null | undefined, currency: string | null | undefined, supplierLocation: string | null | undefined): string {
+  if (!value) return ''
+  
+  const symbol = getCurrencySymbol(currency, supplierLocation)
+  
+  if (value <= 100000) {
+    return `${symbol}0 - ${symbol}100,000`
+  } else if (value <= 500000) {
+    return `${symbol}100,000 - ${symbol}500,000`
+  } else if (value <= 1000000) {
+    return `${symbol}500,000 - ${symbol}1,000,000`
+  } else {
+    return `${symbol}1,000,000+`
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -299,7 +331,7 @@ Your onboarding request has been reviewed and approved. We're excited to begin w
 - Business Unit: ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200')}
 - Product/Service Category: ${initiationDetails.productServiceCategory}
 - Purchase Type: ${initiationDetails.purchaseType === 'REGULAR' ? 'Regular Purchase' : initiationDetails.purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
-${initiationDetails.annualPurchaseValue ? `- Annual Purchase Value: R${initiationDetails.annualPurchaseValue.toLocaleString()}` : ''}
+${initiationDetails.annualPurchaseValue ? `- Annual Purchase Value: ${formatAnnualPurchaseValue(initiationDetails.annualPurchaseValue, initiationDetails.currency, initiationDetails.supplierLocation)}` : ''}
 
 <strong>Next Step:</strong>
 Please complete your supplier registration by clicking the button below. You'll be guided through uploading the required documentation and compliance information.
