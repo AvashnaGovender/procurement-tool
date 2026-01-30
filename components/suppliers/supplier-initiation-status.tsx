@@ -185,42 +185,8 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
             )}
           </div>
 
-          {/* Procurement Approval */}
-          <div className="border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                {getStatusIcon(initiationData.procurementApproval?.status || 'PENDING')}
-                <span className="font-medium">Procurement Manager Approval</span>
-              </div>
-              <Badge className={getStatusColor(initiationData.procurementApproval?.status || 'PENDING')}>
-                {initiationData.procurementApproval?.status || 'PENDING'}
-              </Badge>
-            </div>
-            {initiationData.procurementApproval && (
-              <div className="text-sm text-gray-600 space-y-2">
-                <p>Approver: {initiationData.procurementApproval.approver}</p>
-                {initiationData.procurementApproval.approvedAt && (
-                  <p>
-                    {initiationData.procurementApproval.status === 'APPROVED' ? 'Approved: ' : 
-                     initiationData.procurementApproval.status === 'REJECTED' ? 'Rejected: ' : 'Date: '}
-                    {new Date(initiationData.procurementApproval.approvedAt).toLocaleString()}
-                  </p>
-                )}
-                {initiationData.procurementApproval.comments && initiationData.procurementApproval.status === 'REJECTED' && (
-                  <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded">
-                    <p className="text-xs font-medium text-red-900 mb-1">Rejection Reason:</p>
-                    <p className="text-sm text-red-800">{initiationData.procurementApproval.comments}</p>
-                  </div>
-                )}
-                {initiationData.procurementApproval.comments && initiationData.procurementApproval.status === 'APPROVED' && (
-                  <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded">
-                    <p className="text-xs font-medium text-green-900 mb-1">Comments:</p>
-                    <p className="text-sm text-green-800">{initiationData.procurementApproval.comments}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Procurement Approval - REMOVED FROM WORKFLOW */}
+          {/* Procurement manager approval is no longer part of the workflow */}
         </CardContent>
       </Card>
 
@@ -242,7 +208,7 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
             ) : (
               <div className="flex items-center gap-2 text-yellow-600">
                 <Clock className="h-4 w-4" />
-                <span>Waiting for both approvals to send email to supplier</span>
+                <span>Waiting for manager approval to send email to supplier</span>
               </div>
             )}
           </CardContent>

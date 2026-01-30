@@ -216,62 +216,20 @@ export default function ApprovalsPage() {
   }
 
   const canApproveAsProcurement = (initiation: SupplierInitiation) => {
-    const userId = session?.user?.id
-    const userRole = session?.user?.role
-    
-    // CRITICAL: Initiator cannot approve their own request
-    if (initiation.initiatedById === userId) {
-      return false
-    }
-    
-    // SEQUENTIAL WORKFLOW: Manager must approve first
-    if (initiation.managerApproval?.status !== 'APPROVED') {
-      return false
-    }
-    
-    // Procurement approval must exist and be PENDING
-    const procurementStatus = initiation.procurementApproval?.status
-    const procurementApproverId = initiation.procurementApproval?.approverId
-    
-    // If procurement approval doesn't exist yet, user cannot approve
-    if (!initiation.procurementApproval) {
-      return false
-    }
-    
-    // Procurement approval must be PENDING
-    if (procurementStatus !== 'PENDING') return false
-    
-    // Check if user is directly assigned as procurement approver
-    const isDirectlyAssigned = procurementApproverId === userId
-    
-    // Check if user has delegated procurement authority
-    const hasDelegatedAuthority = initiation.isDelegated && 
-                                   (initiation.delegationType === 'PROCUREMENT' || 
-                                    initiation.delegationType === 'BOTH')
-    
-    // User can approve if they're directly assigned OR have delegated authority
-    return isDirectlyAssigned || hasDelegatedAuthority
+    // Procurement approval step has been removed from the workflow
+    // This function is kept for backward compatibility but always returns false
+    return false
   }
 
   const getApprovalStatus = (initiation: SupplierInitiation) => {
-    const { managerApproval, procurementApproval } = initiation
+    const { managerApproval } = initiation
     
-    if (managerApproval?.status === 'APPROVED' && procurementApproval?.status === 'APPROVED') {
-      return 'Both Approved'
+    if (managerApproval?.status === 'APPROVED') {
+      return 'Approved'
     }
     
-    if (managerApproval?.status === 'REJECTED' || procurementApproval?.status === 'REJECTED') {
+    if (managerApproval?.status === 'REJECTED') {
       return 'Rejected'
-    }
-    
-    // SEQUENTIAL WORKFLOW: Manager must approve first
-    if (managerApproval?.status === 'APPROVED' && (!procurementApproval || procurementApproval?.status === 'PENDING')) {
-      return 'Manager Approved - Awaiting Procurement'
-    }
-    
-    // This should not happen in sequential workflow, but handle it for safety
-    if (procurementApproval?.status === 'APPROVED' && managerApproval?.status !== 'APPROVED') {
-      return 'Procurement Approved - Awaiting Manager'
     }
     
     // Manager approval is pending
@@ -279,7 +237,7 @@ export default function ApprovalsPage() {
       return 'Awaiting Manager Approval'
     }
     
-    return 'Awaiting Approvals'
+    return 'Pending'
   }
 
   const filteredInitiations = initiations.filter(initiation => {
@@ -521,30 +479,7 @@ export default function ApprovalsPage() {
                                       </div>
                                     )}
                                   </div>
-                                  <div>
-                                    <p className="text-sm font-medium text-slate-600">Procurement Approval</p>
-                                    <div className="flex items-center gap-2 mb-1">
-                                      {getStatusIcon(initiation.procurementApproval?.status || 'PENDING')}
-                                      <span className="text-sm">
-                                        {initiation.procurementApproval?.status || 'PENDING'}
-                                      </span>
-                                    </div>
-                                    {initiation.procurementApproval?.approver && (
-                                      <p className="text-xs text-slate-500">by {initiation.procurementApproval.approver}</p>
-                                    )}
-                                    {initiation.procurementApproval?.status === 'REJECTED' && initiation.procurementApproval?.comments && (
-                                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                                        <p className="text-xs font-medium text-red-900 mb-1">Rejection Reason:</p>
-                                        <p className="text-xs text-red-800">{initiation.procurementApproval.comments}</p>
-                                      </div>
-                                    )}
-                                    {initiation.procurementApproval?.status === 'APPROVED' && initiation.procurementApproval?.comments && (
-                                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
-                                        <p className="text-xs font-medium text-green-900 mb-1">Comments:</p>
-                                        <p className="text-xs text-green-800">{initiation.procurementApproval.comments}</p>
-                                      </div>
-                                    )}
-                                  </div>
+                                  {/* Procurement approval removed from workflow */}
                                 </div>
                                 <div className="pt-4 border-t">
                                   <p className="text-sm font-medium text-slate-600 mb-2">Reason for Onboarding Supplier:</p>
