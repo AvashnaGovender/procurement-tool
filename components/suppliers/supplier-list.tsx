@@ -321,9 +321,13 @@ export function SupplierList({ searchQuery = "", filters }: SupplierListProps) {
               .toUpperCase()
               .slice(0, 2)
             
+            // Check if user can view supplier details (PM or Admin only)
+            const canViewDetails = session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN'
+            const handleCardClick = canViewDetails ? () => router.push(`/admin/supplier-submissions/${supplier.id}`) : undefined
+            
             return (
-              <Card key={supplier.id} className="bg-card border-border hover:bg-accent/50 transition-all cursor-pointer">
-                <CardContent className="p-6" onClick={() => router.push(`/admin/supplier-submissions/${supplier.id}`)}>
+              <Card key={supplier.id} className={`bg-card border-border transition-all ${canViewDetails ? 'hover:bg-accent/50 cursor-pointer' : ''}`}>
+                <CardContent className="p-6" onClick={handleCardClick}>
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-4">
                   <Avatar className="h-12 w-12">
@@ -371,18 +375,27 @@ export function SupplierList({ searchQuery = "", filters }: SupplierListProps) {
                     </Button>
                   </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/admin/supplier-submissions/${supplier.id}`}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Details
-                          </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href={`/admin/supplier-submissions/${supplier.id}`}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Supplier
-                      </Link>
-                    </DropdownMenuItem>
+                        {canViewDetails ? (
+                          <>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/admin/supplier-submissions/${supplier.id}`}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/admin/supplier-submissions/${supplier.id}`}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit Supplier
+                              </Link>
+                            </DropdownMenuItem>
+                          </>
+                        ) : (
+                          <DropdownMenuItem disabled>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details (PM Only)
+                          </DropdownMenuItem>
+                        )}
                     {session?.user?.role === 'ADMIN' && (
                       <DropdownMenuItem 
                         className="text-red-600"
