@@ -314,6 +314,29 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
           ...prev,
           [key]: !currentState
         }))
+        
+        // Check if all mandatory documents are now verified after state update
+        setTimeout(async () => {
+          if (areAllMandatoryDocumentsVerified() && supplier?.status === 'UNDER_REVIEW') {
+            try {
+              const statusResponse = await fetch('/api/suppliers/update-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  supplierId: supplier.id,
+                  status: 'AWAITING_FINAL_APPROVAL'
+                })
+              })
+              
+              if (statusResponse.ok) {
+                console.log('✅ All mandatory documents verified - Status updated to AWAITING_FINAL_APPROVAL')
+                await fetchSupplier() // Refresh supplier data to show new status
+              }
+            } catch (error) {
+              console.error('Error updating status:', error)
+            }
+          }
+        }, 500) // Small delay to ensure state is updated
       } else {
         setErrorMessage('Failed to update verification status')
         setErrorDialogOpen(true)
