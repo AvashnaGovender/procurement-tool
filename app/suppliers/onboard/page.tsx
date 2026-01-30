@@ -3,9 +3,8 @@
 import React, { Suspense, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Home, Settings, Plus, List } from "lucide-react"
+import { ArrowLeft, Home, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
@@ -31,16 +30,9 @@ function SupplierOnboardingContent() {
   const [initiationId, setInitiationId] = useState<string | null>(null)
   const [showInitiationForm, setShowInitiationForm] = useState(true)
   
-  // Initialize tab state - default to 'new' to match server render
-  const [mainTab, setMainTab] = useState<"new" | "review">("new")
-  
-  // Update tab from URL params after mount (client-side only)
+  // Update initiation ID from URL params after mount (client-side only)
   useEffect(() => {
-    const tab = searchParams.get('tab')
     const draftId = searchParams.get('draftId')
-    if (tab === 'review') {
-      setMainTab('review')
-    }
     if (draftId) {
       setInitiationId(draftId)
     }
@@ -123,26 +115,11 @@ function SupplierOnboardingContent() {
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-8">
-          {/* Main Tabs: New Onboarding vs Review Submissions */}
-          <Tabs value={mainTab} onValueChange={(value) => setMainTab(value as typeof mainTab)} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8 bg-white border-slate-200">
-              <TabsTrigger value="new" className="flex items-center gap-2 text-slate-700 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg">
-                <Plus className="h-4 w-4" />
-                Initiate New Onboarding
-              </TabsTrigger>
-              <TabsTrigger value="review" className="flex items-center gap-2 text-slate-700 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg">
-                <List className="h-4 w-4" />
-                Review Submissions
-              </TabsTrigger>
-            </TabsList>
-
-            {/* New Onboarding Tab */}
-            <TabsContent value="new">
-              {showInitiationForm ? (
-                <div className="space-y-6">
-                  <Card className="bg-blue-50 border-blue-200">
-                    <CardHeader>
-                      <CardTitle className="text-blue-900">Step 1: Supplier Onboarding Initiation</CardTitle>
+          {showInitiationForm ? (
+            <div className="space-y-6">
+              <Card className="bg-blue-50 border-blue-200">
+                <CardHeader>
+                  <CardTitle className="text-blue-900">Step 1: Supplier Onboarding Initiation</CardTitle>
                       <p className="text-blue-700">
                         Complete the checklist and submit for approval before proceeding with supplier onboarding.
                       </p>
@@ -201,42 +178,6 @@ function SupplierOnboardingContent() {
                   }}
                 />
               )}
-            </TabsContent>
-
-            {/* Review Submissions Tab */}
-            <TabsContent value="review">
-              <div className="space-y-6">
-                {/* Submissions Dashboard */}
-                <Card className="bg-white border-slate-200 shadow-lg">
-                  <CardHeader className="border-b border-slate-200 pb-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-slate-900 text-xl">Supplier Submissions</CardTitle>
-                        <p className="text-slate-600 text-sm mt-1">Review and manage all supplier onboarding submissions</p>
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => router.push('/admin/supplier-submissions')}
-                      >
-                        Open Full Dashboard
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="bg-slate-50 rounded-b-lg overflow-hidden">
-                      <iframe 
-                        src="/admin/supplier-submissions?embedded=true" 
-                        className="w-full border-0"
-                        style={{ minHeight: "calc(100vh - 450px)", height: "700px" }}
-                        title="Supplier Submissions Dashboard"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          </Tabs>
         </main>
         
         {/* Waiting Dialog after initiation send */}
@@ -258,10 +199,10 @@ function SupplierOnboardingContent() {
                   Close
                 </Button>
                 <Button 
-                  onClick={() => { setWaitingOpen(false); setMainTab('review') }}
+                  onClick={() => setWaitingOpen(false)}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  Go to Review
+                  Continue
                 </Button>
               </div>
             </div>
