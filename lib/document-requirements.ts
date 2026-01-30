@@ -21,9 +21,13 @@ export function getRequiredDocuments(
     'bankConfirmation',     // Bank Confirmation Letter
   ]
 
-  // Add NDA and Credit Application only if payment method is NOT COD
-  if (paymentMethod !== 'COD') {
+  // Add NDA only for SHARED_IP purchase type (and only if payment method is NOT COD)
+  if (purchaseType === 'SHARED_IP' && paymentMethod !== 'COD') {
     baseDocs.push('nda')                  // Non-Disclosure Agreement
+  }
+
+  // Add Credit Application only if payment method is NOT COD
+  if (paymentMethod !== 'COD') {
     baseDocs.push('creditApplication')    // Credit Application Form
   }
 
@@ -56,9 +60,13 @@ export function getMandatoryDocuments(
     'bankConfirmation',     // Bank Confirmation Letter
   ]
 
-  // Add NDA and Credit Application only if payment method is NOT COD
-  if (paymentMethod !== 'COD') {
+  // Add NDA only for SHARED_IP purchase type (and only if payment method is NOT COD)
+  if (purchaseType === 'SHARED_IP' && paymentMethod !== 'COD') {
     mandatoryDocs.push('nda')                  // Non-Disclosure Agreement
+  }
+
+  // Add Credit Application only if payment method is NOT COD
+  if (paymentMethod !== 'COD') {
     mandatoryDocs.push('creditApplication')    // Credit Application Form
   }
 
