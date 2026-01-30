@@ -54,6 +54,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     status: string
     comments?: string
     rejectedBy?: string
+    rejectedByName?: string
   } | null>(null)
   const [formData, setFormData] = useState({
     businessUnit: [] as string[],
@@ -112,7 +113,12 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
             setRejectionInfo({
               status: draft.status,
               comments: draft.managerApproval.comments,
-              rejectedBy: draft.managerApproval.approver
+              rejectedBy: typeof draft.managerApproval.approver === 'string' 
+                ? draft.managerApproval.approver 
+                : draft.managerApproval.approver?.name,
+              rejectedByName: typeof draft.managerApproval.approver === 'object'
+                ? draft.managerApproval.approver?.name
+                : draft.managerApproval.approver
             })
           }
           
@@ -459,7 +465,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                 Initiation Rejected - Revision Required
               </h3>
               <p className="text-sm text-red-800 mb-3">
-                Your supplier initiation was rejected by {rejectionInfo.rejectedBy || 'the manager'}. 
+                Your supplier initiation was rejected by {rejectionInfo.rejectedByName || rejectionInfo.rejectedBy || 'the manager'}. 
                 Please review the rejection reason below, make the necessary changes, and resubmit.
               </p>
               {rejectionInfo.comments && (
