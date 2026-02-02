@@ -1,4 +1,6 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import fs from 'fs'
+import path from 'path'
 
 interface SupplierFormData {
   supplierName?: string
@@ -18,6 +20,12 @@ export async function generateSupplierFormPDF(data: SupplierFormData): Promise<B
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
     
+    // Embed logo
+    const logoPath = path.join(process.cwd(), 'public', 'logo.png')
+    const logoImageBytes = fs.readFileSync(logoPath)
+    const logoImage = await pdfDoc.embedPng(logoImageBytes)
+    const logoDims = logoImage.scale(0.15) // Adjust scale as needed
+    
     const pageWidth = 595.28
     const pageHeight = 841.89
     const margin = 50
@@ -25,6 +33,16 @@ export async function generateSupplierFormPDF(data: SupplierFormData): Promise<B
     
     let currentPage = pdfDoc.addPage([pageWidth, pageHeight])
     let yPosition = pageHeight - margin
+    
+    // Draw logo at top center
+    const logoX = (pageWidth - logoDims.width) / 2
+    currentPage.drawImage(logoImage, {
+      x: logoX,
+      y: yPosition - logoDims.height,
+      width: logoDims.width,
+      height: logoDims.height,
+    })
+    yPosition -= logoDims.height + 20
 
     const checkNewPage = (requiredSpace: number = 50) => {
       if (yPosition - requiredSpace < margin) {

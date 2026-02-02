@@ -1172,8 +1172,18 @@ Procurement Team`
                   </Alert>
                 )}
                 
+                {/* Read-only notice for revision requested */}
+                {supplier.onboarding?.revisionRequested && (
+                  <Alert className="border-orange-200 bg-orange-50">
+                    <Clock className="h-4 w-4 text-orange-600" />
+                    <AlertDescription className="text-orange-800">
+                      <strong>Revision Requested:</strong> A revision has been requested from the supplier. All document verification and actions are disabled until the supplier submits the revised documents.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
                 {/* All Docs Verified button for PM */}
-                {supplier.status === 'UNDER_REVIEW' && (session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && (
+                {supplier.status === 'UNDER_REVIEW' && !supplier.onboarding?.revisionRequested && (session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && (
                   <Card className="border-green-200 bg-green-50">
                     <CardContent className="pt-6">
                       <div className="flex items-center justify-between">
@@ -1543,12 +1553,12 @@ Procurement Team`
                                   <Checkbox
                                     id={`verify-${verificationKey}`}
                                     checked={isVerified}
-                                    disabled={supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED'}
+                                    disabled={supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED' || supplier?.onboarding?.revisionRequested}
                                     onCheckedChange={() => handleVerificationToggle(versionData.version, category, file, isVerified)}
                                   />
                                   <label
                                     htmlFor={`verify-${verificationKey}`}
-                                    className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED' ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+                                    className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED' || supplier?.onboarding?.revisionRequested ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
                                   >
                                     Verified
                                   </label>
@@ -1557,12 +1567,12 @@ Procurement Team`
                                   <Checkbox
                                     id={`incorrect-${verificationKey}`}
                                     checked={isIncorrect}
-                                    disabled={supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED'}
+                                    disabled={supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED' || supplier?.onboarding?.revisionRequested}
                                     onCheckedChange={() => handleIncorrectToggle(versionData.version, category, file, isIncorrect)}
                                   />
                                   <label
                                     htmlFor={`incorrect-${verificationKey}`}
-                                    className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-red-600 ${supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED' ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+                                    className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-red-600 ${supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED' || supplier?.onboarding?.revisionRequested ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
                                   >
                                     Incorrect
                                   </label>
@@ -1636,7 +1646,7 @@ Procurement Team`
                 <CardContent className="space-y-4">
                   <Button 
                     onClick={handleAIAnalysis}
-                    disabled={aiProcessing || supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED'}
+                    disabled={aiProcessing || supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED' || supplier?.onboarding?.revisionRequested}
                     className="w-full sm:w-auto"
                   >
                     {aiProcessing ? (
@@ -2078,6 +2088,7 @@ Procurement Team`
                               <Select
                                 value={creditController}
                                 onValueChange={setCreditController}
+                                disabled={supplier.onboarding?.revisionRequested}
                               >
                                 <SelectTrigger id="creditController" className="w-full">
                                   <SelectValue placeholder="Select credit controller" />
@@ -2101,40 +2112,21 @@ Procurement Team`
                               <Button 
                                 onClick={handleApproveClick} 
                                 className="bg-green-600 hover:bg-green-700"
-                                disabled={!creditController}
+                                disabled={!creditController || supplier.onboarding?.revisionRequested}
                               >
                                 <CheckCircle className="h-4 w-4 mr-2" />
                                 Approve Supplier
                               </Button>
-                              <Button onClick={handleRejectClick} variant="destructive" className="bg-red-600 hover:bg-red-700">
+                              <Button 
+                                onClick={handleRejectClick} 
+                                variant="destructive" 
+                                className="bg-red-600 hover:bg-red-700"
+                                disabled={supplier.onboarding?.revisionRequested}
+                              >
                                 <X className="h-4 w-4 mr-2" />
                                 Reject Supplier
                               </Button>
                             </div>
-                          </div>
-                        )}
-
-                        {/* Resend Approval Pack button - available for PM */}
-                        {session?.user?.role === 'PROCUREMENT_MANAGER' && (
-                          <div className="pt-4 border-t">
-                            <Button
-                              onClick={handleResendApprovalPack}
-                              disabled={resendingApprovalPack}
-                              variant="outline"
-                              className="w-full"
-                            >
-                              {resendingApprovalPack ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  Resending...
-                                </>
-                              ) : (
-                                <>
-                                  <Mail className="h-4 w-4 mr-2" />
-                                  Resend Approval Pack
-                                </>
-                              )}
-                            </Button>
                           </div>
                         )}
                       </>
@@ -2157,6 +2149,30 @@ Procurement Team`
                         : '❌ This supplier has been rejected. No further actions are available.'}
                     </AlertDescription>
                   </Alert>
+                )}
+                
+                {/* Resend Approval Pack button - available for PM */}
+                {session?.user?.role === 'PROCUREMENT_MANAGER' && (
+                  <div className="pt-4 border-t">
+                    <Button
+                      onClick={handleResendApprovalPack}
+                      disabled={resendingApprovalPack}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      {resendingApprovalPack ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Resending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="h-4 w-4 mr-2" />
+                          Resend Approval Pack
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 )}
                 
                 {/* Delete button - available for admin only */}
