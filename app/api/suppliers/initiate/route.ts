@@ -200,13 +200,9 @@ export async function POST(request: NextRequest) {
       if (typeof annualPurchaseValue === 'number') {
         annualPurchaseValueNumber = annualPurchaseValue
         console.log('✅ Already a number:', annualPurchaseValueNumber)
-      } else if (typeof annualPurchaseValue === 'string' && !isNaN(parseFloat(annualPurchaseValue)) && isFinite(parseFloat(annualPurchaseValue))) {
-        // If it's a numeric string, parse it
-        annualPurchaseValueNumber = parseFloat(annualPurchaseValue)
-        console.log('✅ Parsed numeric string:', annualPurchaseValueNumber)
-      } else {
-        // Convert string range to number
-        console.log('🔀 Converting range string to number, input:', annualPurchaseValue)
+      } else if (typeof annualPurchaseValue === 'string') {
+        // First, try to match range strings (do this BEFORE parseFloat check)
+        console.log('🔀 Checking range string, input:', annualPurchaseValue)
         switch (annualPurchaseValue) {
           case "0-100k":
             annualPurchaseValueNumber = 100000
@@ -225,8 +221,14 @@ export async function POST(request: NextRequest) {
             console.log('✅ Converted "1M+" to 2000000')
             break
           default:
-            annualPurchaseValueNumber = null
-            console.log('⚠️ No match for value, setting to null')
+            // If not a range string, try to parse as a plain number
+            if (!isNaN(parseFloat(annualPurchaseValue)) && isFinite(parseFloat(annualPurchaseValue))) {
+              annualPurchaseValueNumber = parseFloat(annualPurchaseValue)
+              console.log('✅ Parsed numeric string:', annualPurchaseValueNumber)
+            } else {
+              annualPurchaseValueNumber = null
+              console.log('⚠️ No match for value, setting to null')
+            }
         }
       }
     }
