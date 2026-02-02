@@ -253,6 +253,12 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       const data = await response.json()
       
       if (data.success) {
+        console.log('🔄 Fetched supplier data:', {
+          supplierId: data.supplier.id,
+          status: data.supplier.status,
+          revisionRequested: data.supplier.onboarding?.revisionRequested,
+          revisionNotes: data.supplier.onboarding?.revisionNotes
+        })
         setSupplier(data.supplier)
         
         // Calculate and set credit controller if not already set
@@ -2011,6 +2017,12 @@ Procurement Team`
                 {/* Only show action buttons if supplier is not approved or rejected */}
                 {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' ? (
                   <div className="flex flex-col gap-4">
+                    {/* Debug info */}
+                    {console.log('🔍 Checking revision status:', {
+                      revisionRequested: supplier.onboarding?.revisionRequested,
+                      onboardingExists: !!supplier.onboarding
+                    })}
+                    
                     {/* Show revision pending message if revision has been requested */}
                     {supplier.onboarding?.revisionRequested ? (
                       <Alert className="bg-orange-50 border-orange-300">
