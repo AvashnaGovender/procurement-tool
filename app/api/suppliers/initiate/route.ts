@@ -25,19 +25,28 @@ function getCurrencySymbol(currency: string | null | undefined, supplierLocation
 
 // Helper function to format annual purchase value as a range
 function formatAnnualPurchaseValue(value: number | null, currency: string | null | undefined, supplierLocation: string | null | undefined): string {
-  if (!value) return ''
+  console.log('🔍 formatAnnualPurchaseValue called with:', { value, type: typeof value, currency, supplierLocation })
+  
+  if (!value) {
+    console.log('⚠️ No value provided, returning empty string')
+    return ''
+  }
   
   const symbol = getCurrencySymbol(currency, supplierLocation)
   
+  let result = ''
   if (value <= 100000) {
-    return `${symbol}0 - ${symbol}100,000`
+    result = `${symbol}0 - ${symbol}100,000`
   } else if (value <= 500000) {
-    return `${symbol}100,000 - ${symbol}500,000`
+    result = `${symbol}100,000 - ${symbol}500,000`
   } else if (value <= 1000000) {
-    return `${symbol}500,000 - ${symbol}1,000,000`
+    result = `${symbol}500,000 - ${symbol}1,000,000`
   } else {
-    return `${symbol}1,000,000+`
+    result = `${symbol}1,000,000+`
   }
+  
+  console.log('💰 Formatted annual purchase value result:', result)
+  return result
 }
 
 export async function POST(request: NextRequest) {
@@ -184,33 +193,45 @@ export async function POST(request: NextRequest) {
 
     // Convert annual purchase value range to number
     let annualPurchaseValueNumber: number | null = null
+    console.log('🔄 Converting annualPurchaseValue:', { value: annualPurchaseValue, type: typeof annualPurchaseValue })
+    
     if (annualPurchaseValue) {
       // Check if it's already a number (for backward compatibility)
       if (typeof annualPurchaseValue === 'number') {
         annualPurchaseValueNumber = annualPurchaseValue
+        console.log('✅ Already a number:', annualPurchaseValueNumber)
       } else if (typeof annualPurchaseValue === 'string' && !isNaN(parseFloat(annualPurchaseValue)) && isFinite(parseFloat(annualPurchaseValue))) {
         // If it's a numeric string, parse it
         annualPurchaseValueNumber = parseFloat(annualPurchaseValue)
+        console.log('✅ Parsed numeric string:', annualPurchaseValueNumber)
       } else {
         // Convert string range to number
+        console.log('🔀 Converting range string to number, input:', annualPurchaseValue)
         switch (annualPurchaseValue) {
           case "0-100k":
             annualPurchaseValueNumber = 100000
+            console.log('✅ Converted "0-100k" to 100000')
             break
           case "100k-500k":
             annualPurchaseValueNumber = 500000
+            console.log('✅ Converted "100k-500k" to 500000')
             break
           case "500k-1M":
             annualPurchaseValueNumber = 1000000
+            console.log('✅ Converted "500k-1M" to 1000000')
             break
           case "1M+":
             annualPurchaseValueNumber = 2000000
+            console.log('✅ Converted "1M+" to 2000000')
             break
           default:
             annualPurchaseValueNumber = null
+            console.log('⚠️ No match for value, setting to null')
         }
       }
     }
+    
+    console.log('💰 Final annualPurchaseValueNumber:', annualPurchaseValueNumber)
 
     // Validate credit application reason if credit application is not selected (not required for Once-off Purchase)
     if (purchaseType !== 'ONCE_OFF' && !creditApplication && !creditApplicationReason) {
