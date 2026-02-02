@@ -176,10 +176,15 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
   }
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }))
+    console.log(`📝 handleInputChange called - Field: ${field}, Value:`, value)
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      }
+      console.log(`📝 Updated formData for ${field}:`, (newData as any)[field])
+      return newData
+    })
   }
 
   const handleAddCustomCategory = () => {
@@ -331,6 +336,9 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         currency: formData.currency,
         customCurrency: formData.customCurrency
       }
+      
+      console.log('💾 Saving draft with annualPurchaseValue:', formData.annualPurchaseValue)
+      console.log('💾 Full submitData:', submitData)
 
       const response = await fetch('/api/suppliers/initiation/draft', {
         method: 'POST',
@@ -399,6 +407,9 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         currency: formData.currency,
         customCurrency: formData.customCurrency
       }
+      
+      console.log('📤 Submitting with annualPurchaseValue:', formData.annualPurchaseValue)
+      console.log('📤 Full submitData:', submitData)
 
       const response = await fetch('/api/suppliers/initiate', {
         method: 'POST',

@@ -159,12 +159,10 @@ function SupplierOnboardingContent() {
                     </Button>
                     <Button 
                       onClick={() => {
-                        setWorkflowStatus("pending")
-                        setCurrentStep(2)
-                        setWaitingOpen(true)
+                        router.push('/admin/supplier-initiations')
                       }}
                     >
-                      Continue to Supplier Onboarding
+                      View Supplier Initiations
                     </Button>
                   </div>
                 </div>
