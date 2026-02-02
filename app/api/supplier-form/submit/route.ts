@@ -559,15 +559,16 @@ async function sendEmailNotifications(
             }
             
             .info-section {
-              background: #f8f9fa;
-              border-left: 4px solid #0047AB;
+              background: #eff6ff;
+              border-left: 4px solid #3b82f6;
               padding: 20px;
               margin: 25px 0;
+              border-radius: 4px;
             }
             
             .info-section h2 {
               margin: 0 0 15px 0;
-              color: #0047AB;
+              color: #1e40af;
               font-size: 18px;
               font-weight: 600;
             }
@@ -600,21 +601,22 @@ async function sendEmailNotifications(
             
             .button {
               display: inline-block;
-              background: #0047AB;
+              background: #3b82f6;
               color: white;
-              padding: 14px 40px;
+              padding: 15px 40px;
               text-decoration: none;
-              font-weight: 600;
+              font-weight: bold;
               font-size: 16px;
+              border-radius: 8px;
             }
             
             .footer {
-              background: #f8f9fa;
+              background: #f9fafb;
               text-align: center;
-              padding: 25px 30px;
-              color: #666;
-              font-size: 12px;
-              border-top: 3px solid #0047AB;
+              padding: 30px;
+              color: #6b7280;
+              font-size: 14px;
+              border-top: 1px solid #e5e7eb;
             }
             
             .footer p {
@@ -663,9 +665,9 @@ async function sendEmailNotifications(
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="650" class="email-container" style="background-color: #ffffff;">
                   <!-- Header -->
                   <tr>
-                    <td class="header" style="background-color: #0047AB; padding: 40px 30px; text-align: center;">
-                      <h1 style="margin: 0; font-size: 26px; font-weight: 600; color: #ffffff; line-height: 1.2;">${isRevision ? 'Revised Supplier Submission' : 'New Supplier Onboarding Submission'}</h1>
-                      <p style="margin: 10px 0 0 0; font-size: 14px; color: #ffffff; opacity: 0.9;">Schauenburg Systems Procurement</p>
+                    <td class="header" style="background-color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 3px solid #1e40af;">
+                      <img src="cid:logo" alt="Schauenburg Systems" class="logo" style="max-width: 150px; height: auto; margin-bottom: 20px;" />
+                      <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: #1e40af; line-height: 1.2;">${isRevision ? 'Revised Supplier Submission' : 'New Supplier Onboarding Submission'}</h1>
                     </td>
                   </tr>
                   
@@ -694,14 +696,14 @@ async function sendEmailNotifications(
                       `}
                       
                       <!-- Company Information -->
-                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f8f9fa; border-left: 4px solid #0047AB; margin: 25px 0;">
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #eff6ff; border-left: 4px solid #3b82f6; margin: 25px 0; border-radius: 4px;">
                         <tr>
                           <td style="padding: 20px;">
-                            <h2 style="margin: 0 0 15px 0; color: #0047AB; font-size: 18px; font-weight: 600;">Company Information</h2>
+                            <h2 style="margin: 0 0 15px 0; color: #1e40af; font-size: 18px; font-weight: 600;">Company Information</h2>
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                               <tr>
                                 <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
-                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Company Name:</span>
+                                  <span style="font-weight: 600; color: #1e40af; display: inline-block; min-width: 160px;">Company Name:</span>
                                   <span style="color: #333;">${supplierData.supplierName}</span>
                                 </td>
                               </tr>
@@ -729,10 +731,10 @@ async function sendEmailNotifications(
                       </table>
 
                       <!-- Contact Details -->
-                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f8f9fa; border-left: 4px solid #0047AB; margin: 25px 0;">
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #eff6ff; border-left: 4px solid #3b82f6; margin: 25px 0; border-radius: 4px;">
                         <tr>
                           <td style="padding: 20px;">
-                            <h2 style="margin: 0 0 15px 0; color: #0047AB; font-size: 18px; font-weight: 600;">Contact Details</h2>
+                            <h2 style="margin: 0 0 15px 0; color: #1e40af; font-size: 18px; font-weight: 600;">Contact Details</h2>
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                               <tr>
                                 <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
@@ -758,34 +760,34 @@ async function sendEmailNotifications(
                       </table>
 
                       <!-- Submission Details -->
-                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f8f9fa; border-left: 4px solid #0047AB; margin: 25px 0;">
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #eff6ff; border-left: 4px solid #3b82f6; margin: 25px 0; border-radius: 4px;">
                         <tr>
                           <td style="padding: 20px;">
-                            <h2 style="margin: 0 0 15px 0; color: #0047AB; font-size: 18px; font-weight: 600;">Submission Details</h2>
+                            <h2 style="margin: 0 0 15px 0; color: #1e40af; font-size: 18px; font-weight: 600;">Submission Details</h2>
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                               ${isRevision ? `
                                 <tr>
                                   <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
-                                    <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Submission Type:</span>
+                                    <span style="font-weight: 600; color: #1e40af; display: inline-block; min-width: 160px;">Submission Type:</span>
                                     <span style="color: #ffc107; font-weight: 600;">Revision ${onboarding.revisionCount}</span>
                                   </td>
                                 </tr>
                               ` : ''}
                               <tr>
                                 <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
-                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Documents Submitted:</span>
+                                  <span style="font-weight: 600; color: #1e40af; display: inline-block; min-width: 160px;">Documents Submitted:</span>
                                   <span style="color: #333;">${totalFiles} files in ${Object.keys(uploadedFiles).length} categories</span>
                                 </td>
                               </tr>
                               <tr>
                                 <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
-                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Categories:</span>
+                                  <span style="font-weight: 600; color: #1e40af; display: inline-block; min-width: 160px;">Categories:</span>
                                   <span style="color: #333; font-size: 13px;">${documentCategories}</span>
                                 </td>
                               </tr>
                               <tr>
                                 <td style="padding: 10px 0;">
-                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Submission Date:</span>
+                                  <span style="font-weight: 600; color: #1e40af; display: inline-block; min-width: 160px;">Submission Date:</span>
                                   <span style="color: #333;">${new Date().toLocaleString()}</span>
                                 </td>
                               </tr>
@@ -798,7 +800,7 @@ async function sendEmailNotifications(
                       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0;">
                         <tr>
                           <td align="center">
-                            <a href="${baseUrl}/admin/approvals?tab=reviews" style="display: inline-block; background: #0047AB; color: white; padding: 14px 40px; text-decoration: none; font-weight: 600; font-size: 16px;">
+                            <a href="${baseUrl}/admin/approvals?tab=reviews" style="display: inline-block; background: #3b82f6; color: white; padding: 15px 40px; text-decoration: none; font-weight: bold; font-size: 16px; border-radius: 8px;">
                               Review Document Submission
                             </a>
                           </td>
@@ -816,9 +818,11 @@ async function sendEmailNotifications(
                   
                   <!-- Footer -->
                   <tr>
-                    <td class="footer" style="background: #f8f9fa; text-align: center; padding: 25px 30px; color: #666; font-size: 12px; border-top: 3px solid #0047AB;">
-                      <p style="margin: 5px 0;">This is an automated notification from Schauenburg Systems Procurement System.</p>
-                      <p style="margin: 10px 0 0 0; color: #999;">© ${new Date().getFullYear()} Schauenburg Systems. All rights reserved.</p>
+                    <td class="footer" style="background: #f9fafb; text-align: center; padding: 30px; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">
+                      <p style="margin: 0;">Schauenburg Systems</p>
+                      <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
+                        This is an automated notification from the Supplier Onboarding System.
+                      </p>
                     </td>
                   </tr>
                 </table>
@@ -827,7 +831,14 @@ async function sendEmailNotifications(
           </table>
         </body>
         </html>
-      `
+      `,
+      attachments: [
+        {
+          filename: 'logo.png',
+          path: join(process.cwd(), 'public', 'logo.png'),
+          cid: 'logo'
+        }
+      ]
     }
 
     console.log('📧 Sending Procurement Manager notification...')

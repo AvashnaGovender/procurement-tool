@@ -2202,7 +2202,7 @@ async function sendPMApprovalPackage(
           <li><strong>Approval Summary PDF</strong> - Complete summary with supplier details, initiation checklist, and document list</li>
           <li><strong>Supplier Form PDF</strong> - All supplier-provided information and details</li>
           <li><strong>Initiator Checklist PDF</strong> - Complete initiation requirements and justification</li>
-          <li><strong>Supplier Documents</strong> - ${attachments.length - 4} document(s) uploaded by the supplier (W9, Insurance, Banking Info, etc.)</li>
+          <li><strong>Supplier Documents</strong> - ${attachments.length - 4} document(s) uploaded by the supplier (CIPC, Tax Certificate, etc.)</li>
         </ul>
         <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
           Note: The fully signed credit application (if applicable) will be sent separately once received from the supplier.
