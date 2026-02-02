@@ -673,8 +673,7 @@ model ReminderConfiguration {
 enum ReminderConfigType {
   SUPPLIER_DOCUMENT_SUBMISSION    // Supplier hasn't uploaded documents
   MANAGER_APPROVAL_PENDING        // Manager hasn't approved initiation
-  PROCUREMENT_APPROVAL_PENDING    // Procurement manager hasn't approved
-  BUYER_REVIEW_PENDING            // Buyer hasn't reviewed submitted documents
+  PM_REVIEW_PENDING               // PM hasn't reviewed submitted documents
   SUPPLIER_REVISION_PENDING       // Supplier hasn't resubmitted after revision request
 }
 

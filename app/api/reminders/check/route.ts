@@ -11,8 +11,7 @@ export async function POST(request: NextRequest) {
     const results = {
       supplierDocuments: 0,
       managerApprovals: 0,
-      procurementApprovals: 0,
-      buyerReviews: 0,
+      pmReviews: 0,
       supplierRevisions: 0,
       errors: [] as string[]
     }
@@ -31,11 +30,8 @@ export async function POST(request: NextRequest) {
           case 'MANAGER_APPROVAL_PENDING':
             results.managerApprovals += await checkManagerApprovals(config)
             break
-          case 'PROCUREMENT_APPROVAL_PENDING':
-            results.procurementApprovals += await checkProcurementApprovals(config)
-            break
-          case 'BUYER_REVIEW_PENDING':
-            results.buyerReviews += await checkBuyerReviews(config)
+          case 'PM_REVIEW_PENDING':
+            results.pmReviews += await checkPMReviews(config)
             break
           case 'SUPPLIER_REVISION_PENDING':
             results.supplierRevisions += await checkSupplierRevisions(config)
@@ -87,29 +83,21 @@ async function checkSupplierDocumentSubmission(config: any): Promise<number> {
 
     const hoursSinceEmailSent = differenceInHours(now, new Date(onboarding.emailSentAt))
 
-    // Determine which reminder to send
-    let reminderCount = 0
-    if (hoursSinceEmailSent >= config.finalReminderAfterHours) {
-      reminderCount = 3
-    } else if (hoursSinceEmailSent >= config.secondReminderAfterHours) {
-      reminderCount = 2
-    } else if (hoursSinceEmailSent >= config.firstReminderAfterHours) {
-      reminderCount = 1
-    }
+    // Check if 24 hours have passed
+    if (hoursSinceEmailSent < 24) continue
 
-    if (reminderCount === 0) continue
-
-    // Check if this reminder count was already sent
+    // Check if reminder was already sent
     const existingReminder = await prisma.reminderLog.findFirst({
       where: {
         reminderType: config.reminderType,
         referenceId: onboarding.id,
-        reminderCount,
         status: { in: ['SENT', 'PENDING'] }
       }
     })
 
     if (existingReminder) continue
+    
+    const reminderCount = 1
 
     // Send reminder
     const emailBody = config.emailBodyTemplate
@@ -190,27 +178,21 @@ async function checkManagerApprovals(config: any): Promise<number> {
   for (const approval of pendingApprovals) {
     const hoursSinceCreated = differenceInHours(now, new Date(approval.createdAt))
 
-    let reminderCount = 0
-    if (hoursSinceCreated >= config.finalReminderAfterHours) {
-      reminderCount = 3
-    } else if (hoursSinceCreated >= config.secondReminderAfterHours) {
-      reminderCount = 2
-    } else if (hoursSinceCreated >= config.firstReminderAfterHours) {
-      reminderCount = 1
-    }
+    // Check if 24 hours have passed
+    if (hoursSinceCreated < 24) continue
 
-    if (reminderCount === 0) continue
-
+    // Check if reminder was already sent
     const existingReminder = await prisma.reminderLog.findFirst({
       where: {
         reminderType: config.reminderType,
         referenceId: approval.id,
-        reminderCount,
         status: { in: ['SENT', 'PENDING'] }
       }
     })
 
     if (existingReminder) continue
+    
+    const reminderCount = 1
 
     const emailBody = config.emailBodyTemplate
       ?.replace(/{managerName}/g, approval.approver.name)
@@ -253,175 +235,102 @@ async function checkManagerApprovals(config: any): Promise<number> {
   return remindersSent
 }
 
-async function checkProcurementApprovals(config: any): Promise<number> {
+async function checkPMReviews(config: any): Promise<number> {
   let remindersSent = 0
 
-  const pendingApprovals = await prisma.procurementApproval.findMany({
-    where: {
-      status: 'PENDING'
-    },
-    include: {
-      approver: true,
-      initiation: {
-        include: {
-          initiatedBy: true,
-          managerApproval: true
-        }
-      }
-    }
-  })
-
-  const now = new Date()
-
-  for (const approval of pendingApprovals) {
-    const hoursSinceCreated = differenceInHours(now, new Date(approval.createdAt))
-
-    let reminderCount = 0
-    if (hoursSinceCreated >= config.finalReminderAfterHours) {
-      reminderCount = 3
-    } else if (hoursSinceCreated >= config.secondReminderAfterHours) {
-      reminderCount = 2
-    } else if (hoursSinceCreated >= config.firstReminderAfterHours) {
-      reminderCount = 1
-    }
-
-    if (reminderCount === 0) continue
-
-    const existingReminder = await prisma.reminderLog.findFirst({
-      where: {
-        reminderType: config.reminderType,
-        referenceId: approval.id,
-        reminderCount,
-        status: { in: ['SENT', 'PENDING'] }
-      }
-    })
-
-    if (existingReminder) continue
-
-    const emailBody = config.emailBodyTemplate
-      ?.replace(/{procurementManagerName}/g, approval.approver.name)
-      ?.replace(/{supplierName}/g, approval.initiation.supplierName)
-      ?.replace(/{requesterName}/g, approval.initiation.initiatedBy.name)
-      ?.replace(/{category}/g, approval.initiation.productServiceCategory)
-      ?.replace(/{submittedDate}/g, format(new Date(approval.initiation.submittedAt), 'PP'))
-      ?.replace(/{managerStatus}/g, approval.initiation.managerApproval?.status || 'PENDING')
-      ?.replace(/{hoursAgo}/g, hoursSinceCreated.toString())
-      ?.replace(/{approvalsLink}/g, `${process.env.NEXTAUTH_URL}/admin/approvals`)
-
-    try {
-      await sendEmail({
-        to: approval.approver.email,
-        subject: config.emailSubjectTemplate || 'Reminder: Procurement Approval Pending',
-        content: emailBody || 'You have pending procurement approvals.'
-      })
-
-      await prisma.reminderLog.create({
-        data: {
-          reminderType: config.reminderType,
-          referenceId: approval.id,
-          referenceType: 'ProcurementApproval',
-          recipientEmail: approval.approver.email,
-          recipientName: approval.approver.name,
-          reminderCount,
-          subject: config.emailSubjectTemplate,
-          content: emailBody || '',
-          status: 'SENT',
-          sentAt: new Date()
-        }
-      })
-
-      remindersSent++
-      console.log(`✓ Sent procurement approval reminder ${reminderCount} to ${approval.approver.email}`)
-    } catch (error) {
-      console.error(`✗ Failed to send reminder:`, error)
-    }
-  }
-
-  return remindersSent
-}
-
-async function checkBuyerReviews(config: any): Promise<number> {
-  let remindersSent = 0
-
-  // Find suppliers with submitted documents that are UNDER_REVIEW
+  // Find suppliers that have submitted documents but PM hasn't taken action
   const pendingReviews = await prisma.supplier.findMany({
     where: {
-      status: 'UNDER_REVIEW'
+      status: {
+        in: ['UNDER_REVIEW', 'AWAITING_FINAL_APPROVAL']
+      },
+      onboarding: {
+        supplierFormSubmitted: true,
+        revisionRequested: false  // Don't remind if already requested revision
+      }
     },
     include: {
       onboarding: {
         include: {
-          initiatedBy: true
+          initiation: {
+            include: {
+              initiatedBy: true
+            }
+          }
         }
       }
     }
   })
 
   const now = new Date()
+
+  // Get all PM users
+  const pmUsers = await prisma.user.findMany({
+    where: {
+      role: 'PROCUREMENT_MANAGER',
+      isActive: true
+    }
+  })
+
+  if (pmUsers.length === 0) return 0
 
   for (const supplier of pendingReviews) {
     if (!supplier.onboarding?.supplierFormSubmittedAt) continue
 
     const hoursSinceSubmitted = differenceInHours(now, new Date(supplier.onboarding.supplierFormSubmittedAt))
 
-    let reminderCount = 0
-    if (hoursSinceSubmitted >= config.finalReminderAfterHours) {
-      reminderCount = 3
-    } else if (hoursSinceSubmitted >= config.secondReminderAfterHours) {
-      reminderCount = 2
-    } else if (hoursSinceSubmitted >= config.firstReminderAfterHours) {
-      reminderCount = 1
-    }
+    // Check if 24 hours have passed
+    if (hoursSinceSubmitted < 24) continue
 
-    if (reminderCount === 0) continue
-
-    const existingReminder = await prisma.reminderLog.findFirst({
-      where: {
-        reminderType: config.reminderType,
-        referenceId: supplier.id,
-        reminderCount,
-        status: { in: ['SENT', 'PENDING'] }
-      }
-    })
-
-    if (existingReminder) continue
-
-    const buyerEmail = supplier.onboarding.initiatedBy.email
-    const buyerName = supplier.onboarding.initiatedBy.name
-
-    const emailBody = config.emailBodyTemplate
-      ?.replace(/{buyerName}/g, buyerName)
-      ?.replace(/{supplierName}/g, supplier.companyName)
-      ?.replace(/{submittedDate}/g, format(new Date(supplier.onboarding.supplierFormSubmittedAt), 'PP'))
-      ?.replace(/{hoursAgo}/g, hoursSinceSubmitted.toString())
-      ?.replace(/{reviewLink}/g, `${process.env.NEXTAUTH_URL}/admin/approvals?tab=reviews`)
-
-    try {
-      await sendEmail({
-        to: buyerEmail,
-        subject: config.emailSubjectTemplate || 'Reminder: Supplier Documents Awaiting Review',
-        content: emailBody || 'You have supplier documents awaiting review.'
-      })
-
-      await prisma.reminderLog.create({
-        data: {
+    // Send reminder to each PM
+    for (const pm of pmUsers) {
+      // Check if reminder was already sent to this PM for this supplier
+      const existingReminder = await prisma.reminderLog.findFirst({
+        where: {
           reminderType: config.reminderType,
           referenceId: supplier.id,
-          referenceType: 'Supplier',
-          recipientEmail: buyerEmail,
-          recipientName: buyerName,
-          reminderCount,
-          subject: config.emailSubjectTemplate,
-          content: emailBody || '',
-          status: 'SENT',
-          sentAt: new Date()
+          recipientEmail: pm.email,
+          status: { in: ['SENT', 'PENDING'] }
         }
       })
 
-      remindersSent++
-      console.log(`✓ Sent buyer review reminder ${reminderCount} to ${buyerEmail}`)
-    } catch (error) {
-      console.error(`✗ Failed to send reminder:`, error)
+      if (existingReminder) continue
+
+      const emailBody = config.emailBodyTemplate
+        ?.replace(/{pmName}/g, pm.name)
+        ?.replace(/{supplierName}/g, supplier.companyName)
+        ?.replace(/{supplierCode}/g, supplier.supplierCode)
+        ?.replace(/{submittedDate}/g, format(new Date(supplier.onboarding.supplierFormSubmittedAt), 'PP'))
+        ?.replace(/{hoursAgo}/g, hoursSinceSubmitted.toString())
+        ?.replace(/{reviewLink}/g, `${process.env.NEXTAUTH_URL}/admin/supplier-submissions/${supplier.id}`)
+
+      try {
+        await sendEmail({
+          to: pm.email,
+          subject: config.emailSubjectTemplate || 'Reminder: Supplier Documents Awaiting Review',
+          content: emailBody || 'You have supplier documents awaiting review.'
+        })
+
+        await prisma.reminderLog.create({
+          data: {
+            reminderType: config.reminderType,
+            referenceId: supplier.id,
+            referenceType: 'Supplier',
+            recipientEmail: pm.email,
+            recipientName: pm.name,
+            reminderCount: 1,
+            subject: config.emailSubjectTemplate,
+            content: emailBody || '',
+            status: 'SENT',
+            sentAt: new Date()
+          }
+        })
+
+        remindersSent++
+        console.log(`✓ Sent PM review reminder to ${pm.email} for supplier ${supplier.supplierCode}`)
+      } catch (error) {
+        console.error(`✗ Failed to send PM review reminder:`, error)
+      }
     }
   }
 
@@ -429,8 +338,88 @@ async function checkBuyerReviews(config: any): Promise<number> {
 }
 
 async function checkSupplierRevisions(config: any): Promise<number> {
-  // This would check suppliers who have been requested to revise
-  // Implementation similar to above
-  return 0
+  let remindersSent = 0
+
+  // Find suppliers who were requested to revise but haven't resubmitted
+  const pendingRevisions = await prisma.supplierOnboarding.findMany({
+    where: {
+      revisionRequested: true,
+      supplierFormSubmitted: true  // They submitted once, now need to resubmit
+      // If they haven't resubmitted after the revision request
+    },
+    include: {
+      supplier: true
+    }
+  })
+
+  const now = new Date()
+
+  for (const onboarding of pendingRevisions) {
+    if (!onboarding.revisionRequestedAt || !onboarding.supplier) continue
+
+    // Check if there's a newer submission after the revision request
+    if (onboarding.supplierFormSubmittedAt && 
+        new Date(onboarding.supplierFormSubmittedAt) > new Date(onboarding.revisionRequestedAt)) {
+      // Supplier has already resubmitted, skip
+      continue
+    }
+
+    const hoursSinceRevisionRequest = differenceInHours(now, new Date(onboarding.revisionRequestedAt))
+
+    // Check if 24 hours have passed
+    if (hoursSinceRevisionRequest < 24) continue
+
+    // Check if reminder was already sent
+    const existingReminder = await prisma.reminderLog.findFirst({
+      where: {
+        reminderType: config.reminderType,
+        referenceId: onboarding.id,
+        status: { in: ['SENT', 'PENDING'] }
+      }
+    })
+
+    if (existingReminder) continue
+
+    const emailBody = config.emailBodyTemplate
+      ?.replace(/{supplierName}/g, onboarding.contactName)
+      ?.replace(/{hoursAgo}/g, hoursSinceRevisionRequest.toString())
+      ?.replace(/{revisionDate}/g, format(new Date(onboarding.revisionRequestedAt), 'PP'))
+      ?.replace(/{revisionNotes}/g, onboarding.revisionNotes || 'Please review and revise your documents.')
+      ?.replace(/{onboardingLink}/g, `${process.env.NEXTAUTH_URL}/supplier-onboarding-form?token=${onboarding.onboardingToken}`)
+
+    try {
+      await sendEmail({
+        to: onboarding.contactEmail,
+        subject: config.emailSubjectTemplate || 'Reminder: Revise Your Supplier Documents',
+        content: emailBody || 'Please revise and resubmit your supplier documents.'
+      })
+
+      await prisma.reminderLog.create({
+        data: {
+          reminderType: config.reminderType,
+          referenceId: onboarding.id,
+          referenceType: 'SupplierOnboarding',
+          recipientEmail: onboarding.contactEmail,
+          recipientName: onboarding.contactName,
+          reminderCount: 1,
+          subject: config.emailSubjectTemplate,
+          content: emailBody || '',
+          status: 'SENT',
+          sentAt: new Date(),
+          metadata: {
+            hoursSinceRevisionRequest,
+            revisionRequestedAt: onboarding.revisionRequestedAt
+          }
+        }
+      })
+
+      remindersSent++
+      console.log(`✓ Sent revision reminder to ${onboarding.contactEmail}`)
+    } catch (error) {
+      console.error(`✗ Failed to send revision reminder:`, error)
+    }
+  }
+
+  return remindersSent
 }
 

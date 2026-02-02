@@ -153,23 +153,19 @@ export function ReminderConfiguration() {
     const labels: Record<string, { title: string, description: string }> = {
       'SUPPLIER_DOCUMENT_SUBMISSION': {
         title: 'Supplier Document Submission',
-        description: 'Remind suppliers who haven\'t uploaded their onboarding documents'
+        description: 'Remind suppliers who haven\'t uploaded their onboarding documents (24 hours)'
       },
       'MANAGER_APPROVAL_PENDING': {
         title: 'Manager Approval Pending',
-        description: 'Remind managers about pending supplier initiation approvals'
+        description: 'Remind managers about pending supplier initiation approvals (24 hours)'
       },
-      'PROCUREMENT_APPROVAL_PENDING': {
-        title: 'Procurement Approval Pending',
-        description: 'Remind procurement managers about pending approvals'
-      },
-      'BUYER_REVIEW_PENDING': {
-        title: 'Buyer Review Pending',
-        description: 'Remind buyers to review submitted supplier documents'
+      'PM_REVIEW_PENDING': {
+        title: 'PM Review Pending',
+        description: 'Remind procurement managers to review submitted supplier documents (24 hours)'
       },
       'SUPPLIER_REVISION_PENDING': {
         title: 'Supplier Revision Pending',
-        description: 'Remind suppliers to resubmit documents after revision request'
+        description: 'Remind suppliers to resubmit documents after revision request (24 hours)'
       }
     }
     return labels[type] || { title: type, description: '' }
@@ -225,8 +221,8 @@ export function ReminderConfiguration() {
       <Alert className="bg-blue-50 border-blue-300">
         <Bell className="h-4 w-4 text-blue-600" />
         <AlertDescription className="text-blue-800 text-sm">
-          <strong>How Reminders Work:</strong> The system automatically checks for pending items daily and sends reminders based on the configured intervals below.
-          You can also trigger a manual check using the button above.
+          <strong>How Reminders Work:</strong> The system automatically checks for pending items daily and sends reminders <strong>24 hours</strong> after the triggering event.
+          You can enable/disable each reminder type or trigger a manual check using the button above.
         </AlertDescription>
       </Alert>
 
@@ -274,50 +270,15 @@ export function ReminderConfiguration() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div className="space-y-2">
-                      <Label htmlFor={`first-${config.id}`} className="text-sm">
-                        1st Reminder (hours)
-                      </Label>
-                      <Input
-                        id={`first-${config.id}`}
-                        type="number"
-                        min="1"
-                        value={getConfigValue(config, 'firstReminderAfterHours')}
-                        onChange={(e) => handleConfigChange(config.id, 'firstReminderAfterHours', parseInt(e.target.value))}
-                        disabled={!isEnabled}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`second-${config.id}`} className="text-sm">
-                        2nd Reminder (hours)
-                      </Label>
-                      <Input
-                        id={`second-${config.id}`}
-                        type="number"
-                        min="1"
-                        value={getConfigValue(config, 'secondReminderAfterHours')}
-                        onChange={(e) => handleConfigChange(config.id, 'secondReminderAfterHours', parseInt(e.target.value))}
-                        disabled={!isEnabled}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`final-${config.id}`} className="text-sm">
-                        Final Reminder (hours)
-                      </Label>
-                      <Input
-                        id={`final-${config.id}`}
-                        type="number"
-                        min="1"
-                        value={getConfigValue(config, 'finalReminderAfterHours')}
-                        onChange={(e) => handleConfigChange(config.id, 'finalReminderAfterHours', parseInt(e.target.value))}
-                        disabled={!isEnabled}
-                      />
-                    </div>
-                  </div>
+                  <Alert className="bg-blue-50 border-blue-200">
+                    <Bell className="h-4 w-4 text-blue-600" />
+                    <AlertDescription className="text-blue-800 text-sm">
+                      Reminder will be sent <strong>24 hours</strong> after the triggering event if action hasn't been taken.
+                    </AlertDescription>
+                  </Alert>
 
                   {hasChanges(config.id) && (
-                    <div className="flex justify-end">
+                    <div className="flex justify-end mt-4">
                       <Button
                         size="sm"
                         onClick={() => handleSave(config.id)}

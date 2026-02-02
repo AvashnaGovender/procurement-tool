@@ -5,13 +5,13 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Seeding reminder configurations...')
 
-  // Default reminder configurations
+  // Default reminder configurations (24 hour reminders)
   const configs = [
     {
       reminderType: 'SUPPLIER_DOCUMENT_SUBMISSION',
-      firstReminderAfterHours: 3,
-      secondReminderAfterHours: 7,
-      finalReminderAfterHours: 14,
+      firstReminderAfterHours: 24,
+      secondReminderAfterHours: 24,
+      finalReminderAfterHours: 24,
       isEnabled: true,
       emailSubjectTemplate: 'Reminder: Complete Your Supplier Onboarding Documentation',
       emailBodyTemplate: `Dear {supplierName},
@@ -37,9 +37,9 @@ Schauenburg Systems Procurement Team`
     },
     {
       reminderType: 'MANAGER_APPROVAL_PENDING',
-      firstReminderAfterHours: 3,
-      secondReminderAfterHours: 7,
-      finalReminderAfterHours: 14,
+      firstReminderAfterHours: 24,
+      secondReminderAfterHours: 24,
+      finalReminderAfterHours: 24,
       isEnabled: true,
       emailSubjectTemplate: 'Reminder: Supplier Initiation Awaiting Your Approval',
       emailBodyTemplate: `Dear {managerName},
@@ -60,43 +60,19 @@ Best regards,
 Procurement System`
     },
     {
-      reminderType: 'PROCUREMENT_APPROVAL_PENDING',
-      firstReminderAfterHours: 3,
-      secondReminderAfterHours: 7,
-      finalReminderAfterHours: 14,
-      isEnabled: true,
-      emailSubjectTemplate: 'Reminder: Supplier Initiation Awaiting Procurement Approval',
-      emailBodyTemplate: `Dear {procurementManagerName},
-
-A supplier initiation request is awaiting your procurement approval.
-
-<strong>Supplier Details:</strong>
-- <strong>Supplier Name:</strong> {supplierName}
-- <strong>Requested By:</strong> {requesterName}
-- <strong>Category:</strong> {category}
-- <strong>Submitted:</strong> {submittedDate}
-- <strong>Manager Status:</strong> {managerStatus}
-
-This request has been pending for {hoursAgo} hours. Please review and approve/reject at your earliest convenience.
-
-{approvalsLink}
-
-Best regards,
-Procurement System`
-    },
-    {
-      reminderType: 'BUYER_REVIEW_PENDING',
-      firstReminderAfterHours: 3,
-      secondReminderAfterHours: 7,
-      finalReminderAfterHours: 14,
+      reminderType: 'PM_REVIEW_PENDING',
+      firstReminderAfterHours: 24,
+      secondReminderAfterHours: 24,
+      finalReminderAfterHours: 24,
       isEnabled: true,
       emailSubjectTemplate: 'Reminder: Supplier Documents Awaiting Your Review',
-      emailBodyTemplate: `Dear {buyerName},
+      emailBodyTemplate: `Dear {pmName},
 
 A supplier has submitted their onboarding documents and they are awaiting your review.
 
 <strong>Supplier Details:</strong>
 - <strong>Supplier Name:</strong> {supplierName}
+- <strong>Supplier Code:</strong> {supplierCode}
 - <strong>Submitted:</strong> {submittedDate}
 - <strong>Hours Pending:</strong> {hoursAgo}
 
@@ -109,9 +85,9 @@ Procurement System`
     },
     {
       reminderType: 'SUPPLIER_REVISION_PENDING',
-      firstReminderAfterHours: 3,
-      secondReminderAfterHours: 7,
-      finalReminderAfterHours: 14,
+      firstReminderAfterHours: 24,
+      secondReminderAfterHours: 24,
+      finalReminderAfterHours: 24,
       isEnabled: true,
       emailSubjectTemplate: 'Reminder: Please Resubmit Your Revised Documents',
       emailBodyTemplate: `Dear {supplierName},
