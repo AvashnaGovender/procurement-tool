@@ -8,9 +8,7 @@ import path from 'path'
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
 import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
 import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
-import { promises as fsPromises } from 'fs'
-
-const { readdir } = fsPromises
+import { readdir, readFile } from 'fs/promises'
 
 export async function POST(request: NextRequest) {
   try {
@@ -239,7 +237,10 @@ async function sendPMApprovalPackage(
 
     // Collect all supplier document files
     const documentsList: any[] = []
-    const documentsPath = path.join(process.cwd(), 'data', 'suppliers', supplier.supplierCode, 'documents')
+    const documentsPath = path.join(process.cwd(), 'data', 'uploads', 'suppliers', supplier.supplierCode)
+    
+    console.log('🔍 Looking for documents at path:', documentsPath)
+    console.log('🔍 Path exists:', fs.existsSync(documentsPath))
     
     try {
       if (fs.existsSync(documentsPath)) {
@@ -247,6 +248,7 @@ async function sendPMApprovalPackage(
         
         // Get all version directories
         const versions = await readdir(documentsPath)
+        console.log('📁 Found versions:', versions)
         
         for (const version of versions) {
           const versionPath = path.join(documentsPath, version)
@@ -266,7 +268,7 @@ async function sendPMApprovalPackage(
                 
                 for (const file of files) {
                   const filePath = path.join(categoryPath, file)
-                  const fileBuffer = fs.readFileSync(filePath)
+                  const fileBuffer = await readFile(filePath)
                   
                   attachments.push({
                     filename: `${category}_${file}`,
