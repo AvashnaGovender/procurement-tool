@@ -124,6 +124,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [signedCreditApplicationFile, setSignedCreditApplicationFile] = useState<File | null>(null)
   const [uploadingSignedCreditApp, setUploadingSignedCreditApp] = useState(false)
   const [creditController, setCreditController] = useState<string>("")
+  const [resendingApprovalPack, setResendingApprovalPack] = useState(false)
 
   // AI Insights state
   const [aiProcessing, setAiProcessing] = useState(false)
@@ -492,6 +493,33 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const handleRejectClick = () => {
     setRejectDialogOpen(true)
     setRejectReason("")
+  }
+
+  const handleResendApprovalPack = async () => {
+    setResendingApprovalPack(true)
+    try {
+      const response = await fetch('/api/suppliers/resend-approval-pack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supplierId: supplier?.id })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setSuccessMessage('Approval package has been resent successfully to your email.')
+        setSuccessDialogOpen(true)
+      } else {
+        setErrorMessage(data.error || 'Failed to resend approval package')
+        setErrorDialogOpen(true)
+      }
+    } catch (error) {
+      console.error('Error resending approval package:', error)
+      setErrorMessage('An error occurred while resending the approval package')
+      setErrorDialogOpen(true)
+    } finally {
+      setResendingApprovalPack(false)
+    }
   }
 
   const confirmApprove = async () => {
@@ -2083,6 +2111,30 @@ Procurement Team`
                                 Reject Supplier
                               </Button>
                             </div>
+                          </div>
+                        )}
+
+                        {/* Resend Approval Pack button - available for PM */}
+                        {session?.user?.role === 'PROCUREMENT_MANAGER' && (
+                          <div className="pt-4 border-t">
+                            <Button
+                              onClick={handleResendApprovalPack}
+                              disabled={resendingApprovalPack}
+                              variant="outline"
+                              className="w-full"
+                            >
+                              {resendingApprovalPack ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Resending...
+                                </>
+                              ) : (
+                                <>
+                                  <Mail className="h-4 w-4 mr-2" />
+                                  Resend Approval Pack
+                                </>
+                              )}
+                            </Button>
                           </div>
                         )}
                       </>
