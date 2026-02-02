@@ -40,13 +40,14 @@ export async function GET(request: NextRequest) {
     // Build where clause based on user role
     // - Admins can see all initiations
     // - Users with approval responsibilities see initiations they need to approve OR created
+    // - Delegates see initiations assigned to users they're delegating for
     // - Regular users only see their own initiations
     let userFilterClause = {}
     
     if (session.user.role !== 'ADMIN') {
       console.log(`   ⚙️ Building filter for non-admin user`)
       
-      // Build OR conditions: initiations they created OR where they are assigned as approver
+      // Build OR conditions: initiations they created OR where they are assigned as approver OR delegated to them
       const orConditions = [
         { initiatedById: session.user.id }
       ]
@@ -67,6 +68,27 @@ export async function GET(request: NextRequest) {
         } 
       })
       console.log(`   ✅ Added procurement approval filter for user ID: ${session.user.id}`)
+      
+      // Add delegated approvals - check if the approver is someone this user is delegating for
+      if (delegatedUserIds.length > 0) {
+        console.log(`   🔄 User is delegating for ${delegatedUserIds.length} user(s)`)
+        
+        // Add delegated manager approvals
+        orConditions.push({
+          managerApproval: {
+            approverId: { in: delegatedUserIds }
+          }
+        })
+        console.log(`   ✅ Added delegated manager approvals for users: ${delegatedUserIds.join(', ')}`)
+        
+        // Add delegated procurement approvals
+        orConditions.push({
+          procurementApproval: {
+            approverId: { in: delegatedUserIds }
+          }
+        })
+        console.log(`   ✅ Added delegated procurement approvals for users: ${delegatedUserIds.join(', ')}`)
+      }
       
       userFilterClause = { OR: orConditions }
       console.log(`   📝 OR conditions count: ${orConditions.length}`)
