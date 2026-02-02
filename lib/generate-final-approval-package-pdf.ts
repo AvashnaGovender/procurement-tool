@@ -141,7 +141,7 @@ export async function generateFinalApprovalPackagePDF(data: FinalApprovalPackage
 
     const drawCheckbox = (label: string, checked: boolean) => {
       checkNewPage(20)
-      drawText(`${checked ? '☑' : '☐'} ${label}`, 10, timesRomanFont)
+      drawText(`${checked ? '[X]' : '[ ]'} ${label}`, 10, timesRomanFont)
     }
 
     // ===== COVER PAGE =====

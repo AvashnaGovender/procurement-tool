@@ -129,8 +129,8 @@ export async function generateInitiatorChecklistPDF(data: InitiatorChecklistData
 
     // Pre-Onboarding Checklist
     drawSection('PRE-ONBOARDING CHECKLIST')
-    drawText(`${data.processReadUnderstood ? '☑' : '☐'} I have read and understand the supplier onboarding process`, 10, font)
-    drawText(`${data.dueDiligenceCompleted ? '☑' : '☐'} I have completed due diligence on this supplier`, 10, font)
+    drawText(`${data.processReadUnderstood ? '[X]' : '[ ]'} I have read and understand the supplier onboarding process`, 10, font)
+    drawText(`${data.dueDiligenceCompleted ? '[X]' : '[ ]'} I have completed due diligence on this supplier`, 10, font)
     yPosition -= 20
 
     // Relationship Declaration

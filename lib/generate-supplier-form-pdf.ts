@@ -9,18 +9,7 @@ interface SupplierFormData {
   physicalAddress?: string | null
   postalAddress?: string | null
   tradingName?: string | null
-  registrationNumber?: string | null
-  natureOfBusiness?: string | null
-  productsAndServices?: string | null
-  bankAccountName?: string | null
-  bankName?: string | null
-  branchName?: string | null
-  branchNumber?: string | null
-  accountNumber?: string | null
-  typeOfAccount?: string | null
   bbbeeLevel?: string | null
-  taxId?: string | null
-  vatNumber?: string | null
 }
 
 export async function generateSupplierFormPDF(data: SupplierFormData): Promise<Buffer> {
@@ -107,7 +96,6 @@ export async function generateSupplierFormPDF(data: SupplierFormData): Promise<B
     drawKeyValue('Supplier Name', data.supplierName)
     drawKeyValue('Company Name', data.companyName)
     drawKeyValue('Trading Name', data.tradingName)
-    drawKeyValue('Registration Number', data.registrationNumber)
     drawKeyValue('Contact Person', data.contactPerson)
     drawKeyValue('Contact Email', data.contactEmail)
     drawKeyValue('Contact Phone', data.contactPhone)
@@ -130,37 +118,8 @@ export async function generateSupplierFormPDF(data: SupplierFormData): Promise<B
     }
     yPosition -= 20
 
-    // Business Details
-    drawSection('BUSINESS DETAILS')
-    if (data.natureOfBusiness) {
-      drawText('Nature of Business:', 10, font)
-      drawWrappedText(data.natureOfBusiness, 10, font)
-      yPosition -= 10
-    } else {
-      drawKeyValue('Nature of Business', null)
-    }
-    if (data.productsAndServices) {
-      drawText('Products and/or Services:', 10, font)
-      drawWrappedText(data.productsAndServices, 10, font)
-    } else {
-      drawKeyValue('Products and/or Services', null)
-    }
-    yPosition -= 20
-
-    // Banking Information
-    drawSection('BANKING INFORMATION')
-    drawKeyValue('Bank Account Name', data.bankAccountName)
-    drawKeyValue('Bank Name', data.bankName)
-    drawKeyValue('Branch Name', data.branchName)
-    drawKeyValue('Branch Number', data.branchNumber)
-    drawKeyValue('Account Number', data.accountNumber)
-    drawKeyValue('Type of Account', data.typeOfAccount)
-    yPosition -= 20
-
-    // Tax & Compliance
-    drawSection('TAX & COMPLIANCE')
-    drawKeyValue('Tax ID', data.taxId)
-    drawKeyValue('VAT Number', data.vatNumber)
+    // BBBEE Level
+    drawSection('BBBEE LEVEL')
     drawKeyValue('BBBEE Level', data.bbbeeLevel)
     yPosition -= 30
 
