@@ -6,7 +6,7 @@ export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
   
   // Public paths that don't require authentication
-  const publicPaths = ['/login', '/supplier-onboarding-form']
+  const publicPaths = ['/login', '/supplier-onboarding-form', '/credit-application-form']
   const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path))
   
   // Allow public paths without authentication
@@ -14,10 +14,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   
-  // Public API routes for supplier form (no authentication required)
+  // Public API routes for supplier form and credit application (no authentication required)
   const publicApiPaths = [
     '/api/supplier-form',
     '/api/suppliers/get-by-token',
+    '/api/suppliers/credit-application',
     '/api/custom-options'
   ]
   const isPublicApiPath = publicApiPaths.some(path => request.nextUrl.pathname.startsWith(path))
