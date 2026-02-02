@@ -109,6 +109,11 @@ export const authOptions: NextAuthOptions = {
       }
       return session
     }
+  },
+  events: {
+    async signOut() {
+      // Clean up any session data here if needed
+    }
   }
 }
 

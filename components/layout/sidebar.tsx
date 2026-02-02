@@ -16,7 +16,6 @@ import {
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { signOut, useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 type NavigationItem = {
@@ -38,13 +37,10 @@ const navigation: NavigationItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const { data: session } = useSession()
 
   const handleLogout = async () => {
-    await signOut({ redirect: false })
-    router.push("/login")
-    router.refresh()
+    await signOut({ callbackUrl: "/login" })
   }
 
   const handleComingSoon = (itemName: string) => {

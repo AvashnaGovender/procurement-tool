@@ -1,7 +1,6 @@
 "use client"
 
 import { useSession, signOut } from "next-auth/react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -16,7 +15,6 @@ import { LogOut } from "lucide-react"
 
 export function UserMenu() {
   const { data: session, status } = useSession()
-  const router = useRouter()
 
   if (status === "loading") {
     return null
@@ -37,9 +35,7 @@ export function UserMenu() {
     .toUpperCase() || "U"
 
   const handleSignOut = async () => {
-    await signOut({ redirect: false })
-    router.push("/login")
-    router.refresh()
+    await signOut({ callbackUrl: "/login" })
   }
 
   return (
