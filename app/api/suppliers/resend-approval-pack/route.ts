@@ -8,6 +8,9 @@ import path from 'path'
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
 import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
 import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
+import { promises as fsPromises } from 'fs'
+
+const { readdir } = fsPromises
 
 export async function POST(request: NextRequest) {
   try {
@@ -234,6 +237,63 @@ async function sendPMApprovalPackage(
       }
     ]
 
+    // Collect all supplier document files
+    const documentsList: any[] = []
+    const documentsPath = path.join(process.cwd(), 'data', 'suppliers', supplier.supplierCode, 'documents')
+    
+    try {
+      if (fs.existsSync(documentsPath)) {
+        console.log('📂 Collecting supplier documents from:', documentsPath)
+        
+        // Get all version directories
+        const versions = await readdir(documentsPath)
+        
+        for (const version of versions) {
+          const versionPath = path.join(documentsPath, version)
+          const stat = fs.statSync(versionPath)
+          
+          if (stat.isDirectory() && version.startsWith('v')) {
+            // Get all category directories
+            const categories = await readdir(versionPath)
+            
+            for (const category of categories) {
+              const categoryPath = path.join(versionPath, category)
+              const catStat = fs.statSync(categoryPath)
+              
+              if (catStat.isDirectory()) {
+                // Get all files in this category
+                const files = await readdir(categoryPath)
+                
+                for (const file of files) {
+                  const filePath = path.join(categoryPath, file)
+                  const fileBuffer = fs.readFileSync(filePath)
+                  
+                  attachments.push({
+                    filename: `${category}_${file}`,
+                    content: fileBuffer
+                  })
+                  
+                  documentsList.push({
+                    category: category,
+                    fileName: file,
+                    version: parseInt(version.replace('v', '')),
+                    uploadedAt: fs.statSync(filePath).mtime
+                  })
+                }
+              }
+            }
+          }
+        }
+        
+        console.log(`📎 Collected ${documentsList.length} supplier documents`)
+      } else {
+        console.log('⚠️ No supplier documents directory found at:', documentsPath)
+      }
+    } catch (docError) {
+      console.error('Error collecting documents:', docError)
+      // Continue even if document collection fails
+    }
+
     // Create email content
     const supplierDetailUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-submissions/${supplier.id}`
     
@@ -279,9 +339,20 @@ async function sendPMApprovalPackage(
       <div class="info-box" style="background-color: #f0fdf4; border-left: 4px solid #22c55e;">
         <div class="info-box-title" style="color: #15803d;">📎 Attached Documents</div>
         <ul style="margin: 10px 0; padding-left: 20px; color: #374151;">
-          <li>Approval Summary PDF</li>
-          <li>Supplier Form PDF</li>
-          <li>Initiator Checklist PDF</li>
+          <li><strong>Generated PDFs (3):</strong>
+            <ul style="margin: 5px 0; padding-left: 20px;">
+              <li>Approval Summary PDF</li>
+              <li>Supplier Form PDF</li>
+              <li>Initiator Checklist PDF</li>
+            </ul>
+          </li>
+          ${documentsList.length > 0 ? `
+          <li style="margin-top: 10px;"><strong>Supplier Documents (${documentsList.length}):</strong>
+            <ul style="margin: 5px 0; padding-left: 20px;">
+              ${documentsList.map(doc => `<li>${doc.category}: ${doc.fileName}</li>`).join('')}
+            </ul>
+          </li>
+          ` : ''}
         </ul>
       </div>
       
@@ -308,7 +379,7 @@ async function sendPMApprovalPackage(
 
     // Send email
     console.log(`📧 Sending approval package to PM: ${pmUser.email}`)
-    console.log(`📎 Total attachments: ${attachments.length}`)
+    console.log(`📎 Total attachments: ${attachments.length} (including 3 PDFs and ${documentsList.length} supplier documents)`)
     
     await transporter.sendMail({
       from: `"${smtpConfig.companyName || 'SS Supplier Onboarding'}" <${smtpConfig.fromEmail}>`,
