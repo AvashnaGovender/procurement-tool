@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { workerClient } from '@/lib/worker-client'
+import { getMandatoryDocuments, type PurchaseType, type PaymentMethod } from '@/lib/document-requirements'
 
 export async function POST(
   request: NextRequest,
@@ -9,7 +10,7 @@ export async function POST(
   try {
     const { supplierId } = await params
     
-    // Get supplier with documents
+    // Get supplier with documents, onboarding, and initiation data
     const supplier = await prisma.supplier.findUnique({
       where: { id: supplierId },
       select: {
@@ -30,6 +31,17 @@ export async function POST(
         qualityManagementCert: true,
         sheCertification: true,
         airtableData: true,
+        onboarding: {
+          include: {
+            initiation: {
+              select: {
+                purchaseType: true,
+                creditApplication: true,
+                paymentMethod: true,
+              }
+            }
+          }
+        }
       },
     })
 
@@ -520,8 +532,36 @@ async function processAnalysisJob(
       })
     })
     
-    // Define mandatory documents - all 5 are required
-    const requiredDocs = ['companyRegistration', 'bbbeeAccreditation', 'taxClearance', 'bankConfirmation', 'nda']
+    // Get dynamic document requirements based on purchase type and payment method
+    const purchaseType = supplier.onboarding?.initiation?.purchaseType || 'REGULAR'
+    const creditApplication = supplier.onboarding?.initiation?.creditApplication || false
+    const paymentMethod = supplier.onboarding?.initiation?.paymentMethod || null
+    
+    await addLog(`📋 Document Requirements Context:`)
+    await addLog(`   Purchase Type: ${purchaseType}`)
+    await addLog(`   Credit Application: ${creditApplication}`)
+    await addLog(`   Payment Method: ${paymentMethod || 'Not specified'}`)
+    
+    // Get mandatory documents dynamically based on supplier context
+    const requiredDocsKeys = getMandatoryDocuments(
+      purchaseType as PurchaseType, 
+      creditApplication, 
+      paymentMethod as PaymentMethod | null
+    )
+    
+    // Map document keys to internal category names used in uploads
+    const documentKeyMapping: Record<string, string> = {
+      'cipcCertificate': 'companyRegistration',
+      'bbbeeScorecard': 'bbbeeAccreditation',
+      'taxClearance': 'taxClearance',
+      'bankConfirmation': 'bankConfirmation',
+      'nda': 'nda',
+      'creditApplication': 'creditApplication',
+    }
+    
+    const requiredDocs = requiredDocsKeys.map(key => documentKeyMapping[key] || key)
+    
+    await addLog(`📋 Required documents for this supplier: ${requiredDocs.join(', ')}`)
     const missingDocs = requiredDocs.filter(doc => {
       if (doc === 'taxClearance') {
         // Accept either tax clearance OR good standing across all versions
@@ -576,7 +616,10 @@ async function processAnalysisJob(
             docDetails = `Bank Confirmation Letter - Required to validate: Bank (${supplier.bankName || 'Not specified'}), Account # (${supplier.accountNumber || 'Not specified'}), Branch (${supplier.branchName || 'Not specified'})`
             break
           case 'nda':
-            docDetails = 'Non-Disclosure Agreement (NDA) - Must be signed and initialed on all pages'
+            docDetails = 'Non-Disclosure Agreement (NDA) - Must be signed and initialed on all pages (Required for SHARED_IP only)'
+            break
+          case 'creditApplication':
+            docDetails = 'Credit Application Form - Required for account payment terms (Not required for COD)'
             break
         }
         await addLog(`   ❌ ${docDetails}`)
@@ -718,14 +761,22 @@ async function processAnalysisJob(
     
     // Check if NDA is uploaded across all versions
     const hasNDA = allUploadedFiles?.nda && allUploadedFiles.nda.length > 0
+    // Check if NDA is actually required for this supplier
+    const isNDARequired = requiredDocs.includes('nda')
+    // Check if Credit Application is uploaded
+    const hasCreditApp = allUploadedFiles?.creditApplication && allUploadedFiles.creditApplication.length > 0
+    const isCreditAppRequired = requiredDocs.includes('creditApplication')
     
     if (analysisResults.overallScore >= 80) {
       insights.push('✅ Supplier demonstrates strong compliance and documentation quality')
       insights.push('✅ All critical requirements met')
-      if (hasNDA) {
+      if (hasNDA && isNDARequired) {
         insights.push('🔍 MANUAL CHECK REQUIRED: Verify NDA is signed and initialed on all pages')
       }
-      insights.push('✅ Recommended for approval after NDA verification')
+      if (hasCreditApp && isCreditAppRequired) {
+        insights.push('🔍 MANUAL CHECK REQUIRED: Review credit application details and terms')
+      }
+      insights.push('✅ Recommended for approval' + (hasNDA && isNDARequired ? ' after NDA verification' : ''))
     } else if (analysisResults.overallScore >= 60) {
       insights.push('⚠️ Supplier meets basic requirements with some concerns')
       if (missingDocs.length > 0) {
@@ -734,22 +785,31 @@ async function processAnalysisJob(
       if (avgDocumentQuality < 85) {
         insights.push('⚠️ Consider requesting higher quality document scans')
       }
-      if (hasNDA) {
+      if (hasNDA && isNDARequired) {
         insights.push('🔍 MANUAL CHECK REQUIRED: Verify NDA is signed and initialed on all pages')
+      }
+      if (hasCreditApp && isCreditAppRequired) {
+        insights.push('🔍 MANUAL CHECK REQUIRED: Review credit application details and terms')
       }
       insights.push('⚠️ Recommend revision before approval')
     } else {
       insights.push('❌ Significant compliance gaps identified')
       insights.push('❌ Multiple required documents missing or inadequate')
-      if (hasNDA) {
+      if (hasNDA && isNDARequired) {
         insights.push('🔍 MANUAL CHECK REQUIRED: Verify NDA is signed and initialed on all pages')
+      }
+      if (hasCreditApp && isCreditAppRequired) {
+        insights.push('🔍 MANUAL CHECK REQUIRED: Review credit application details and terms')
       }
       insights.push('❌ Not recommended for approval - revision required')
     }
     
-    // Always add NDA reminder at the end if NDA is present
-    if (hasNDA) {
+    // Add reminders for manual checks if documents are present AND required
+    if (hasNDA && isNDARequired) {
       insights.push('📝 Remember: AI cannot verify handwritten signatures - manual review essential for NDA')
+    }
+    if (hasCreditApp && isCreditAppRequired) {
+      insights.push('📝 Remember: Credit application requires manual review of financial terms and credit limits')
     }
     
     analysisResults.insights = insights

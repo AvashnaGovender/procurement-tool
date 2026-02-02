@@ -658,14 +658,21 @@ def create_document_analysis_task(submission_id: str, documents: List[Dict[str, 
         3. Completeness and quality
         4. Any missing or unclear information
         
-        Focus on South African business documents and extract:
-        - Company name and registration number
-        - CIPC registration details
-        - Tax numbers (VAT, PAYE, etc.)
-        - BBBEE information
-        - Banking details
-        - Contact information
-        - Document validity dates
+        Focus on MANDATORY South African business documents:
+        - CIPC Certificate: Company name, registration number, physical address, entity type
+        - B-BBEE Certificate: Status level, black ownership %, black female %, validity/expiry date
+        - Tax Clearance Certificate: Taxpayer name, tax reference number, purpose (Good Standing), validity (< 3 months old)
+        - Bank Confirmation Letter: Bank name, branch details, account number, account type, account holder name
+        
+        CONDITIONAL documents (may or may not be required):
+        - NDA: Required for SHARED_IP purchase types only - verify signatures and initials
+        - Credit Application Form: Required for account payment terms (not required for COD)
+        
+        OPTIONAL documents (not required, but analyze if present):
+        - VAT Registration Certificate
+        - Company Profile, Organogram
+        - Quality Management Certifications (ISO 9001, etc.)
+        - Safety, Health and Environment (SHE) Certifications
         
         Provide a structured analysis of each document with specific extracted data.
         """,
@@ -682,22 +689,32 @@ def create_compliance_check_task(submission_id: str, analysis_results: str) -> T
         
         {analysis_results}
         
-        Check compliance against the following requirements:
-        1. Document completeness (all required documents present)
-        2. Tax compliance (valid tax clearance certificate)
-        3. BBBEE compliance (valid BBBEE certificate or affidavit)
-        4. Company registration (valid registration documents)
-        5. Banking details (valid bank confirmation letter)
-        6. Health and safety compliance
-        7. Quality certifications (if applicable)
+        Check compliance against the following MANDATORY requirements for ALL suppliers:
+        1. CIPC Certificate (Company Registration) - Verify company name, registration number, address
+        2. B-BBEE Scorecard or Affidavit - Verify status level, black ownership %, validity
+        3. Tax Clearance Certificate - Verify taxpayer name matches, good standing status, validity (< 3 months)
+        4. Bank Confirmation Letter - Verify bank details, account number, branch information
         
-        For each requirement, indicate:
+        CONDITIONAL requirements (depending on purchase type and payment method):
+        5. Non-Disclosure Agreement (NDA) - Required for SHARED_IP purchase type only (verify signatures on all pages)
+        6. Credit Application Form - Required for account payment terms (NOT required for COD)
+        
+        OPTIONAL documents (not required, but beneficial if present):
+        - VAT Registration Certificate
+        - Company Profile
+        - Organogram
+        - Quality Management Certifications (ISO, etc.)
+        - Safety, Health and Environment (SHE) Certifications
+        
+        For each MANDATORY requirement, indicate:
         - Status: PASSED, FAILED, or WARNING
         - Details: Specific findings
         - Recommendations: What needs to be done
+        
+        NOTE: Do NOT flag missing optional documents as compliance failures.
         """,
         agent=compliance_officer,
-        expected_output="Detailed compliance check results with status for each requirement"
+        expected_output="Detailed compliance check results with status for each MANDATORY requirement"
     )
 
 
