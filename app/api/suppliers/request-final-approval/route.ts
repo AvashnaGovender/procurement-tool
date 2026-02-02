@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import nodemailer from 'nodemailer'
 import fs from 'fs'
 import path from 'path'
+import { generateFinalApprovalPackagePDF } from '@/lib/generate-final-approval-package-pdf'
 
 export async function POST(request: NextRequest) {
   try {
@@ -167,6 +168,98 @@ async function sendFinalApprovalRequestEmail(supplier: any, requesterName: strin
 
     const supplierDetailUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-submissions/${supplier.id}`
 
+    // Generate comprehensive PDF with all information
+    console.log('📄 Generating final approval package PDF...')
+    
+    // Get documents from airtableData
+    const documents = supplier.airtableData?.allVersions?.flatMap((version: any) => 
+      Object.entries(version.documents || {}).map(([category, files]: [string, any]) => 
+        Array.isArray(files) ? files.map((file: any) => ({
+          category,
+          fileName: file.filename || file.name || 'Unknown',
+          version: version.version || 1,
+          uploadedAt: file.uploadedAt ? new Date(file.uploadedAt) : new Date()
+        })) : []
+      ).flat()
+    ).flat() || []
+
+    const pdfBuffer = await generateFinalApprovalPackagePDF({
+      supplier: {
+        supplierCode: supplier.supplierCode,
+        companyName: supplier.companyName,
+        tradingName: supplier.tradingName,
+        registrationNumber: supplier.registrationNumber,
+        contactPerson: supplier.contactPerson,
+        contactEmail: supplier.contactEmail,
+        contactPhone: supplier.contactPhone,
+        physicalAddress: supplier.physicalAddress,
+        postalAddress: supplier.postalAddress,
+        natureOfBusiness: supplier.natureOfBusiness,
+        productsAndServices: supplier.productsAndServices,
+        associatedCompany: supplier.associatedCompany,
+        associatedCompanyRegNo: supplier.associatedCompanyRegNo,
+        associatedCompanyBranchName: supplier.associatedCompanyBranchName,
+        branchesContactNumbers: supplier.branchesContactNumbers,
+        bankAccountName: supplier.bankAccountName,
+        bankName: supplier.bankName,
+        branchName: supplier.branchName,
+        branchNumber: supplier.branchNumber,
+        accountNumber: supplier.accountNumber,
+        typeOfAccount: supplier.typeOfAccount,
+        rpBanking: supplier.rpBanking,
+        rpBankingPhone: supplier.rpBankingPhone,
+        rpBankingEmail: supplier.rpBankingEmail,
+        rpQuality: supplier.rpQuality,
+        rpQualityPhone: supplier.rpQualityPhone,
+        rpQualityEmail: supplier.rpQualityEmail,
+        rpSHE: supplier.rpSHE,
+        rpSHEPhone: supplier.rpSHEPhone,
+        rpSHEEmail: supplier.rpSHEEmail,
+        rpBBBEE: supplier.rpBBBEE,
+        rpBBBEEPhone: supplier.rpBBBEEPhone,
+        rpBBBEEEmail: supplier.rpBBBEEEmail,
+        bbbeeLevel: supplier.bbbeeLevel,
+        numberOfEmployees: supplier.numberOfEmployees,
+        taxId: supplier.taxId,
+        vatNumber: supplier.vatNumber,
+        qualityManagementCert: supplier.qualityManagementCert,
+        sheCertification: supplier.sheCertification,
+        authorizationAgreement: supplier.authorizationAgreement,
+      },
+      initiation: {
+        supplierName: supplier.onboarding?.initiation?.supplierName || supplier.companyName,
+        supplierEmail: supplier.onboarding?.initiation?.supplierEmail || supplier.contactEmail,
+        supplierContactPerson: supplier.onboarding?.initiation?.supplierContactPerson || supplier.contactPerson,
+        productServiceCategory: supplier.onboarding?.initiation?.productServiceCategory || 'Not specified',
+        requesterName: supplier.onboarding?.initiation?.requesterName || 'Unknown',
+        relationshipDeclaration: supplier.onboarding?.initiation?.relationshipDeclaration || 'Not specified',
+        processReadUnderstood: supplier.onboarding?.initiation?.processReadUnderstood || false,
+        dueDiligenceCompleted: supplier.onboarding?.initiation?.dueDiligenceCompleted || false,
+        purchaseType: supplier.onboarding?.initiation?.purchaseType || 'REGULAR',
+        paymentMethod: supplier.onboarding?.initiation?.paymentMethod || 'AC',
+        codReason: supplier.onboarding?.initiation?.codReason,
+        annualPurchaseValue: supplier.onboarding?.initiation?.annualPurchaseValue,
+        currency: supplier.onboarding?.initiation?.currency,
+        supplierLocation: supplier.onboarding?.initiation?.supplierLocation,
+        customCurrency: supplier.onboarding?.initiation?.customCurrency,
+        creditApplication: supplier.onboarding?.initiation?.creditApplication || false,
+        creditApplicationReason: supplier.onboarding?.initiation?.creditApplicationReason,
+        onboardingReason: supplier.onboarding?.initiation?.onboardingReason || 'Not specified',
+        businessUnit: supplier.onboarding?.initiation?.businessUnit || [],
+        initiatedBy: {
+          name: supplier.onboarding?.initiation?.initiatedBy?.name || 'Unknown',
+          email: supplier.onboarding?.initiation?.initiatedBy?.email || 'Unknown'
+        },
+        createdAt: supplier.onboarding?.initiation?.createdAt ? new Date(supplier.onboarding.initiation.createdAt) : new Date(),
+        submittedAt: supplier.onboarding?.initiation?.submittedAt ? new Date(supplier.onboarding.initiation.submittedAt) : null
+      },
+      documents,
+      creditController: supplier.onboarding?.creditController,
+      generatedAt: new Date()
+    })
+    
+    console.log('✅ PDF generated successfully')
+
     // Create final approval request email content
     const emailSubject = `Final Approval Required: Supplier ${supplier.companyName}`
     const emailHtml = `
@@ -301,11 +394,19 @@ async function sendFinalApprovalRequestEmail(supplier: any, requesterName: strin
         <div class="info-item"><strong>Status:</strong> <span style="color: #f59e0b; font-weight: bold;">AWAITING FINAL APPROVAL</span></div>
       </div>
       
+      <div class="info-box" style="background-color: #f0fdf4; border-left: 4px solid #22c55e;">
+        <div class="info-box-title" style="color: #15803d;">📎 Complete Package Attached</div>
+        <p style="margin: 0; color: #374151;">
+          A comprehensive PDF containing <strong>all initiator request details and supplier questionnaire responses</strong> is attached to this email for your review.
+        </p>
+      </div>
+      
       <p>
         <strong>What you need to do:</strong>
       </p>
       <ul style="color: #374151; line-height: 1.8;">
-        <li>Review the supplier's documents and information</li>
+        <li><strong>Review the attached PDF</strong> with complete supplier information</li>
+        <li>Review the supplier's documents and information in the system</li>
         <li>Verify all compliance requirements are met</li>
         <li>Approve or reject the supplier application</li>
       </ul>
@@ -363,6 +464,11 @@ async function sendFinalApprovalRequestEmail(supplier: any, requesterName: strin
             filename: 'logo.png',
             path: path.join(process.cwd(), 'public', 'logo.png'),
             cid: 'logo'
+          },
+          {
+            filename: `Final-Approval-Package-${supplier.supplierCode}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
           }
         ]
       })

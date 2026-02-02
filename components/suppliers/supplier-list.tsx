@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Star, MapPin, Phone, Mail, MoreHorizontal, Eye, Edit, Trash2, Loader2 } from "lucide-react"
+import { MapPin, Phone, Mail, MoreHorizontal, Eye, Edit, Trash2, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useEffect, useState } from "react"
 import Link from "next/link"
@@ -168,15 +168,6 @@ export function SupplierList({ searchQuery = "", filters }: SupplierListProps) {
         console.log(`   After category filter: ${filtered.length} suppliers\n`)
       }
 
-      // Rating filter (mock implementation - would need real evaluation data)
-      if (filters.rating && filters.rating !== 'any') {
-        const minRating = parseFloat(filters.rating)
-        filtered = filtered.filter(supplier => {
-          const rating = getSupplierRating(supplier)
-          return rating >= minRating
-        })
-      }
-
       // Location filter (mock implementation)
       if (filters.location && filters.location !== 'all') {
         filtered = filtered.filter(supplier => {
@@ -228,12 +219,6 @@ export function SupplierList({ searchQuery = "", filters }: SupplierListProps) {
       return supplier.airtableData.physicalAddress
     }
     return 'South Africa' // Default location
-  }
-
-  const getSupplierRating = (supplier: Supplier) => {
-    // TODO: Implement supplier rating module
-    // For now, return 0 until rating system is implemented
-    return 0
   }
 
   if (loading) {
@@ -360,6 +345,11 @@ export function SupplierList({ searchQuery = "", filters }: SupplierListProps) {
                         <Mail className="h-4 w-4" />
                             <span>{supplier.contactEmail}</span>
                       </div>
+                          {supplier.bbbeeLevel && (
+                            <div className="flex items-center space-x-1">
+                              <span>BBBEE: {supplier.bbbeeLevel}</span>
+                            </div>
+                          )}
                     </div>
                   </div>
                 </div>
@@ -410,36 +400,6 @@ export function SupplierList({ searchQuery = "", filters }: SupplierListProps) {
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
-
-                  <div className="mt-4 grid grid-cols-4 gap-4 pt-4 border-t border-border">
-                <div>
-                  <div className="flex items-center space-x-1 mb-1">
-                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm font-medium text-foreground">
-                          {getSupplierRating(supplier).toFixed(1)}
-                        </span>
-                  </div>
-                      <p className="text-xs text-muted-foreground">Rating</p>
-                </div>
-                <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {supplier.onboarding?.revisionCount || 0}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Revisions</p>
-                </div>
-                <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {supplier.bbbeeLevel || 'N/A'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">BBBEE Level</p>
-                </div>
-                <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {supplier.numberOfEmployees || 'N/A'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Employees</p>
-                </div>
               </div>
             </CardContent>
           </Card>
