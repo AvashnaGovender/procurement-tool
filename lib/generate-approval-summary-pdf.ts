@@ -64,7 +64,7 @@ export async function generateApprovalSummaryPDF(data: ApprovalSummaryData): Pro
     const logoPath = path.join(process.cwd(), 'public', 'logo.png')
     const logoImageBytes = fs.readFileSync(logoPath)
     const logoImage = await pdfDoc.embedPng(logoImageBytes)
-    const logoDims = logoImage.scale(0.15) // Adjust scale as needed
+    const logoDims = logoImage.scale(0.35) // Adjust scale as needed
     
     const pageWidth = 595.28
     const pageHeight = 841.89
