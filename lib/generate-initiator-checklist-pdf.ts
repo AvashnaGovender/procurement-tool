@@ -1,4 +1,4 @@
-import PDFDocument from 'pdfkit'
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 
 interface InitiatorChecklistData {
   supplierName: string
@@ -28,144 +28,197 @@ interface InitiatorChecklistData {
 }
 
 export async function generateInitiatorChecklistPDF(data: InitiatorChecklistData): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ margin: 50, size: 'A4' })
-      const chunks: Buffer[] = []
+  try {
+    const pdfDoc = await PDFDocument.create()
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+    
+    const pageWidth = 595.28
+    const pageHeight = 841.89
+    const margin = 50
+    const contentWidth = pageWidth - (2 * margin)
+    
+    let currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+    let yPosition = pageHeight - margin
 
-      doc.on('data', (chunk) => chunks.push(chunk))
-      doc.on('end', () => resolve(Buffer.concat(chunks)))
-      doc.on('error', reject)
-
-      // Helper for section headers
-      const addSectionHeader = (title: string) => {
-        doc.fontSize(14)
-           .fillColor('#1e40af')
-           .text(title, { underline: true })
-           .moveDown(0.5)
-           .fillColor('#000000')
-           .fontSize(10)
+    const checkNewPage = (requiredSpace: number = 50) => {
+      if (yPosition - requiredSpace < margin) {
+        currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+        yPosition = pageHeight - margin
       }
-
-      // Helper for key-value pairs
-      const addKeyValue = (key: string, value: string | number | boolean | null | undefined) => {
-        if (value !== null && value !== undefined) {
-          doc.fontSize(10)
-             .text(`${key}: ${typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}`)
-        }
-      }
-
-      // Helper for checkboxes
-      const addCheckbox = (label: string, checked: boolean) => {
-        doc.fontSize(10)
-           .text(`${checked ? '☑' : '☐'} ${label}`)
-      }
-
-      // Title
-      doc.fontSize(20)
-         .fillColor('#1e40af')
-         .text('INITIATOR CHECKLIST & REQUIREMENTS', { align: 'center' })
-         .moveDown()
-         .fontSize(12)
-         .fillColor('#666666')
-         .text(`Submitted on ${data.createdAt.toLocaleDateString()} at ${data.createdAt.toLocaleTimeString()}`, { align: 'center' })
-         .moveDown(2)
-         .fillColor('#000000')
-
-      // Initiator Information
-      addSectionHeader('INITIATED BY')
-      addKeyValue('Name', data.initiatedBy.name)
-      addKeyValue('Email', data.initiatedBy.email)
-      addKeyValue('Date', data.createdAt.toLocaleDateString())
-      doc.moveDown(1.5)
-
-      // Supplier Information
-      addSectionHeader('SUPPLIER INFORMATION')
-      addKeyValue('Supplier Name', data.supplierName)
-      addKeyValue('Contact Person', data.supplierContactPerson)
-      addKeyValue('Email', data.supplierEmail)
-      addKeyValue('Product/Service Category', data.productServiceCategory)
-      addKeyValue('Requester Name', data.requesterName)
-      doc.moveDown(1.5)
-
-      // Business Units
-      addSectionHeader('BUSINESS UNIT(S)')
-      const businessUnits = Array.isArray(data.businessUnit) ? data.businessUnit.join(', ') : data.businessUnit
-      doc.fontSize(10).text(businessUnits)
-      doc.moveDown(1.5)
-
-      // Pre-Onboarding Checklist
-      addSectionHeader('PRE-ONBOARDING CHECKLIST')
-      addCheckbox('I have read and understand the supplier onboarding process', data.processReadUnderstood)
-      addCheckbox('I have completed due diligence on this supplier', data.dueDiligenceCompleted)
-      doc.moveDown(1.5)
-
-      // Relationship Declaration
-      addSectionHeader('RELATIONSHIP DECLARATION')
-      doc.fontSize(10).text(data.relationshipDeclaration)
-      doc.moveDown(1.5)
-
-      // Purchase Details
-      addSectionHeader('PURCHASE DETAILS')
-      addKeyValue('Purchase Type', data.purchaseType.replace(/_/g, ' '))
-      addKeyValue('Payment Method', data.paymentMethod)
-      
-      if (data.paymentMethod === 'COD' && data.codReason) {
-        doc.moveDown(0.5)
-        doc.fontSize(10).text(`COD Reason: ${data.codReason}`, { indent: 20, align: 'justify' })
-      }
-
-      if (data.purchaseType === 'REGULAR' && data.annualPurchaseValue) {
-        const symbol = data.supplierLocation === 'LOCAL' ? 'R' : (data.currency || 'USD')
-        let valueRange = ''
-        if (data.annualPurchaseValue <= 100000) {
-          valueRange = `${symbol}0 - ${symbol}100,000`
-        } else if (data.annualPurchaseValue <= 500000) {
-          valueRange = `${symbol}100,000 - ${symbol}500,000`
-        } else if (data.annualPurchaseValue <= 1000000) {
-          valueRange = `${symbol}500,000 - ${symbol}1,000,000`
-        } else {
-          valueRange = `${symbol}1,000,000+`
-        }
-        addKeyValue('Annual Purchase Value Range', valueRange)
-      }
-
-      addKeyValue('Supplier Location', data.supplierLocation)
-      if (data.supplierLocation === 'FOREIGN') {
-        addKeyValue('Currency', data.currency)
-      }
-      doc.moveDown(1.5)
-
-      // Credit Application
-      addSectionHeader('CREDIT APPLICATION')
-      addKeyValue('Credit Application Required', data.creditApplication)
-      if (data.creditApplicationReason) {
-        doc.moveDown(0.5)
-        doc.fontSize(10).text(`Reason: ${data.creditApplicationReason}`, { indent: 20, align: 'justify' })
-      }
-      doc.moveDown(1.5)
-
-      // Justification
-      addSectionHeader('ONBOARDING JUSTIFICATION')
-      if (data.onboardingReason) {
-        doc.fontSize(10).text(data.onboardingReason, { align: 'justify' })
-      }
-      if (data.justification) {
-        doc.moveDown(0.5)
-        doc.fontSize(10).text(`Additional Justification: ${data.justification}`, { align: 'justify' })
-      }
-      doc.moveDown(2)
-
-      // Footer
-      doc.fontSize(8)
-         .fillColor('#999999')
-         .text('This checklist was completed by the initiator during the supplier onboarding request.', { align: 'center' })
-         .moveDown(0.5)
-         .text('SS Supplier Onboarding System', { align: 'center' })
-
-      doc.end()
-    } catch (error) {
-      reject(error)
     }
-  })
+
+    const drawText = (text: string, size: number, textFont: any, color = rgb(0, 0, 0), x = margin) => {
+      currentPage.drawText(text, { x, y: yPosition, size, font: textFont, color })
+      yPosition -= size + 5
+    }
+
+    const drawWrappedText = (text: string, size: number, textFont: any, maxWidth = contentWidth) => {
+      const words = text.split(' ')
+      let line = ''
+      
+      for (const word of words) {
+        const testLine = line + (line ? ' ' : '') + word
+        const testWidth = textFont.widthOfTextAtSize(testLine, size)
+        
+        if (testWidth > maxWidth && line) {
+          checkNewPage(size + 5)
+          currentPage.drawText(line, { x: margin, y: yPosition, size, font: textFont })
+          yPosition -= size + 5
+          line = word
+        } else {
+          line = testLine
+        }
+      }
+      
+      if (line) {
+        checkNewPage(size + 5)
+        currentPage.drawText(line, { x: margin, y: yPosition, size, font: textFont })
+        yPosition -= size + 5
+      }
+    }
+
+    const drawSection = (title: string) => {
+      checkNewPage(30)
+      yPosition -= 10
+      drawText(title, 14, boldFont, rgb(0.118, 0.251, 0.686))
+      yPosition -= 5
+    }
+
+    const drawKeyValue = (key: string, value: string | number | boolean | null | undefined) => {
+      if (value !== null && value !== undefined) {
+        checkNewPage(20)
+        const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)
+        drawText(`${key}: ${displayValue}`, 10, font)
+      }
+    }
+
+    // Title
+    yPosition -= 50
+    const title = 'INITIATOR CHECKLIST & REQUIREMENTS'
+    const titleWidth = boldFont.widthOfTextAtSize(title, 20)
+    drawText(title, 20, boldFont, rgb(0.118, 0.251, 0.686), (pageWidth - titleWidth) / 2)
+    yPosition -= 10
+    
+    const dateStr = `Submitted on ${data.createdAt.toLocaleDateString()} at ${data.createdAt.toLocaleTimeString()}`
+    const dateWidth = font.widthOfTextAtSize(dateStr, 12)
+    drawText(dateStr, 12, font, rgb(0.4, 0.4, 0.4), (pageWidth - dateWidth) / 2)
+    yPosition -= 30
+
+    // Initiator Information
+    drawSection('INITIATED BY')
+    drawKeyValue('Name', data.initiatedBy.name)
+    drawKeyValue('Email', data.initiatedBy.email)
+    drawKeyValue('Date', data.createdAt.toLocaleDateString())
+    yPosition -= 20
+
+    // Supplier Information
+    drawSection('SUPPLIER INFORMATION')
+    drawKeyValue('Supplier Name', data.supplierName)
+    drawKeyValue('Contact Person', data.supplierContactPerson)
+    drawKeyValue('Email', data.supplierEmail)
+    drawKeyValue('Product/Service Category', data.productServiceCategory)
+    drawKeyValue('Requester Name', data.requesterName)
+    yPosition -= 20
+
+    // Business Units
+    drawSection('BUSINESS UNIT(S)')
+    const businessUnits = Array.isArray(data.businessUnit) ? data.businessUnit.join(', ') : data.businessUnit
+    drawText(businessUnits, 10, font)
+    yPosition -= 20
+
+    // Pre-Onboarding Checklist
+    drawSection('PRE-ONBOARDING CHECKLIST')
+    drawText(`${data.processReadUnderstood ? '☑' : '☐'} I have read and understand the supplier onboarding process`, 10, font)
+    drawText(`${data.dueDiligenceCompleted ? '☑' : '☐'} I have completed due diligence on this supplier`, 10, font)
+    yPosition -= 20
+
+    // Relationship Declaration
+    drawSection('RELATIONSHIP DECLARATION')
+    drawWrappedText(data.relationshipDeclaration, 10, font)
+    yPosition -= 20
+
+    // Purchase Details
+    drawSection('PURCHASE DETAILS')
+    drawKeyValue('Purchase Type', data.purchaseType.replace(/_/g, ' '))
+    drawKeyValue('Payment Method', data.paymentMethod)
+    
+    if (data.paymentMethod === 'COD' && data.codReason) {
+      yPosition -= 10
+      drawText('COD Reason:', 10, font)
+      drawWrappedText(data.codReason, 10, font)
+    }
+
+    if (data.purchaseType === 'REGULAR' && data.annualPurchaseValue) {
+      const symbol = data.supplierLocation === 'LOCAL' ? 'R' : (data.currency || 'USD')
+      let valueRange = ''
+      if (data.annualPurchaseValue <= 100000) {
+        valueRange = `${symbol}0 - ${symbol}100,000`
+      } else if (data.annualPurchaseValue <= 500000) {
+        valueRange = `${symbol}100,000 - ${symbol}500,000`
+      } else if (data.annualPurchaseValue <= 1000000) {
+        valueRange = `${symbol}500,000 - ${symbol}1,000,000`
+      } else {
+        valueRange = `${symbol}1,000,000+`
+      }
+      drawKeyValue('Annual Purchase Value Range', valueRange)
+    }
+
+    drawKeyValue('Supplier Location', data.supplierLocation)
+    if (data.supplierLocation === 'FOREIGN') {
+      drawKeyValue('Currency', data.currency)
+    }
+    yPosition -= 20
+
+    // Credit Application
+    drawSection('CREDIT APPLICATION')
+    drawKeyValue('Credit Application Required', data.creditApplication)
+    if (data.creditApplicationReason) {
+      yPosition -= 10
+      drawText('Reason:', 10, font)
+      drawWrappedText(data.creditApplicationReason, 10, font)
+    }
+    yPosition -= 20
+
+    // Justification
+    drawSection('ONBOARDING JUSTIFICATION')
+    if (data.onboardingReason) {
+      drawWrappedText(data.onboardingReason, 10, font)
+    }
+    if (data.justification) {
+      yPosition -= 10
+      drawText('Additional Justification:', 10, font)
+      drawWrappedText(data.justification, 10, font)
+    }
+    yPosition -= 30
+
+    // Footer
+    yPosition = margin + 20
+    const footer = 'This checklist was completed by the initiator during the supplier onboarding request.'
+    const footerWidth = font.widthOfTextAtSize(footer, 8)
+    currentPage.drawText(footer, {
+      x: (pageWidth - footerWidth) / 2,
+      y: yPosition,
+      size: 8,
+      font,
+      color: rgb(0.6, 0.6, 0.6)
+    })
+    yPosition -= 12
+    
+    const footer2 = 'SS Supplier Onboarding System'
+    const footer2Width = font.widthOfTextAtSize(footer2, 8)
+    currentPage.drawText(footer2, {
+      x: (pageWidth - footer2Width) / 2,
+      y: yPosition,
+      size: 8,
+      font,
+      color: rgb(0.6, 0.6, 0.6)
+    })
+
+    const pdfBytes = await pdfDoc.save()
+    return Buffer.from(pdfBytes)
+  } catch (error) {
+    console.error('Error in generateInitiatorChecklistPDF:', error)
+    throw error
+  }
 }

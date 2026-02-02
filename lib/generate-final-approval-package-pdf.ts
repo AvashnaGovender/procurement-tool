@@ -1,4 +1,4 @@
-import PDFDocument from 'pdfkit'
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 
 interface FinalApprovalPackageData {
   // Supplier Information (from supplier questionnaire)
@@ -90,383 +90,457 @@ interface FinalApprovalPackageData {
 }
 
 export async function generateFinalApprovalPackagePDF(data: FinalApprovalPackageData): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ 
-        margin: 50, 
-        size: 'A4',
-        bufferPages: true,
-        autoFirstPage: true
-      })
-      const chunks: Buffer[] = []
+  try {
+    const pdfDoc = await PDFDocument.create()
+    const timesRomanFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
+    const timesRomanBoldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+    
+    const pageWidth = 595.28 // A4 width in points
+    const pageHeight = 841.89 // A4 height in points
+    const margin = 50
+    const contentWidth = pageWidth - (2 * margin)
+    
+    let currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+    let yPosition = pageHeight - margin
 
-      doc.on('data', (chunk) => chunks.push(chunk))
-      doc.on('end', () => resolve(Buffer.concat(chunks)))
-      doc.on('error', reject)
-
-      // Helper for section headers
-      const addSectionHeader = (title: string, newPage: boolean = false) => {
-        if (newPage && doc.y > 100) {
-          doc.addPage()
-        }
-        doc.fontSize(14)
-           .fillColor('#1e40af')
-           .text(title, { underline: true })
-           .moveDown(0.5)
-           .fillColor('#000000')
-           .fontSize(10)
+    // Helper functions for pdf-lib
+    const checkNewPage = (requiredSpace: number = 50) => {
+      if (yPosition - requiredSpace < margin) {
+        currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+        yPosition = pageHeight - margin
+        return true
       }
-
-      // Helper for subsection headers
-      const addSubsectionHeader = (title: string) => {
-        doc.fontSize(12)
-           .fillColor('#3b82f6')
-           .text(title)
-           .moveDown(0.3)
-           .fillColor('#000000')
-           .fontSize(10)
-      }
-
-      // Helper for key-value pairs
-      const addKeyValue = (key: string, value: string | number | boolean | null | undefined, indent: number = 0) => {
-        if (value !== null && value !== undefined && value !== '') {
-          doc.fontSize(10)
-             .text(`${key}: ${typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}`, { indent })
-        }
-      }
-
-      // Helper for checkboxes
-      const addCheckbox = (label: string, checked: boolean) => {
-        doc.fontSize(10)
-           .text(`${checked ? '☑' : '☐'} ${label}`)
-      }
-
-      // Helper for text blocks
-      const addTextBlock = (title: string, content: string | null | undefined, indent: number = 20) => {
-        if (content) {
-          doc.fontSize(10).text(`${title}: ${content}`, { indent, align: 'justify' })
-        }
-      }
-
-      // ===== COVER PAGE =====
-      doc.fontSize(24)
-         .fillColor('#1e40af')
-         .text('FINAL APPROVAL PACKAGE', { align: 'center' })
-         .moveDown()
-         .fontSize(16)
-         .text('Supplier Onboarding Documentation', { align: 'center' })
-         .moveDown(2)
-         .fontSize(12)
-         .fillColor('#666666')
-         .text(`Generated on ${data.generatedAt.toLocaleDateString()} at ${data.generatedAt.toLocaleTimeString()}`, { align: 'center' })
-         .moveDown(3)
-         .fillColor('#000000')
-
-      // Supplier summary box on cover
-      doc.fontSize(11)
-         .fillColor('#000000')
-      
-      const boxY = doc.y
-      doc.rect(50, boxY, doc.page.width - 100, 140)
-         .lineWidth(2)
-         .strokeColor('#1e40af')
-         .stroke()
-      
-      doc.moveDown(0.5)
-      addKeyValue('Supplier Code', data.supplier.supplierCode, 20)
-      addKeyValue('Company Name', data.supplier.companyName, 20)
-      addKeyValue('Contact Person', data.supplier.contactPerson, 20)
-      addKeyValue('Contact Email', data.supplier.contactEmail, 20)
-      if (data.creditController) {
-        addKeyValue('Assigned Credit Controller', data.creditController, 20)
-      }
-      doc.moveDown(2)
-
-      // ===== PAGE 2: INITIATOR REQUEST DETAILS =====
-      doc.addPage()
-      
-      doc.fontSize(18)
-         .fillColor('#1e40af')
-         .text('SECTION 1: INITIATOR REQUEST', { align: 'center' })
-         .moveDown(2)
-         .fillColor('#000000')
-
-      // Initiated By
-      addSectionHeader('INITIATED BY')
-      addKeyValue('Name', data.initiation.initiatedBy.name)
-      addKeyValue('Email', data.initiation.initiatedBy.email)
-      addKeyValue('Request Date', data.initiation.createdAt.toLocaleDateString())
-      if (data.initiation.submittedAt) {
-        addKeyValue('Submitted Date', new Date(data.initiation.submittedAt).toLocaleDateString())
-      }
-      doc.moveDown(1.5)
-
-      // Supplier Details (from initiator)
-      addSectionHeader('SUPPLIER DETAILS (AS INITIATED)')
-      addKeyValue('Supplier Name', data.initiation.supplierName)
-      addKeyValue('Contact Person', data.initiation.supplierContactPerson)
-      addKeyValue('Email', data.initiation.supplierEmail)
-      addKeyValue('Product/Service Category', data.initiation.productServiceCategory)
-      addKeyValue('Requester Name', data.initiation.requesterName)
-      doc.moveDown(1.5)
-
-      // Business Units
-      addSectionHeader('BUSINESS UNIT(S)')
-      const businessUnits = Array.isArray(data.initiation.businessUnit) 
-        ? data.initiation.businessUnit.map(unit => 
-            unit === 'SCHAUENBURG_SYSTEMS_200' 
-              ? 'Schauenburg Systems (Pty) Ltd 300' 
-              : 'Schauenburg (Pty) Ltd 200'
-          ).join(', ')
-        : (data.initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-            ? 'Schauenburg Systems (Pty) Ltd 300' 
-            : 'Schauenburg (Pty) Ltd 200')
-      doc.fontSize(10).text(businessUnits)
-      doc.moveDown(1.5)
-
-      // Pre-Onboarding Checklist
-      addSectionHeader('PRE-ONBOARDING CHECKLIST')
-      addCheckbox('I have read and understand the supplier onboarding process', data.initiation.processReadUnderstood)
-      addCheckbox('I have completed due diligence on this supplier', data.initiation.dueDiligenceCompleted)
-      doc.moveDown(1.5)
-
-      // Relationship Declaration
-      addSectionHeader('RELATIONSHIP DECLARATION')
-      doc.fontSize(10).text(data.initiation.relationshipDeclaration)
-      doc.moveDown(1.5)
-
-      // Purchase Details
-      addSectionHeader('PURCHASE DETAILS')
-      addKeyValue('Purchase Type', data.initiation.purchaseType.replace(/_/g, ' '))
-      addKeyValue('Payment Method', data.initiation.paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)')
-      
-      if (data.initiation.paymentMethod === 'COD' && data.initiation.codReason) {
-        doc.moveDown(0.5)
-        addTextBlock('COD Reason', data.initiation.codReason)
-      }
-
-      addKeyValue('Supplier Location', data.initiation.supplierLocation === 'LOCAL' ? 'Local' : data.initiation.supplierLocation === 'FOREIGN' ? 'Foreign' : 'Not specified')
-      
-      if (data.initiation.supplierLocation === 'FOREIGN' && data.initiation.currency) {
-        addKeyValue('Currency', data.initiation.customCurrency || data.initiation.currency)
-      }
-
-      if (data.initiation.purchaseType === 'REGULAR' && data.initiation.annualPurchaseValue) {
-        const symbol = data.initiation.supplierLocation === 'LOCAL' ? 'R' : (data.initiation.currency || 'USD')
-        let valueRange = ''
-        if (data.initiation.annualPurchaseValue <= 100000) {
-          valueRange = `${symbol}0 - ${symbol}100,000`
-        } else if (data.initiation.annualPurchaseValue <= 500000) {
-          valueRange = `${symbol}100,000 - ${symbol}500,000`
-        } else if (data.initiation.annualPurchaseValue <= 1000000) {
-          valueRange = `${symbol}500,000 - ${symbol}1,000,000`
-        } else {
-          valueRange = `${symbol}1,000,000+`
-        }
-        addKeyValue('Annual Purchase Value Range', valueRange)
-      }
-      doc.moveDown(1.5)
-
-      // Credit Application
-      addSectionHeader('CREDIT APPLICATION')
-      addKeyValue('Credit Application Required', data.initiation.creditApplication)
-      if (data.initiation.creditApplicationReason) {
-        doc.moveDown(0.5)
-        addTextBlock('Reason', data.initiation.creditApplicationReason)
-      }
-      doc.moveDown(1.5)
-
-      // Onboarding Justification
-      addSectionHeader('ONBOARDING JUSTIFICATION')
-      if (data.initiation.onboardingReason) {
-        doc.fontSize(10).text(data.initiation.onboardingReason, { align: 'justify' })
-      }
-      doc.moveDown(2)
-
-      // ===== PAGE 3: SUPPLIER QUESTIONNAIRE DETAILS =====
-      doc.addPage()
-      
-      doc.fontSize(18)
-         .fillColor('#1e40af')
-         .text('SECTION 2: SUPPLIER QUESTIONNAIRE', { align: 'center' })
-         .moveDown(2)
-         .fillColor('#000000')
-
-      // Basic Information
-      addSectionHeader('BASIC INFORMATION')
-      addKeyValue('Supplier Name', data.supplier.companyName)
-      addKeyValue('Trading Name', data.supplier.tradingName)
-      addKeyValue('Registration Number', data.supplier.registrationNumber)
-      addKeyValue('Contact Person', data.supplier.contactPerson)
-      addKeyValue('Contact Email', data.supplier.contactEmail)
-      addKeyValue('Contact Phone', data.supplier.contactPhone)
-      doc.moveDown(1.5)
-
-      // Address Information
-      addSectionHeader('ADDRESS INFORMATION')
-      if (data.supplier.physicalAddress) {
-        addTextBlock('Physical Address', data.supplier.physicalAddress)
-        doc.moveDown(0.5)
-      }
-      if (data.supplier.postalAddress) {
-        addTextBlock('Postal Address', data.supplier.postalAddress)
-      }
-      doc.moveDown(1.5)
-
-      // Business Details
-      addSectionHeader('BUSINESS DETAILS')
-      if (data.supplier.natureOfBusiness) {
-        addTextBlock('Nature of Business', data.supplier.natureOfBusiness)
-        doc.moveDown(0.5)
-      }
-      if (data.supplier.productsAndServices) {
-        addTextBlock('Products and/or Services', data.supplier.productsAndServices)
-      }
-      addKeyValue('Number of Employees', data.supplier.numberOfEmployees)
-      doc.moveDown(1.5)
-
-      // Associated Companies
-      if (data.supplier.associatedCompany || data.supplier.associatedCompanyRegNo) {
-        addSectionHeader('ASSOCIATED COMPANIES')
-        addKeyValue('Associated Company', data.supplier.associatedCompany)
-        addKeyValue('Registration Number', data.supplier.associatedCompanyRegNo)
-        addKeyValue('Branch Name', data.supplier.associatedCompanyBranchName)
-        addKeyValue('Contact Numbers', data.supplier.branchesContactNumbers)
-        doc.moveDown(1.5)
-      }
-
-      // Banking Information
-      addSectionHeader('BANKING INFORMATION')
-      addKeyValue('Bank Account Name', data.supplier.bankAccountName)
-      addKeyValue('Bank Name', data.supplier.bankName)
-      addKeyValue('Branch Name', data.supplier.branchName)
-      addKeyValue('Branch Number', data.supplier.branchNumber)
-      addKeyValue('Account Number', data.supplier.accountNumber)
-      addKeyValue('Type of Account', data.supplier.typeOfAccount)
-      doc.moveDown(1.5)
-
-      // Responsible Persons
-      addSectionHeader('RESPONSIBLE PERSONS')
-      
-      if (data.supplier.rpBanking || data.supplier.rpBankingPhone || data.supplier.rpBankingEmail) {
-        addSubsectionHeader('Banking Contact')
-        addKeyValue('Name', data.supplier.rpBanking, 20)
-        addKeyValue('Phone', data.supplier.rpBankingPhone, 20)
-        addKeyValue('Email', data.supplier.rpBankingEmail, 20)
-        doc.moveDown(0.5)
-      }
-
-      if (data.supplier.rpQuality || data.supplier.rpQualityPhone || data.supplier.rpQualityEmail) {
-        addSubsectionHeader('Quality Management Contact')
-        addKeyValue('Name', data.supplier.rpQuality, 20)
-        addKeyValue('Phone', data.supplier.rpQualityPhone, 20)
-        addKeyValue('Email', data.supplier.rpQualityEmail, 20)
-        doc.moveDown(0.5)
-      }
-
-      if (data.supplier.rpSHE || data.supplier.rpSHEPhone || data.supplier.rpSHEEmail) {
-        addSubsectionHeader('Safety, Health & Environment Contact')
-        addKeyValue('Name', data.supplier.rpSHE, 20)
-        addKeyValue('Phone', data.supplier.rpSHEPhone, 20)
-        addKeyValue('Email', data.supplier.rpSHEEmail, 20)
-        doc.moveDown(0.5)
-      }
-
-      if (data.supplier.rpBBBEE || data.supplier.rpBBBEEPhone || data.supplier.rpBBBEEEmail) {
-        addSubsectionHeader('BBBEE Contact')
-        addKeyValue('Name', data.supplier.rpBBBEE, 20)
-        addKeyValue('Phone', data.supplier.rpBBBEEPhone, 20)
-        addKeyValue('Email', data.supplier.rpBBBEEEmail, 20)
-        doc.moveDown(0.5)
-      }
-      doc.moveDown(1)
-
-      // Tax & Compliance
-      addSectionHeader('TAX & COMPLIANCE')
-      addKeyValue('Tax ID', data.supplier.taxId)
-      addKeyValue('VAT Number', data.supplier.vatNumber)
-      addKeyValue('BBBEE Level', data.supplier.bbbeeLevel)
-      doc.moveDown(1.5)
-
-      // Certifications
-      addSectionHeader('CERTIFICATIONS & AGREEMENTS')
-      addCheckbox('Quality Management Certification', data.supplier.qualityManagementCert || false)
-      addCheckbox('SHE Certification', data.supplier.sheCertification || false)
-      addCheckbox('Authorization Agreement Signed', data.supplier.authorizationAgreement || false)
-      doc.moveDown(2)
-
-      // ===== DOCUMENTS PAGE =====
-      if (data.documents && data.documents.length > 0) {
-        doc.addPage()
-        
-        doc.fontSize(18)
-           .fillColor('#1e40af')
-           .text('SECTION 3: SUBMITTED DOCUMENTS', { align: 'center' })
-           .moveDown(2)
-           .fillColor('#000000')
-
-        // Group documents by category
-        const docsByCategory: { [key: string]: typeof data.documents } = {}
-        data.documents.forEach(document => {
-          if (!docsByCategory[document.category]) {
-            docsByCategory[document.category] = []
-          }
-          docsByCategory[document.category].push(document)
-        })
-
-        // Display documents by category
-        Object.keys(docsByCategory).sort().forEach((category, index) => {
-          if (index > 0) doc.moveDown(1)
-          
-          addSubsectionHeader(category.replace(/_/g, ' ').toUpperCase())
-          
-          docsByCategory[category].forEach(document => {
-            doc.fontSize(10)
-               .text(`  • ${document.fileName}`, { indent: 20 })
-               .fontSize(9)
-               .fillColor('#666666')
-               .text(`    Version ${document.version} | Uploaded: ${document.uploadedAt.toLocaleDateString()}`, { indent: 20 })
-               .fillColor('#000000')
-               .fontSize(10)
-          })
-        })
-      }
-
-      // ===== FINAL PAGE: APPROVAL INFORMATION =====
-      doc.addPage()
-      
-      doc.fontSize(18)
-         .fillColor('#1e40af')
-         .text('APPROVAL INFORMATION', { align: 'center' })
-         .moveDown(2)
-         .fillColor('#000000')
-
-      addSectionHeader('CREDIT CONTROLLER ASSIGNMENT')
-      if (data.creditController) {
-        addKeyValue('Assigned Credit Controller', data.creditController)
-      } else {
-        doc.fontSize(10).fillColor('#999999').text('Not yet assigned')
-        doc.fillColor('#000000')
-      }
-      doc.moveDown(2)
-
-      addSectionHeader('APPROVAL STATUS')
-      addKeyValue('Status', 'AWAITING FINAL APPROVAL')
-      addKeyValue('Generated By', 'System (Final Approval Request)')
-      doc.moveDown(3)
-
-      // Footer
-      doc.fontSize(8)
-         .fillColor('#999999')
-         .text('This package contains all supplier onboarding information for final approval decision.', { align: 'center' })
-         .moveDown(0.5)
-         .text('All information is current as of the generation date listed on the cover page.', { align: 'center' })
-         .moveDown(0.5)
-         .text('SS Supplier Onboarding System', { align: 'center' })
-
-      doc.end()
-    } catch (error) {
-      reject(error)
+      return false
     }
-  })
+
+    const drawText = (text: string, size: number, font: any, color = rgb(0, 0, 0), x = margin) => {
+      currentPage.drawText(text, {
+        x,
+        y: yPosition,
+        size,
+        font,
+        color
+      })
+      yPosition -= size + 5
+    }
+
+    const drawSectionHeader = (title: string) => {
+      checkNewPage(30)
+      yPosition -= 10
+      drawText(title, 14, timesRomanBoldFont, rgb(0.118, 0.251, 0.686))
+      yPosition -= 5
+    }
+
+    const drawKeyValue = (key: string, value: string | number | boolean | null | undefined) => {
+      if (value !== null && value !== undefined && value !== '') {
+        checkNewPage(20)
+        const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)
+        drawText(`${key}: ${displayValue}`, 10, timesRomanFont)
+      }
+    }
+
+    const drawCheckbox = (label: string, checked: boolean) => {
+      checkNewPage(20)
+      drawText(`${checked ? '☑' : '☐'} ${label}`, 10, timesRomanFont)
+    }
+
+    // ===== COVER PAGE =====
+    drawText('FINAL APPROVAL PACKAGE', 24, timesRomanBoldFont, rgb(0.118, 0.251, 0.686), pageWidth / 2 - 150)
+    yPosition -= 10
+    drawText('Supplier Onboarding Documentation', 16, timesRomanFont, rgb(0.118, 0.251, 0.686), pageWidth / 2 - 130)
+    yPosition -= 20
+    drawText(`Generated on ${data.generatedAt.toLocaleDateString()} at ${data.generatedAt.toLocaleTimeString()}`, 12, timesRomanFont, rgb(0.4, 0.4, 0.4), pageWidth / 2 - 150)
+    yPosition -= 40
+
+    // Supplier summary box
+    const boxY = yPosition - 100
+    currentPage.drawRectangle({
+      x: margin,
+      y: boxY,
+      width: contentWidth,
+      height: 120,
+      borderColor: rgb(0.118, 0.251, 0.686),
+      borderWidth: 2
+    })
+    
+    yPosition -= 20
+    drawKeyValue('Supplier Code', data.supplier.supplierCode)
+    drawKeyValue('Company Name', data.supplier.companyName)
+    drawKeyValue('Contact Person', data.supplier.contactPerson)
+    drawKeyValue('Contact Email', data.supplier.contactEmail)
+    if (data.creditController) {
+      drawKeyValue('Assigned Credit Controller', data.creditController)
+    }
+    yPosition -= 40
+
+    // Helper to draw wrapped text
+    const drawWrappedText = (text: string, size: number, font: any, maxWidth = contentWidth, color = rgb(0, 0, 0)) => {
+      const words = text.split(' ')
+      let line = ''
+      
+      for (const word of words) {
+        const testLine = line + (line ? ' ' : '') + word
+        const testWidth = font.widthOfTextAtSize(testLine, size)
+        
+        if (testWidth > maxWidth && line) {
+          checkNewPage(size + 5)
+          currentPage.drawText(line, {
+            x: margin,
+            y: yPosition,
+            size,
+            font,
+            color
+          })
+          yPosition -= size + 5
+          line = word
+        } else {
+          line = testLine
+        }
+      }
+      
+      if (line) {
+        checkNewPage(size + 5)
+        currentPage.drawText(line, {
+          x: margin,
+          y: yPosition,
+          size,
+          font,
+          color
+        })
+        yPosition -= size + 5
+      }
+    }
+
+    // ===== PAGE 1: COVER PAGE =====
+    yPosition -= 100
+    drawText('FINAL APPROVAL PACKAGE', 24, timesRomanBoldFont, rgb(0.118, 0.251, 0.686), pageWidth / 2 - 150)
+    yPosition -= 10
+    drawText('Supplier Onboarding Documentation', 16, timesRomanFont, rgb(0.118, 0.251, 0.686), pageWidth / 2 - 130)
+    yPosition -= 30
+    
+    const dateText = `Generated on ${data.generatedAt.toLocaleDateString()} at ${data.generatedAt.toLocaleTimeString()}`
+    const dateWidth = timesRomanFont.widthOfTextAtSize(dateText, 10)
+    drawText(dateText, 10, timesRomanFont, rgb(0.4, 0.4, 0.4), (pageWidth - dateWidth) / 2)
+    yPosition -= 40
+
+    // Supplier summary box
+    const boxY = yPosition - 110
+    currentPage.drawRectangle({
+      x: margin,
+      y: boxY,
+      width: contentWidth,
+      height: 110,
+      borderColor: rgb(0.118, 0.251, 0.686),
+      borderWidth: 2
+    })
+    
+    yPosition -= 15
+    drawKeyValue('Supplier Code', data.supplier.supplierCode)
+    drawKeyValue('Company Name', data.supplier.companyName)
+    drawKeyValue('Contact Person', data.supplier.contactPerson)
+    drawKeyValue('Contact Email', data.supplier.contactEmail)
+    if (data.creditController) {
+      drawKeyValue('Assigned Credit Controller', data.creditController)
+    }
+
+    // ===== PAGE 2: INITIATOR REQUEST DETAILS =====
+    currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+    yPosition = pageHeight - margin - 50
+    
+    const section1Title = 'SECTION 1: INITIATOR REQUEST'
+    const section1Width = timesRomanBoldFont.widthOfTextAtSize(section1Title, 18)
+    drawText(section1Title, 18, timesRomanBoldFont, rgb(0.118, 0.251, 0.686), (pageWidth - section1Width) / 2)
+    yPosition -= 30
+
+    drawSectionHeader('INITIATED BY')
+    drawKeyValue('Name', data.initiation.initiatedBy.name)
+    drawKeyValue('Email', data.initiation.initiatedBy.email)
+    drawKeyValue('Request Date', data.initiation.createdAt.toLocaleDateString())
+    if (data.initiation.submittedAt) {
+      drawKeyValue('Submitted Date', new Date(data.initiation.submittedAt).toLocaleDateString())
+    }
+    yPosition -= 20
+
+    drawSectionHeader('SUPPLIER DETAILS (AS INITIATED)')
+    drawKeyValue('Supplier Name', data.initiation.supplierName)
+    drawKeyValue('Contact Person', data.initiation.supplierContactPerson)
+    drawKeyValue('Email', data.initiation.supplierEmail)
+    drawKeyValue('Product/Service Category', data.initiation.productServiceCategory)
+    drawKeyValue('Requester Name', data.initiation.requesterName)
+    yPosition -= 20
+
+    drawSectionHeader('BUSINESS UNIT(S)')
+    const businessUnits = Array.isArray(data.initiation.businessUnit) 
+      ? data.initiation.businessUnit.map(unit => 
+          unit === 'SCHAUENBURG_SYSTEMS_200' 
+            ? 'Schauenburg Systems (Pty) Ltd 300' 
+            : 'Schauenburg (Pty) Ltd 200'
+        ).join(', ')
+      : (data.initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
+          ? 'Schauenburg Systems (Pty) Ltd 300' 
+          : 'Schauenburg (Pty) Ltd 200')
+    drawText(businessUnits, 10, timesRomanFont)
+    yPosition -= 20
+
+    drawSectionHeader('PRE-ONBOARDING CHECKLIST')
+    drawCheckbox('I have read and understand the supplier onboarding process', data.initiation.processReadUnderstood)
+    drawCheckbox('I have completed due diligence on this supplier', data.initiation.dueDiligenceCompleted)
+    yPosition -= 20
+
+    drawSectionHeader('RELATIONSHIP DECLARATION')
+    drawWrappedText(data.initiation.relationshipDeclaration, 10, timesRomanFont)
+    yPosition -= 20
+
+    drawSectionHeader('PURCHASE DETAILS')
+    drawKeyValue('Purchase Type', data.initiation.purchaseType.replace(/_/g, ' '))
+    drawKeyValue('Payment Method', data.initiation.paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)')
+    
+    if (data.initiation.paymentMethod === 'COD' && data.initiation.codReason) {
+      yPosition -= 10
+      drawWrappedText(`COD Reason: ${data.initiation.codReason}`, 10, timesRomanFont)
+    }
+
+    drawKeyValue('Supplier Location', data.initiation.supplierLocation === 'LOCAL' ? 'Local' : data.initiation.supplierLocation === 'FOREIGN' ? 'Foreign' : 'Not specified')
+    
+    if (data.initiation.supplierLocation === 'FOREIGN' && data.initiation.currency) {
+      drawKeyValue('Currency', data.initiation.customCurrency || data.initiation.currency)
+    }
+
+    if (data.initiation.purchaseType === 'REGULAR' && data.initiation.annualPurchaseValue) {
+      const symbol = data.initiation.supplierLocation === 'LOCAL' ? 'R' : (data.initiation.currency || 'USD')
+      let valueRange = ''
+      if (data.initiation.annualPurchaseValue <= 100000) {
+        valueRange = `${symbol}0 - ${symbol}100,000`
+      } else if (data.initiation.annualPurchaseValue <= 500000) {
+        valueRange = `${symbol}100,000 - ${symbol}500,000`
+      } else if (data.initiation.annualPurchaseValue <= 1000000) {
+        valueRange = `${symbol}500,000 - ${symbol}1,000,000`
+      } else {
+        valueRange = `${symbol}1,000,000+`
+      }
+      drawKeyValue('Annual Purchase Value Range', valueRange)
+    }
+    yPosition -= 20
+
+    drawSectionHeader('CREDIT APPLICATION')
+    drawKeyValue('Credit Application Required', data.initiation.creditApplication)
+    if (data.initiation.creditApplicationReason) {
+      yPosition -= 10
+      drawWrappedText(`Reason: ${data.initiation.creditApplicationReason}`, 10, timesRomanFont)
+    }
+    yPosition -= 20
+
+    drawSectionHeader('ONBOARDING JUSTIFICATION')
+    if (data.initiation.onboardingReason) {
+      drawWrappedText(data.initiation.onboardingReason, 10, timesRomanFont)
+    }
+    yPosition -= 30
+
+    // ===== PAGE 3: SUPPLIER QUESTIONNAIRE DETAILS =====
+    currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+    yPosition = pageHeight - margin - 50
+    
+    const section2Title = 'SECTION 2: SUPPLIER QUESTIONNAIRE'
+    const section2Width = timesRomanBoldFont.widthOfTextAtSize(section2Title, 18)
+    drawText(section2Title, 18, timesRomanBoldFont, rgb(0.118, 0.251, 0.686), (pageWidth - section2Width) / 2)
+    yPosition -= 30
+
+    drawSectionHeader('BASIC INFORMATION')
+    drawKeyValue('Supplier Name', data.supplier.companyName)
+    drawKeyValue('Trading Name', data.supplier.tradingName)
+    drawKeyValue('Registration Number', data.supplier.registrationNumber)
+    drawKeyValue('Contact Person', data.supplier.contactPerson)
+    drawKeyValue('Contact Email', data.supplier.contactEmail)
+    drawKeyValue('Contact Phone', data.supplier.contactPhone)
+    yPosition -= 20
+
+    drawSectionHeader('ADDRESS INFORMATION')
+    if (data.supplier.physicalAddress) {
+      drawText('Physical Address:', 10, timesRomanFont)
+      drawWrappedText(data.supplier.physicalAddress, 10, timesRomanFont)
+      yPosition -= 10
+    }
+    if (data.supplier.postalAddress) {
+      drawText('Postal Address:', 10, timesRomanFont)
+      drawWrappedText(data.supplier.postalAddress, 10, timesRomanFont)
+    }
+    yPosition -= 20
+
+    drawSectionHeader('BUSINESS DETAILS')
+    if (data.supplier.natureOfBusiness) {
+      drawText('Nature of Business:', 10, timesRomanFont)
+      drawWrappedText(data.supplier.natureOfBusiness, 10, timesRomanFont)
+      yPosition -= 10
+    }
+    if (data.supplier.productsAndServices) {
+      drawText('Products and/or Services:', 10, timesRomanFont)
+      drawWrappedText(data.supplier.productsAndServices, 10, timesRomanFont)
+    }
+    drawKeyValue('Number of Employees', data.supplier.numberOfEmployees)
+    yPosition -= 20
+
+    if (data.supplier.associatedCompany || data.supplier.associatedCompanyRegNo) {
+      drawSectionHeader('ASSOCIATED COMPANIES')
+      drawKeyValue('Associated Company', data.supplier.associatedCompany)
+      drawKeyValue('Registration Number', data.supplier.associatedCompanyRegNo)
+      drawKeyValue('Branch Name', data.supplier.associatedCompanyBranchName)
+      drawKeyValue('Contact Numbers', data.supplier.branchesContactNumbers)
+      yPosition -= 20
+    }
+
+    drawSectionHeader('BANKING INFORMATION')
+    drawKeyValue('Bank Account Name', data.supplier.bankAccountName)
+    drawKeyValue('Bank Name', data.supplier.bankName)
+    drawKeyValue('Branch Name', data.supplier.branchName)
+    drawKeyValue('Branch Number', data.supplier.branchNumber)
+    drawKeyValue('Account Number', data.supplier.accountNumber)
+    drawKeyValue('Type of Account', data.supplier.typeOfAccount)
+    yPosition -= 20
+
+    drawSectionHeader('RESPONSIBLE PERSONS')
+    
+    if (data.supplier.rpBanking || data.supplier.rpBankingPhone || data.supplier.rpBankingEmail) {
+      drawText('Banking Contact', 12, timesRomanBoldFont, rgb(0.231, 0.510, 0.965))
+      drawKeyValue('  Name', data.supplier.rpBanking)
+      drawKeyValue('  Phone', data.supplier.rpBankingPhone)
+      drawKeyValue('  Email', data.supplier.rpBankingEmail)
+      yPosition -= 10
+    }
+
+    if (data.supplier.rpQuality || data.supplier.rpQualityPhone || data.supplier.rpQualityEmail) {
+      checkNewPage(60)
+      drawText('Quality Management Contact', 12, timesRomanBoldFont, rgb(0.231, 0.510, 0.965))
+      drawKeyValue('  Name', data.supplier.rpQuality)
+      drawKeyValue('  Phone', data.supplier.rpQualityPhone)
+      drawKeyValue('  Email', data.supplier.rpQualityEmail)
+      yPosition -= 10
+    }
+
+    if (data.supplier.rpSHE || data.supplier.rpSHEPhone || data.supplier.rpSHEEmail) {
+      checkNewPage(60)
+      drawText('Safety, Health & Environment Contact', 12, timesRomanBoldFont, rgb(0.231, 0.510, 0.965))
+      drawKeyValue('  Name', data.supplier.rpSHE)
+      drawKeyValue('  Phone', data.supplier.rpSHEPhone)
+      drawKeyValue('  Email', data.supplier.rpSHEEmail)
+      yPosition -= 10
+    }
+
+    if (data.supplier.rpBBBEE || data.supplier.rpBBBEEPhone || data.supplier.rpBBBEEEmail) {
+      checkNewPage(60)
+      drawText('BBBEE Contact', 12, timesRomanBoldFont, rgb(0.231, 0.510, 0.965))
+      drawKeyValue('  Name', data.supplier.rpBBBEE)
+      drawKeyValue('  Phone', data.supplier.rpBBBEEPhone)
+      drawKeyValue('  Email', data.supplier.rpBBBEEEmail)
+      yPosition -= 10
+    }
+    yPosition -= 10
+
+    drawSectionHeader('TAX & COMPLIANCE')
+    drawKeyValue('Tax ID', data.supplier.taxId)
+    drawKeyValue('VAT Number', data.supplier.vatNumber)
+    drawKeyValue('BBBEE Level', data.supplier.bbbeeLevel)
+    yPosition -= 20
+
+    drawSectionHeader('CERTIFICATIONS & AGREEMENTS')
+    drawCheckbox('Quality Management Certification', data.supplier.qualityManagementCert || false)
+    drawCheckbox('SHE Certification', data.supplier.sheCertification || false)
+    drawCheckbox('Authorization Agreement Signed', data.supplier.authorizationAgreement || false)
+    yPosition -= 30
+
+    // ===== DOCUMENTS PAGE =====
+    if (data.documents && data.documents.length > 0) {
+      currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+      yPosition = pageHeight - margin - 50
+      
+      const section3Title = 'SECTION 3: SUBMITTED DOCUMENTS'
+      const section3Width = timesRomanBoldFont.widthOfTextAtSize(section3Title, 18)
+      drawText(section3Title, 18, timesRomanBoldFont, rgb(0.118, 0.251, 0.686), (pageWidth - section3Width) / 2)
+      yPosition -= 30
+
+      // Group documents by category
+      const docsByCategory: { [key: string]: typeof data.documents } = {}
+      data.documents.forEach(document => {
+        if (!docsByCategory[document.category]) {
+          docsByCategory[document.category] = []
+        }
+        docsByCategory[document.category].push(document)
+      })
+
+      // Display documents by category
+      Object.keys(docsByCategory).sort().forEach((category, index) => {
+        if (index > 0) yPosition -= 15
+        
+        checkNewPage(50)
+        drawText(category.replace(/_/g, ' ').toUpperCase(), 12, timesRomanBoldFont, rgb(0.231, 0.510, 0.965))
+        
+        docsByCategory[category].forEach(document => {
+          checkNewPage(30)
+          drawText(`  • ${document.fileName}`, 10, timesRomanFont)
+          drawText(`    Version ${document.version} | Uploaded: ${document.uploadedAt.toLocaleDateString()}`, 9, timesRomanFont, rgb(0.4, 0.4, 0.4))
+        })
+      })
+    }
+
+    // ===== FINAL PAGE: APPROVAL INFORMATION =====
+    currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+    yPosition = pageHeight - margin - 50
+    
+    const approvalTitle = 'APPROVAL INFORMATION'
+    const approvalWidth = timesRomanBoldFont.widthOfTextAtSize(approvalTitle, 18)
+    drawText(approvalTitle, 18, timesRomanBoldFont, rgb(0.118, 0.251, 0.686), (pageWidth - approvalWidth) / 2)
+    yPosition -= 30
+
+    drawSectionHeader('CREDIT CONTROLLER ASSIGNMENT')
+    if (data.creditController) {
+      drawKeyValue('Assigned Credit Controller', data.creditController)
+    } else {
+      drawText('Not yet assigned', 10, timesRomanFont, rgb(0.6, 0.6, 0.6))
+    }
+    yPosition -= 30
+
+    drawSectionHeader('APPROVAL STATUS')
+    drawKeyValue('Status', 'AWAITING FINAL APPROVAL')
+    drawKeyValue('Generated By', 'System (Final Approval Request)')
+    yPosition -= 50
+
+    // Footer
+    yPosition = margin + 30
+    const footer1 = 'This package contains all supplier onboarding information for final approval decision.'
+    const footer1Width = timesRomanFont.widthOfTextAtSize(footer1, 8)
+    currentPage.drawText(footer1, {
+      x: (pageWidth - footer1Width) / 2,
+      y: yPosition,
+      size: 8,
+      font: timesRomanFont,
+      color: rgb(0.6, 0.6, 0.6)
+    })
+    yPosition -= 12
+    
+    const footer2 = 'All information is current as of the generation date listed on the cover page.'
+    const footer2Width = timesRomanFont.widthOfTextAtSize(footer2, 8)
+    currentPage.drawText(footer2, {
+      x: (pageWidth - footer2Width) / 2,
+      y: yPosition,
+      size: 8,
+      font: timesRomanFont,
+      color: rgb(0.6, 0.6, 0.6)
+    })
+    yPosition -= 12
+    
+    const footer3 = 'SS Supplier Onboarding System'
+    const footer3Width = timesRomanFont.widthOfTextAtSize(footer3, 8)
+    currentPage.drawText(footer3, {
+      x: (pageWidth - footer3Width) / 2,
+      y: yPosition,
+      size: 8,
+      font: timesRomanFont,
+      color: rgb(0.6, 0.6, 0.6)
+    })
+
+    const pdfBytes = await pdfDoc.save()
+    return Buffer.from(pdfBytes)
+  } catch (error) {
+    console.error('Error in generateFinalApprovalPackagePDF:', error)
+    throw error
+  }
 }

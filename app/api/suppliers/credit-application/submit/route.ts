@@ -3,7 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
-import { sendEmail } from '@/lib/email-sender'
+import nodemailer from 'nodemailer'
+import path from 'path'
+import fs from 'fs'
 
 export async function POST(request: NextRequest) {
   try {
@@ -173,6 +175,31 @@ export async function POST(request: NextRequest) {
         throw new Error('Supplier details not found')
       }
 
+      console.log('📋 Supplier details for email:', {
+        companyName: supplierDetails.companyName,
+        supplierCode: supplierDetails.supplierCode
+      })
+
+      // Load SMTP configuration
+      const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
+      const configData = fs.readFileSync(configPath, 'utf8')
+      const smtpConfig = JSON.parse(configData)
+
+      if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
+        throw new Error('SMTP configuration not properly set up')
+      }
+
+      // Create transporter
+      const transporter = nodemailer.createTransport({
+        host: smtpConfig.host,
+        port: smtpConfig.port,
+        secure: smtpConfig.secure,
+        auth: {
+          user: smtpConfig.user,
+          pass: smtpConfig.pass
+        }
+      })
+
       // Get all Procurement Managers
       const procurementManagers = await prisma.user.findMany({
         where: { role: 'PROCUREMENT_MANAGER' }
@@ -189,38 +216,159 @@ export async function POST(request: NextRequest) {
         // Read the PDF file for attachment
         const pdfBuffer = await readFile(filePath)
 
+        const emailSubject = `Credit Application Submitted - ${supplierDetails.companyName}`
+        const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { 
+      margin: 0; 
+      padding: 0; 
+      font-family: Arial, sans-serif; 
+      background-color: #f4f4f4; 
+    }
+    .email-container { 
+      max-width: 600px; 
+      margin: 0 auto; 
+      background-color: #ffffff; 
+    }
+    .header { 
+      background-color: #ffffff; 
+      padding: 40px 30px; 
+      text-align: center; 
+      border-bottom: 3px solid #1e40af; 
+    }
+    .logo { 
+      max-width: 150px; 
+      height: auto; 
+      margin-bottom: 20px; 
+    }
+    .header-text { 
+      color: #1e40af; 
+      font-size: 24px; 
+      font-weight: bold; 
+      margin: 0; 
+    }
+    .content { 
+      padding: 40px 30px; 
+      color: #333333; 
+      line-height: 1.6; 
+    }
+    .greeting { 
+      font-size: 18px; 
+      font-weight: bold; 
+      color: #1e40af; 
+      margin-bottom: 20px; 
+    }
+    .info-box { 
+      background-color: #eff6ff; 
+      border-left: 4px solid #3b82f6; 
+      padding: 20px; 
+      margin: 25px 0; 
+      border-radius: 4px; 
+    }
+    .info-box-title { 
+      font-weight: bold; 
+      color: #1e40af; 
+      margin-bottom: 10px; 
+      font-size: 16px; 
+    }
+    .info-item { 
+      margin: 8px 0; 
+      color: #374151; 
+    }
+    .footer { 
+      background-color: #f9fafb; 
+      padding: 30px; 
+      text-align: center; 
+      color: #6b7280; 
+      font-size: 14px; 
+      border-top: 1px solid #e5e7eb; 
+    }
+    .footer-link { 
+      color: #3b82f6; 
+      text-decoration: none; 
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <img src="cid:logo" alt="Schauenburg Systems" class="logo" />
+      <p class="header-text">Credit Application Submitted</p>
+    </div>
+    
+    <div class="content">
+      <p class="greeting">Dear Procurement Manager,</p>
+      
+      <p>The supplier <strong>${supplierDetails.companyName}</strong> (Code: ${supplierDetails.supplierCode}) has submitted their fully signed credit application and credit account information.</p>
+      
+      <div class="info-box">
+        <div class="info-box-title">Supplier Details</div>
+        <div class="info-item"><strong>Company Name:</strong> ${supplierDetails.companyName}</div>
+        <div class="info-item"><strong>Supplier Code:</strong> ${supplierDetails.supplierCode}</div>
+        <div class="info-item"><strong>Contact Person:</strong> ${supplierDetails.contactPerson}</div>
+        <div class="info-item"><strong>Contact Email:</strong> ${supplierDetails.contactEmail}</div>
+      </div>
+      
+      <div class="info-box" style="background-color: #fef3c7; border-left: 4px solid #f59e0b;">
+        <div class="info-box-title" style="color: #92400e;">Credit Account Information</div>
+        <div style="white-space: pre-wrap; background-color: white; padding: 10px; border-radius: 4px; color: #374151;">${creditAccountInfo.trim()}</div>
+      </div>
+      
+      <div class="info-box" style="background-color: #f0fdf4; border-left: 4px solid #22c55e;">
+        <div class="info-box-title" style="color: #15803d;">📎 Attached Document</div>
+        <p style="margin: 0; color: #374151;">Fully Signed Credit Application (${fileName})</p>
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 0 auto;">
+          <tr>
+            <td align="center" style="background-color: #3b82f6; border-radius: 8px; padding: 0;">
+              <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-submissions/${supplierDetails.id}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff !important; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">Review Supplier Details</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+      
+      <p style="margin-top: 30px;">
+        Best regards,<br/>
+        <strong>Schauenburg Systems Procurement System</strong>
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>Schauenburg Systems</p>
+      <p>
+        <a href="${smtpConfig.companyWebsite || 'https://schauenburg.co.za'}" class="footer-link">${smtpConfig.companyWebsite || 'https://schauenburg.co.za'}</a>
+      </p>
+      <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
+        This is an automated notification from the Supplier Onboarding System.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+        `
+
         // Send email to each PM
         for (const pm of recipients) {
-          await sendEmail({
+          console.log('📧 Sending credit application notification to:', pm.email)
+          
+          await transporter.sendMail({
+            from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
             to: pm.email,
-            subject: `Credit Application Submitted - ${supplierDetails.name}`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #1e40af;">Credit Application Submitted</h2>
-                
-                <p>Hello ${pm.name},</p>
-                
-                <p>The supplier <strong>${supplierDetails.name}</strong> (Code: ${supplierDetails.supplierCode}) has submitted their fully signed credit application and credit account information.</p>
-                
-                <div style="background-color: #f3f4f6; border-left: 4px solid #1e40af; padding: 15px; margin: 20px 0;">
-                  <h3 style="margin-top: 0; color: #1e40af;">Credit Account Information:</h3>
-                  <div style="white-space: pre-wrap; font-family: monospace; background-color: white; padding: 10px; border-radius: 4px;">${creditAccountInfo.trim()}</div>
-                </div>
-                
-                <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
-                  <h3 style="margin-top: 0; color: #92400e;">Attached Document:</h3>
-                  <p style="margin: 5px 0; color: #78350f;">📎 Fully Signed Credit Application (${fileName})</p>
-                </div>
-                
-                <p style="margin-top: 25px;"><a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/approvals?tab=reviews" style="display: inline-block; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Review in Dashboard</a></p>
-                
-                <p style="margin-top: 30px; color: #6b7280;">
-                  Best regards,<br/>
-                  <strong>SS Supplier Onboarding System</strong>
-                </p>
-              </div>
-            `,
+            subject: emailSubject,
+            html: emailHtml,
             attachments: [
+              {
+                filename: 'logo.png',
+                path: path.join(process.cwd(), 'public', 'logo.png'),
+                cid: 'logo'
+              },
               {
                 filename: fileName,
                 content: pdfBuffer,
@@ -228,6 +376,8 @@ export async function POST(request: NextRequest) {
               }
             ]
           })
+
+          console.log('✅ Credit application notification sent successfully to:', pm.email)
         }
       }
     } catch (emailError) {

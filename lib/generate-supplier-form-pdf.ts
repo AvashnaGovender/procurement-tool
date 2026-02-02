@@ -1,4 +1,4 @@
-import PDFDocument from 'pdfkit'
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 
 interface SupplierFormData {
   supplierName?: string
@@ -24,117 +24,173 @@ interface SupplierFormData {
 }
 
 export async function generateSupplierFormPDF(data: SupplierFormData): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ margin: 50, size: 'A4' })
-      const chunks: Buffer[] = []
+  try {
+    const pdfDoc = await PDFDocument.create()
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+    
+    const pageWidth = 595.28
+    const pageHeight = 841.89
+    const margin = 50
+    const contentWidth = pageWidth - (2 * margin)
+    
+    let currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+    let yPosition = pageHeight - margin
 
-      doc.on('data', (chunk) => chunks.push(chunk))
-      doc.on('end', () => resolve(Buffer.concat(chunks)))
-      doc.on('error', reject)
-
-      // Helper for section headers
-      const addSectionHeader = (title: string) => {
-        doc.fontSize(14)
-           .fillColor('#1e40af')
-           .text(title, { underline: true })
-           .moveDown(0.5)
-           .fillColor('#000000')
-           .fontSize(10)
+    const checkNewPage = (requiredSpace: number = 50) => {
+      if (yPosition - requiredSpace < margin) {
+        currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+        yPosition = pageHeight - margin
       }
+    }
 
-      // Helper for key-value pairs
-      const addKeyValue = (key: string, value: string | number | null | undefined) => {
-        if (value !== null && value !== undefined && value !== '') {
-          doc.fontSize(10)
-             .text(`${key}: ${String(value)}`)
+    const drawText = (text: string, size: number, textFont: any, color = rgb(0, 0, 0), x = margin) => {
+      currentPage.drawText(text, { x, y: yPosition, size, font: textFont, color })
+      yPosition -= size + 5
+    }
+
+    const drawWrappedText = (text: string, size: number, textFont: any, maxWidth = contentWidth) => {
+      const words = text.split(' ')
+      let line = ''
+      
+      for (const word of words) {
+        const testLine = line + (line ? ' ' : '') + word
+        const testWidth = textFont.widthOfTextAtSize(testLine, size)
+        
+        if (testWidth > maxWidth && line) {
+          checkNewPage(size + 5)
+          currentPage.drawText(line, { x: margin, y: yPosition, size, font: textFont })
+          yPosition -= size + 5
+          line = word
         } else {
-          doc.fontSize(10)
-             .fillColor('#999999')
-             .text(`${key}: Not Provided`)
-             .fillColor('#000000')
+          line = testLine
         }
       }
-
-      // Title
-      doc.fontSize(20)
-         .fillColor('#1e40af')
-         .text('SUPPLIER FORM DETAILS', { align: 'center' })
-         .moveDown()
-         .fontSize(12)
-         .fillColor('#666666')
-         .text(`Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, { align: 'center' })
-         .moveDown(2)
-         .fillColor('#000000')
-
-      // Basic Information
-      addSectionHeader('BASIC INFORMATION')
-      addKeyValue('Supplier Name', data.supplierName)
-      addKeyValue('Company Name', data.companyName)
-      addKeyValue('Trading Name', data.tradingName)
-      addKeyValue('Registration Number', data.registrationNumber)
-      addKeyValue('Contact Person', data.contactPerson)
-      addKeyValue('Contact Email', data.contactEmail)
-      addKeyValue('Contact Phone', data.contactPhone)
-      doc.moveDown(1.5)
-
-      // Address Information
-      addSectionHeader('ADDRESS INFORMATION')
-      if (data.physicalAddress) {
-        doc.fontSize(10).text(`Physical Address: ${data.physicalAddress}`, { indent: 20 })
-      } else {
-        addKeyValue('Physical Address', null)
+      
+      if (line) {
+        checkNewPage(size + 5)
+        currentPage.drawText(line, { x: margin, y: yPosition, size, font: textFont })
+        yPosition -= size + 5
       }
-      doc.moveDown(0.5)
-      if (data.postalAddress) {
-        doc.fontSize(10).text(`Postal Address: ${data.postalAddress}`, { indent: 20 })
-      } else {
-        addKeyValue('Postal Address', null)
-      }
-      doc.moveDown(1.5)
-
-      // Business Details
-      addSectionHeader('BUSINESS DETAILS')
-      if (data.natureOfBusiness) {
-        doc.fontSize(10).text(`Nature of Business: ${data.natureOfBusiness}`, { indent: 20, align: 'justify' })
-      } else {
-        addKeyValue('Nature of Business', null)
-      }
-      doc.moveDown(0.5)
-      if (data.productsAndServices) {
-        doc.fontSize(10).text(`Products and/or Services: ${data.productsAndServices}`, { indent: 20, align: 'justify' })
-      } else {
-        addKeyValue('Products and/or Services', null)
-      }
-      doc.moveDown(1.5)
-
-      // Banking Information
-      addSectionHeader('BANKING INFORMATION')
-      addKeyValue('Bank Account Name', data.bankAccountName)
-      addKeyValue('Bank Name', data.bankName)
-      addKeyValue('Branch Name', data.branchName)
-      addKeyValue('Branch Number', data.branchNumber)
-      addKeyValue('Account Number', data.accountNumber)
-      addKeyValue('Type of Account', data.typeOfAccount)
-      doc.moveDown(1.5)
-
-      // Tax & Compliance
-      addSectionHeader('TAX & COMPLIANCE')
-      addKeyValue('Tax ID', data.taxId)
-      addKeyValue('VAT Number', data.vatNumber)
-      addKeyValue('BBBEE Level', data.bbbeeLevel)
-      doc.moveDown(2)
-
-      // Footer
-      doc.fontSize(8)
-         .fillColor('#999999')
-         .text('This document is system-generated and contains supplier-provided information.', { align: 'center' })
-         .moveDown(0.5)
-         .text('SS Supplier Onboarding System', { align: 'center' })
-
-      doc.end()
-    } catch (error) {
-      reject(error)
     }
-  })
+
+    const drawSection = (title: string) => {
+      checkNewPage(30)
+      yPosition -= 10
+      drawText(title, 14, boldFont, rgb(0.118, 0.251, 0.686))
+      yPosition -= 5
+    }
+
+    const drawKeyValue = (key: string, value: string | number | null | undefined) => {
+      checkNewPage(20)
+      if (value !== null && value !== undefined && value !== '') {
+        drawText(`${key}: ${String(value)}`, 10, font)
+      } else {
+        drawText(`${key}: Not Provided`, 10, font, rgb(0.6, 0.6, 0.6))
+      }
+    }
+
+    // Title
+    yPosition -= 50
+    const title = 'SUPPLIER FORM DETAILS'
+    const titleWidth = boldFont.widthOfTextAtSize(title, 20)
+    drawText(title, 20, boldFont, rgb(0.118, 0.251, 0.686), (pageWidth - titleWidth) / 2)
+    yPosition -= 10
+    
+    const dateStr = `Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`
+    const dateWidth = font.widthOfTextAtSize(dateStr, 12)
+    drawText(dateStr, 12, font, rgb(0.4, 0.4, 0.4), (pageWidth - dateWidth) / 2)
+    yPosition -= 30
+
+    // Basic Information
+    drawSection('BASIC INFORMATION')
+    drawKeyValue('Supplier Name', data.supplierName)
+    drawKeyValue('Company Name', data.companyName)
+    drawKeyValue('Trading Name', data.tradingName)
+    drawKeyValue('Registration Number', data.registrationNumber)
+    drawKeyValue('Contact Person', data.contactPerson)
+    drawKeyValue('Contact Email', data.contactEmail)
+    drawKeyValue('Contact Phone', data.contactPhone)
+    yPosition -= 20
+
+    // Address Information
+    drawSection('ADDRESS INFORMATION')
+    if (data.physicalAddress) {
+      drawText('Physical Address:', 10, font)
+      drawWrappedText(data.physicalAddress, 10, font)
+      yPosition -= 10
+    } else {
+      drawKeyValue('Physical Address', null)
+    }
+    if (data.postalAddress) {
+      drawText('Postal Address:', 10, font)
+      drawWrappedText(data.postalAddress, 10, font)
+    } else {
+      drawKeyValue('Postal Address', null)
+    }
+    yPosition -= 20
+
+    // Business Details
+    drawSection('BUSINESS DETAILS')
+    if (data.natureOfBusiness) {
+      drawText('Nature of Business:', 10, font)
+      drawWrappedText(data.natureOfBusiness, 10, font)
+      yPosition -= 10
+    } else {
+      drawKeyValue('Nature of Business', null)
+    }
+    if (data.productsAndServices) {
+      drawText('Products and/or Services:', 10, font)
+      drawWrappedText(data.productsAndServices, 10, font)
+    } else {
+      drawKeyValue('Products and/or Services', null)
+    }
+    yPosition -= 20
+
+    // Banking Information
+    drawSection('BANKING INFORMATION')
+    drawKeyValue('Bank Account Name', data.bankAccountName)
+    drawKeyValue('Bank Name', data.bankName)
+    drawKeyValue('Branch Name', data.branchName)
+    drawKeyValue('Branch Number', data.branchNumber)
+    drawKeyValue('Account Number', data.accountNumber)
+    drawKeyValue('Type of Account', data.typeOfAccount)
+    yPosition -= 20
+
+    // Tax & Compliance
+    drawSection('TAX & COMPLIANCE')
+    drawKeyValue('Tax ID', data.taxId)
+    drawKeyValue('VAT Number', data.vatNumber)
+    drawKeyValue('BBBEE Level', data.bbbeeLevel)
+    yPosition -= 30
+
+    // Footer
+    yPosition = margin + 20
+    const footer = 'This document is system-generated and contains supplier-provided information.'
+    const footerWidth = font.widthOfTextAtSize(footer, 8)
+    currentPage.drawText(footer, {
+      x: (pageWidth - footerWidth) / 2,
+      y: yPosition,
+      size: 8,
+      font,
+      color: rgb(0.6, 0.6, 0.6)
+    })
+    yPosition -= 12
+    
+    const footer2 = 'SS Supplier Onboarding System'
+    const footer2Width = font.widthOfTextAtSize(footer2, 8)
+    currentPage.drawText(footer2, {
+      x: (pageWidth - footer2Width) / 2,
+      y: yPosition,
+      size: 8,
+      font,
+      color: rgb(0.6, 0.6, 0.6)
+    })
+
+    const pdfBytes = await pdfDoc.save()
+    return Buffer.from(pdfBytes)
+  } catch (error) {
+    console.error('Error in generateSupplierFormPDF:', error)
+    throw error
+  }
 }
