@@ -92,7 +92,12 @@ interface FinalApprovalPackageData {
 export async function generateFinalApprovalPackagePDF(data: FinalApprovalPackageData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ margin: 50, size: 'A4' })
+      const doc = new PDFDocument({ 
+        margin: 50, 
+        size: 'A4',
+        bufferPages: true,
+        autoFirstPage: true
+      })
       const chunks: Buffer[] = []
 
       doc.on('data', (chunk) => chunks.push(chunk))
@@ -125,24 +130,21 @@ export async function generateFinalApprovalPackagePDF(data: FinalApprovalPackage
       // Helper for key-value pairs
       const addKeyValue = (key: string, value: string | number | boolean | null | undefined, indent: number = 0) => {
         if (value !== null && value !== undefined && value !== '') {
-          doc.font('Helvetica-Bold')
-             .text(`${key}: `, { indent, continued: true })
-             .font('Helvetica')
-             .text(typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value))
+          doc.fontSize(10)
+             .text(`${key}: ${typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}`, { indent })
         }
       }
 
       // Helper for checkboxes
       const addCheckbox = (label: string, checked: boolean) => {
-        doc.font('Helvetica')
+        doc.fontSize(10)
            .text(`${checked ? '☑' : '☐'} ${label}`)
       }
 
       // Helper for text blocks
       const addTextBlock = (title: string, content: string | null | undefined, indent: number = 20) => {
         if (content) {
-          doc.font('Helvetica-Bold').text(`${title}:`)
-          doc.font('Helvetica').text(content, { indent, align: 'justify' })
+          doc.fontSize(10).text(`${title}: ${content}`, { indent, align: 'justify' })
         }
       }
 
@@ -219,7 +221,7 @@ export async function generateFinalApprovalPackagePDF(data: FinalApprovalPackage
         : (data.initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
             ? 'Schauenburg Systems (Pty) Ltd 300' 
             : 'Schauenburg (Pty) Ltd 200')
-      doc.font('Helvetica').text(businessUnits)
+      doc.fontSize(10).text(businessUnits)
       doc.moveDown(1.5)
 
       // Pre-Onboarding Checklist
@@ -230,7 +232,7 @@ export async function generateFinalApprovalPackagePDF(data: FinalApprovalPackage
 
       // Relationship Declaration
       addSectionHeader('RELATIONSHIP DECLARATION')
-      doc.font('Helvetica').text(data.initiation.relationshipDeclaration)
+      doc.fontSize(10).text(data.initiation.relationshipDeclaration)
       doc.moveDown(1.5)
 
       // Purchase Details
@@ -277,7 +279,7 @@ export async function generateFinalApprovalPackagePDF(data: FinalApprovalPackage
       // Onboarding Justification
       addSectionHeader('ONBOARDING JUSTIFICATION')
       if (data.initiation.onboardingReason) {
-        doc.font('Helvetica').text(data.initiation.onboardingReason, { align: 'justify' })
+        doc.fontSize(10).text(data.initiation.onboardingReason, { align: 'justify' })
       }
       doc.moveDown(2)
 
@@ -420,7 +422,6 @@ export async function generateFinalApprovalPackagePDF(data: FinalApprovalPackage
           
           docsByCategory[category].forEach(document => {
             doc.fontSize(10)
-               .font('Helvetica')
                .text(`  • ${document.fileName}`, { indent: 20 })
                .fontSize(9)
                .fillColor('#666666')
@@ -444,7 +445,7 @@ export async function generateFinalApprovalPackagePDF(data: FinalApprovalPackage
       if (data.creditController) {
         addKeyValue('Assigned Credit Controller', data.creditController)
       } else {
-        doc.font('Helvetica').fillColor('#999999').text('Not yet assigned')
+        doc.fontSize(10).fillColor('#999999').text('Not yet assigned')
         doc.fillColor('#000000')
       }
       doc.moveDown(2)

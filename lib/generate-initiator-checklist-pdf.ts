@@ -50,16 +50,14 @@ export async function generateInitiatorChecklistPDF(data: InitiatorChecklistData
       // Helper for key-value pairs
       const addKeyValue = (key: string, value: string | number | boolean | null | undefined) => {
         if (value !== null && value !== undefined) {
-          doc.font('Helvetica-Bold')
-             .text(`${key}: `, { continued: true })
-             .font('Helvetica')
-             .text(typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value))
+          doc.fontSize(10)
+             .text(`${key}: ${typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}`)
         }
       }
 
       // Helper for checkboxes
       const addCheckbox = (label: string, checked: boolean) => {
-        doc.font('Helvetica')
+        doc.fontSize(10)
            .text(`${checked ? '☑' : '☐'} ${label}`)
       }
 
@@ -93,7 +91,7 @@ export async function generateInitiatorChecklistPDF(data: InitiatorChecklistData
       // Business Units
       addSectionHeader('BUSINESS UNIT(S)')
       const businessUnits = Array.isArray(data.businessUnit) ? data.businessUnit.join(', ') : data.businessUnit
-      doc.font('Helvetica').text(businessUnits)
+      doc.fontSize(10).text(businessUnits)
       doc.moveDown(1.5)
 
       // Pre-Onboarding Checklist
@@ -104,7 +102,7 @@ export async function generateInitiatorChecklistPDF(data: InitiatorChecklistData
 
       // Relationship Declaration
       addSectionHeader('RELATIONSHIP DECLARATION')
-      doc.font('Helvetica').text(data.relationshipDeclaration)
+      doc.fontSize(10).text(data.relationshipDeclaration)
       doc.moveDown(1.5)
 
       // Purchase Details
@@ -114,8 +112,7 @@ export async function generateInitiatorChecklistPDF(data: InitiatorChecklistData
       
       if (data.paymentMethod === 'COD' && data.codReason) {
         doc.moveDown(0.5)
-        doc.font('Helvetica-Bold').text('COD Reason:')
-        doc.font('Helvetica').text(data.codReason, { indent: 20, align: 'justify' })
+        doc.fontSize(10).text(`COD Reason: ${data.codReason}`, { indent: 20, align: 'justify' })
       }
 
       if (data.purchaseType === 'REGULAR' && data.annualPurchaseValue) {
@@ -144,20 +141,18 @@ export async function generateInitiatorChecklistPDF(data: InitiatorChecklistData
       addKeyValue('Credit Application Required', data.creditApplication)
       if (data.creditApplicationReason) {
         doc.moveDown(0.5)
-        doc.font('Helvetica-Bold').text('Reason:')
-        doc.font('Helvetica').text(data.creditApplicationReason, { indent: 20, align: 'justify' })
+        doc.fontSize(10).text(`Reason: ${data.creditApplicationReason}`, { indent: 20, align: 'justify' })
       }
       doc.moveDown(1.5)
 
       // Justification
       addSectionHeader('ONBOARDING JUSTIFICATION')
       if (data.onboardingReason) {
-        doc.font('Helvetica').text(data.onboardingReason, { align: 'justify' })
+        doc.fontSize(10).text(data.onboardingReason, { align: 'justify' })
       }
       if (data.justification) {
         doc.moveDown(0.5)
-        doc.font('Helvetica-Bold').text('Additional Justification:')
-        doc.font('Helvetica').text(data.justification, { align: 'justify' })
+        doc.fontSize(10).text(`Additional Justification: ${data.justification}`, { align: 'justify' })
       }
       doc.moveDown(2)
 

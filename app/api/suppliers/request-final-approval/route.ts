@@ -170,6 +170,13 @@ async function sendFinalApprovalRequestEmail(supplier: any, requesterName: strin
 
     // Generate comprehensive PDF with all information
     console.log('📄 Generating final approval package PDF...')
+    console.log('📋 Supplier data available:', {
+      hasOnboarding: !!supplier.onboarding,
+      hasInitiation: !!supplier.onboarding?.initiation,
+      hasInitiatedBy: !!supplier.onboarding?.initiation?.initiatedBy,
+      supplierCode: supplier.supplierCode,
+      companyName: supplier.companyName
+    })
     
     // Get documents from airtableData
     const documents = supplier.airtableData?.allVersions?.flatMap((version: any) => 
@@ -183,82 +190,91 @@ async function sendFinalApprovalRequestEmail(supplier: any, requesterName: strin
       ).flat()
     ).flat() || []
 
-    const pdfBuffer = await generateFinalApprovalPackagePDF({
-      supplier: {
-        supplierCode: supplier.supplierCode,
-        companyName: supplier.companyName,
-        tradingName: supplier.tradingName,
-        registrationNumber: supplier.registrationNumber,
-        contactPerson: supplier.contactPerson,
-        contactEmail: supplier.contactEmail,
-        contactPhone: supplier.contactPhone,
-        physicalAddress: supplier.physicalAddress,
-        postalAddress: supplier.postalAddress,
-        natureOfBusiness: supplier.natureOfBusiness,
-        productsAndServices: supplier.productsAndServices,
-        associatedCompany: supplier.associatedCompany,
-        associatedCompanyRegNo: supplier.associatedCompanyRegNo,
-        associatedCompanyBranchName: supplier.associatedCompanyBranchName,
-        branchesContactNumbers: supplier.branchesContactNumbers,
-        bankAccountName: supplier.bankAccountName,
-        bankName: supplier.bankName,
-        branchName: supplier.branchName,
-        branchNumber: supplier.branchNumber,
-        accountNumber: supplier.accountNumber,
-        typeOfAccount: supplier.typeOfAccount,
-        rpBanking: supplier.rpBanking,
-        rpBankingPhone: supplier.rpBankingPhone,
-        rpBankingEmail: supplier.rpBankingEmail,
-        rpQuality: supplier.rpQuality,
-        rpQualityPhone: supplier.rpQualityPhone,
-        rpQualityEmail: supplier.rpQualityEmail,
-        rpSHE: supplier.rpSHE,
-        rpSHEPhone: supplier.rpSHEPhone,
-        rpSHEEmail: supplier.rpSHEEmail,
-        rpBBBEE: supplier.rpBBBEE,
-        rpBBBEEPhone: supplier.rpBBBEEPhone,
-        rpBBBEEEmail: supplier.rpBBBEEEmail,
-        bbbeeLevel: supplier.bbbeeLevel,
-        numberOfEmployees: supplier.numberOfEmployees,
-        taxId: supplier.taxId,
-        vatNumber: supplier.vatNumber,
-        qualityManagementCert: supplier.qualityManagementCert,
-        sheCertification: supplier.sheCertification,
-        authorizationAgreement: supplier.authorizationAgreement,
-      },
-      initiation: {
-        supplierName: supplier.onboarding?.initiation?.supplierName || supplier.companyName,
-        supplierEmail: supplier.onboarding?.initiation?.supplierEmail || supplier.contactEmail,
-        supplierContactPerson: supplier.onboarding?.initiation?.supplierContactPerson || supplier.contactPerson,
-        productServiceCategory: supplier.onboarding?.initiation?.productServiceCategory || 'Not specified',
-        requesterName: supplier.onboarding?.initiation?.requesterName || 'Unknown',
-        relationshipDeclaration: supplier.onboarding?.initiation?.relationshipDeclaration || 'Not specified',
-        processReadUnderstood: supplier.onboarding?.initiation?.processReadUnderstood || false,
-        dueDiligenceCompleted: supplier.onboarding?.initiation?.dueDiligenceCompleted || false,
-        purchaseType: supplier.onboarding?.initiation?.purchaseType || 'REGULAR',
-        paymentMethod: supplier.onboarding?.initiation?.paymentMethod || 'AC',
-        codReason: supplier.onboarding?.initiation?.codReason,
-        annualPurchaseValue: supplier.onboarding?.initiation?.annualPurchaseValue,
-        currency: supplier.onboarding?.initiation?.currency,
-        supplierLocation: supplier.onboarding?.initiation?.supplierLocation,
-        customCurrency: supplier.onboarding?.initiation?.customCurrency,
-        creditApplication: supplier.onboarding?.initiation?.creditApplication || false,
-        creditApplicationReason: supplier.onboarding?.initiation?.creditApplicationReason,
-        onboardingReason: supplier.onboarding?.initiation?.onboardingReason || 'Not specified',
-        businessUnit: supplier.onboarding?.initiation?.businessUnit || [],
-        initiatedBy: {
-          name: supplier.onboarding?.initiation?.initiatedBy?.name || 'Unknown',
-          email: supplier.onboarding?.initiation?.initiatedBy?.email || 'Unknown'
+    console.log(`📄 Found ${documents.length} documents to include in PDF`)
+
+    let pdfBuffer: Buffer
+    try {
+      pdfBuffer = await generateFinalApprovalPackagePDF({
+        supplier: {
+          supplierCode: supplier.supplierCode,
+          companyName: supplier.companyName,
+          tradingName: supplier.tradingName,
+          registrationNumber: supplier.registrationNumber,
+          contactPerson: supplier.contactPerson,
+          contactEmail: supplier.contactEmail,
+          contactPhone: supplier.contactPhone,
+          physicalAddress: supplier.physicalAddress,
+          postalAddress: supplier.postalAddress,
+          natureOfBusiness: supplier.natureOfBusiness,
+          productsAndServices: supplier.productsAndServices,
+          associatedCompany: supplier.associatedCompany,
+          associatedCompanyRegNo: supplier.associatedCompanyRegNo,
+          associatedCompanyBranchName: supplier.associatedCompanyBranchName,
+          branchesContactNumbers: supplier.branchesContactNumbers,
+          bankAccountName: supplier.bankAccountName,
+          bankName: supplier.bankName,
+          branchName: supplier.branchName,
+          branchNumber: supplier.branchNumber,
+          accountNumber: supplier.accountNumber,
+          typeOfAccount: supplier.typeOfAccount,
+          rpBanking: supplier.rpBanking,
+          rpBankingPhone: supplier.rpBankingPhone,
+          rpBankingEmail: supplier.rpBankingEmail,
+          rpQuality: supplier.rpQuality,
+          rpQualityPhone: supplier.rpQualityPhone,
+          rpQualityEmail: supplier.rpQualityEmail,
+          rpSHE: supplier.rpSHE,
+          rpSHEPhone: supplier.rpSHEPhone,
+          rpSHEEmail: supplier.rpSHEEmail,
+          rpBBBEE: supplier.rpBBBEE,
+          rpBBBEEPhone: supplier.rpBBBEEPhone,
+          rpBBBEEEmail: supplier.rpBBBEEEmail,
+          bbbeeLevel: supplier.bbbeeLevel,
+          numberOfEmployees: supplier.numberOfEmployees,
+          taxId: supplier.taxId,
+          vatNumber: supplier.vatNumber,
+          qualityManagementCert: supplier.qualityManagementCert,
+          sheCertification: supplier.sheCertification,
+          authorizationAgreement: supplier.authorizationAgreement,
         },
-        createdAt: supplier.onboarding?.initiation?.createdAt ? new Date(supplier.onboarding.initiation.createdAt) : new Date(),
-        submittedAt: supplier.onboarding?.initiation?.submittedAt ? new Date(supplier.onboarding.initiation.submittedAt) : null
-      },
-      documents,
-      creditController: supplier.onboarding?.creditController,
-      generatedAt: new Date()
-    })
-    
-    console.log('✅ PDF generated successfully')
+        initiation: {
+          supplierName: supplier.onboarding?.initiation?.supplierName || supplier.companyName,
+          supplierEmail: supplier.onboarding?.initiation?.supplierEmail || supplier.contactEmail,
+          supplierContactPerson: supplier.onboarding?.initiation?.supplierContactPerson || supplier.contactPerson,
+          productServiceCategory: supplier.onboarding?.initiation?.productServiceCategory || 'Not specified',
+          requesterName: supplier.onboarding?.initiation?.requesterName || 'Unknown',
+          relationshipDeclaration: supplier.onboarding?.initiation?.relationshipDeclaration || 'Not specified',
+          processReadUnderstood: supplier.onboarding?.initiation?.processReadUnderstood || false,
+          dueDiligenceCompleted: supplier.onboarding?.initiation?.dueDiligenceCompleted || false,
+          purchaseType: supplier.onboarding?.initiation?.purchaseType || 'REGULAR',
+          paymentMethod: supplier.onboarding?.initiation?.paymentMethod || 'AC',
+          codReason: supplier.onboarding?.initiation?.codReason,
+          annualPurchaseValue: supplier.onboarding?.initiation?.annualPurchaseValue,
+          currency: supplier.onboarding?.initiation?.currency,
+          supplierLocation: supplier.onboarding?.initiation?.supplierLocation,
+          customCurrency: supplier.onboarding?.initiation?.customCurrency,
+          creditApplication: supplier.onboarding?.initiation?.creditApplication || false,
+          creditApplicationReason: supplier.onboarding?.initiation?.creditApplicationReason,
+          onboardingReason: supplier.onboarding?.initiation?.onboardingReason || 'Not specified',
+          businessUnit: supplier.onboarding?.initiation?.businessUnit || [],
+          initiatedBy: {
+            name: supplier.onboarding?.initiation?.initiatedBy?.name || 'Unknown',
+            email: supplier.onboarding?.initiation?.initiatedBy?.email || 'Unknown'
+          },
+          createdAt: supplier.onboarding?.initiation?.createdAt ? new Date(supplier.onboarding.initiation.createdAt) : new Date(),
+          submittedAt: supplier.onboarding?.initiation?.submittedAt ? new Date(supplier.onboarding.initiation.submittedAt) : null
+        },
+        documents,
+        creditController: supplier.onboarding?.creditController,
+        generatedAt: new Date()
+      })
+      
+      console.log('✅ PDF generated successfully, size:', pdfBuffer.length, 'bytes')
+      console.log('📎 PDF will be attached as:', `Final-Approval-Package-${supplier.supplierCode}.pdf`)
+    } catch (pdfError) {
+      console.error('❌ Error generating PDF:', pdfError)
+      throw new Error(`PDF generation failed: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`)
+    }
 
     // Create final approval request email content
     const emailSubject = `Final Approval Required: Supplier ${supplier.companyName}`
@@ -453,6 +469,7 @@ async function sendFinalApprovalRequestEmail(supplier: any, requesterName: strin
     // Send email to all Procurement Managers
     for (const pm of procurementManagers) {
       console.log('📧 Sending final approval request email to:', pm.email)
+      console.log('📎 Attaching PDF:', `Final-Approval-Package-${supplier.supplierCode}.pdf`, `(${pdfBuffer.length} bytes)`)
       
       await transporter.sendMail({
         from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
@@ -474,6 +491,7 @@ async function sendFinalApprovalRequestEmail(supplier: any, requesterName: strin
       })
 
       console.log('✅ Final approval request email sent successfully to:', pm.email)
+      console.log('📧 Email included 2 attachments: logo.png and PDF')
     }
   } catch (error) {
     console.error('Error sending final approval request email:', error)

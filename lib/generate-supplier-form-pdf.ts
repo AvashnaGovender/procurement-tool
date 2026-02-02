@@ -46,16 +46,12 @@ export async function generateSupplierFormPDF(data: SupplierFormData): Promise<B
       // Helper for key-value pairs
       const addKeyValue = (key: string, value: string | number | null | undefined) => {
         if (value !== null && value !== undefined && value !== '') {
-          doc.font('Helvetica-Bold')
-             .text(`${key}: `, { continued: true })
-             .font('Helvetica')
-             .text(String(value))
+          doc.fontSize(10)
+             .text(`${key}: ${String(value)}`)
         } else {
-          doc.font('Helvetica-Bold')
-             .text(`${key}: `, { continued: true })
-             .font('Helvetica')
+          doc.fontSize(10)
              .fillColor('#999999')
-             .text('Not Provided')
+             .text(`${key}: Not Provided`)
              .fillColor('#000000')
         }
       }
@@ -85,15 +81,13 @@ export async function generateSupplierFormPDF(data: SupplierFormData): Promise<B
       // Address Information
       addSectionHeader('ADDRESS INFORMATION')
       if (data.physicalAddress) {
-        doc.font('Helvetica-Bold').text('Physical Address:')
-        doc.font('Helvetica').text(data.physicalAddress, { indent: 20 })
+        doc.fontSize(10).text(`Physical Address: ${data.physicalAddress}`, { indent: 20 })
       } else {
         addKeyValue('Physical Address', null)
       }
       doc.moveDown(0.5)
       if (data.postalAddress) {
-        doc.font('Helvetica-Bold').text('Postal Address:')
-        doc.font('Helvetica').text(data.postalAddress, { indent: 20 })
+        doc.fontSize(10).text(`Postal Address: ${data.postalAddress}`, { indent: 20 })
       } else {
         addKeyValue('Postal Address', null)
       }
@@ -102,15 +96,13 @@ export async function generateSupplierFormPDF(data: SupplierFormData): Promise<B
       // Business Details
       addSectionHeader('BUSINESS DETAILS')
       if (data.natureOfBusiness) {
-        doc.font('Helvetica-Bold').text('Nature of Business:')
-        doc.font('Helvetica').text(data.natureOfBusiness, { indent: 20, align: 'justify' })
+        doc.fontSize(10).text(`Nature of Business: ${data.natureOfBusiness}`, { indent: 20, align: 'justify' })
       } else {
         addKeyValue('Nature of Business', null)
       }
       doc.moveDown(0.5)
       if (data.productsAndServices) {
-        doc.font('Helvetica-Bold').text('Products and/or Services:')
-        doc.font('Helvetica').text(data.productsAndServices, { indent: 20, align: 'justify' })
+        doc.fontSize(10).text(`Products and/or Services: ${data.productsAndServices}`, { indent: 20, align: 'justify' })
       } else {
         addKeyValue('Products and/or Services', null)
       }

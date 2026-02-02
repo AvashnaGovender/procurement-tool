@@ -77,10 +77,8 @@ export async function generateApprovalSummaryPDF(data: ApprovalSummaryData): Pro
       // Helper function for key-value pairs
       const addKeyValue = (key: string, value: string | number | null | undefined) => {
         if (value !== null && value !== undefined) {
-          doc.font('Helvetica-Bold')
-             .text(`${key}: `, { continued: true })
-             .font('Helvetica')
-             .text(String(value))
+          doc.fontSize(10)
+             .text(`${key}: ${String(value)}`)
         }
       }
 
@@ -138,10 +136,8 @@ export async function generateApprovalSummaryPDF(data: ApprovalSummaryData): Pro
       addKeyValue('Supplier Location', data.initiation.supplierLocation)
       
       if (data.initiation.justification) {
-        doc.font('Helvetica-Bold')
-           .text('Justification: ')
-           .font('Helvetica')
-           .text(data.initiation.justification, { align: 'justify' })
+        doc.fontSize(10)
+           .text(`Justification: ${data.initiation.justification}`, { align: 'justify' })
       }
       doc.moveDown(1.5)
 
@@ -164,11 +160,10 @@ export async function generateApprovalSummaryPDF(data: ApprovalSummaryData): Pro
         Object.keys(docsByCategory).sort().forEach((category, index) => {
           if (index > 0) doc.moveDown(0.5)
           
-          doc.font('Helvetica-Bold')
+          doc.fontSize(10)
              .fillColor('#1e40af')
              .text(`${category.replace(/_/g, ' ')}:`)
              .fillColor('#000000')
-             .font('Helvetica')
           
           docsByCategory[category].forEach(document => {
             doc.fontSize(9)
