@@ -283,6 +283,9 @@ export async function POST(request: NextRequest) {
           currentStep: 'REVIEW',
           overallStatus: 'DOCUMENTS_RECEIVED',
           approvalStatus: 'PENDING', // Set approval status to PENDING so it shows in initiator's view
+          revisionRequested: false, // Reset revision flag when supplier resubmits
+          revisionNotes: null, // Clear previous revision notes
+          documentsToRevise: [], // Clear documents to revise list
         }
       })
     } else {

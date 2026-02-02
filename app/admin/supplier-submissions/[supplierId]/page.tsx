@@ -85,6 +85,9 @@ interface Supplier {
   onboarding?: {
     requiredDocuments?: string[]
     overallStatus?: string
+    revisionRequested?: boolean
+    revisionNotes?: string | null
+    revisionRequestedAt?: string | null
     initiation?: {
       purchaseType?: string
       creditApplication?: boolean
@@ -1328,7 +1331,7 @@ Procurement Team`
                             </div>
                           </AlertDescription>
                         </Alert>
-                        {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' && (
+                        {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' && !supplier.onboarding?.revisionRequested && (
                           <div className="flex flex-wrap gap-2">
                             <Button
                               variant="outline"
@@ -1410,7 +1413,7 @@ Procurement Team`
                             }
                           })
                           
-                          if (incorrectDocsList.length > 0 && supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED') {
+                          if (incorrectDocsList.length > 0 && supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' && !supplier.onboarding?.revisionRequested) {
                             return (
                               <Button
                                 variant="outline"
@@ -1424,7 +1427,7 @@ Procurement Team`
                           }
                           
                           // Show general Request Revision button if no missing or incorrect documents
-                          if (incorrectDocsList.length === 0 && supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED') {
+                          if (incorrectDocsList.length === 0 && supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' && !supplier.onboarding?.revisionRequested) {
                             return (
                               <Button
                                 variant="outline"
@@ -2008,51 +2011,69 @@ Procurement Team`
                 {/* Only show action buttons if supplier is not approved or rejected */}
                 {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' ? (
                   <div className="flex flex-col gap-4">
-                    {/* Show "Approve Supplier" and "Reject Supplier" buttons for PM */}
-                    {session?.user?.role === 'PROCUREMENT_MANAGER' && (
-                      <div className="space-y-4">
-                        {/* Credit Controller Assignment */}
-                        <div className="space-y-2 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
-                          <Label htmlFor="creditController" className="text-sm font-medium">
-                            Credit Controller *
-                          </Label>
-                          <Select
-                            value={creditController}
-                            onValueChange={setCreditController}
-                          >
-                            <SelectTrigger id="creditController" className="w-full">
-                              <SelectValue placeholder="Select credit controller" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {getCreditControllers().map((controller) => (
-                                <SelectItem key={controller} value={controller}>
-                                  {controller}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {supplier.onboarding?.initiation?.businessUnit && supplier.onboarding?.initiation?.supplierName
-                              ? `Auto-assigned based on business unit ${Array.isArray(supplier.onboarding.initiation.businessUnit) ? supplier.onboarding.initiation.businessUnit[0] : supplier.onboarding.initiation.businessUnit} and supplier name "${supplier.onboarding.initiation.supplierName}". You can edit if needed.`
-                              : 'Select the credit controller for this supplier.'}
-                          </p>
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-2">
-                          <Button 
-                            onClick={handleApproveClick} 
-                            className="bg-green-600 hover:bg-green-700"
-                            disabled={!creditController}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Approve Supplier
-                          </Button>
-                          <Button onClick={handleRejectClick} variant="destructive" className="bg-red-600 hover:bg-red-700">
-                            <X className="h-4 w-4 mr-2" />
-                            Reject Supplier
-                          </Button>
-                        </div>
-                      </div>
+                    {/* Show revision pending message if revision has been requested */}
+                    {supplier.onboarding?.revisionRequested ? (
+                      <Alert className="bg-orange-50 border-orange-300">
+                        <Clock className="h-5 w-5 text-orange-600" />
+                        <AlertDescription className="text-orange-800">
+                          <strong>Revision Requested:</strong> A revision has been requested from the supplier. No further actions can be taken until the supplier submits the revised documents.
+                          {supplier.onboarding.revisionNotes && (
+                            <div className="mt-2 p-2 bg-orange-100 rounded border border-orange-200">
+                              <p className="text-sm font-medium">Your revision notes:</p>
+                              <p className="text-sm mt-1">{supplier.onboarding.revisionNotes}</p>
+                            </div>
+                          )}
+                        </AlertDescription>
+                      </Alert>
+                    ) : (
+                      <>
+                        {/* Show "Approve Supplier" and "Reject Supplier" buttons for PM */}
+                        {session?.user?.role === 'PROCUREMENT_MANAGER' && (
+                          <div className="space-y-4">
+                            {/* Credit Controller Assignment */}
+                            <div className="space-y-2 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                              <Label htmlFor="creditController" className="text-sm font-medium">
+                                Credit Controller *
+                              </Label>
+                              <Select
+                                value={creditController}
+                                onValueChange={setCreditController}
+                              >
+                                <SelectTrigger id="creditController" className="w-full">
+                                  <SelectValue placeholder="Select credit controller" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {getCreditControllers().map((controller) => (
+                                    <SelectItem key={controller} value={controller}>
+                                      {controller}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {supplier.onboarding?.initiation?.businessUnit && supplier.onboarding?.initiation?.supplierName
+                                  ? `Auto-assigned based on business unit ${Array.isArray(supplier.onboarding.initiation.businessUnit) ? supplier.onboarding.initiation.businessUnit[0] : supplier.onboarding.initiation.businessUnit} and supplier name "${supplier.onboarding.initiation.supplierName}". You can edit if needed.`
+                                  : 'Select the credit controller for this supplier.'}
+                              </p>
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-2">
+                              <Button 
+                                onClick={handleApproveClick} 
+                                className="bg-green-600 hover:bg-green-700"
+                                disabled={!creditController}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Approve Supplier
+                              </Button>
+                              <Button onClick={handleRejectClick} variant="destructive" className="bg-red-600 hover:bg-red-700">
+                                <X className="h-4 w-4 mr-2" />
+                                Reject Supplier
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                     
                     {/* Show message for non-PM users */}
