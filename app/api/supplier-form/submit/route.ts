@@ -282,6 +282,7 @@ export async function POST(request: NextRequest) {
           } as any,
           currentStep: 'REVIEW',
           overallStatus: 'DOCUMENTS_RECEIVED',
+          approvalStatus: 'PENDING', // Set approval status to PENDING so it shows in initiator's view
         }
       })
     } else {

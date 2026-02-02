@@ -82,6 +82,10 @@ interface SupplierInitiation {
   supplierLocation?: string
   currency?: string
   customCurrency?: string
+  onboarding?: {
+    supplierFormSubmitted: boolean
+    approvalStatus?: string
+  }
 }
 
 export default function SupplierInitiationsPage() {
@@ -194,12 +198,29 @@ export default function SupplierInitiationsPage() {
     }
   }
 
+  const getDisplayStatus = (initiation: SupplierInitiation) => {
+    // Check if supplier has submitted and waiting for PM review
+    if (initiation.status === 'SUPPLIER_EMAILED' && (initiation as any).onboarding?.supplierFormSubmitted && (initiation as any).onboarding?.approvalStatus === 'PENDING') {
+      return 'WITH PM FOR REVIEW'
+    }
+    
+    // Check if waiting for supplier to submit
+    if (initiation.status === 'SUPPLIER_EMAILED' && !(initiation as any).onboarding?.supplierFormSubmitted) {
+      return 'AWAITING SUPPLIER'
+    }
+    
+    return initiation.status.replace(/_/g, ' ')
+  }
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'APPROVED':
       case 'SUPPLIER_EMAILED':
         return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'WITH PM FOR REVIEW':
+        return <Clock className="h-4 w-4 text-blue-500" />
       case 'PENDING':
+      case 'AWAITING SUPPLIER':
         return <Clock className="h-4 w-4 text-yellow-500" />
       case 'REJECTED':
         return <XCircle className="h-4 w-4 text-red-500" />
@@ -213,7 +234,10 @@ export default function SupplierInitiationsPage() {
       case 'APPROVED':
       case 'SUPPLIER_EMAILED':
         return 'bg-green-100 text-green-800'
+      case 'WITH PM FOR REVIEW':
+        return 'bg-blue-100 text-blue-800'
       case 'PENDING':
+      case 'AWAITING SUPPLIER':
         return 'bg-yellow-100 text-yellow-800'
       case 'REJECTED':
         return 'bg-red-100 text-red-800'
@@ -315,9 +339,14 @@ export default function SupplierInitiationsPage() {
                           }
                         </TableCell>
                         <TableCell>
-                          <Badge className={getStatusColor(initiation.status.replace(/_/g, ' '))}>
-                            {initiation.status.replace(/_/g, ' ')}
-                          </Badge>
+                          {(() => {
+                            const displayStatus = getDisplayStatus(initiation)
+                            return (
+                              <Badge className={getStatusColor(displayStatus)}>
+                                {displayStatus}
+                              </Badge>
+                            )
+                          })()}
                         </TableCell>
                         <TableCell>
                           {initiation.status === 'DRAFT' 

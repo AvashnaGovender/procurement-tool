@@ -110,7 +110,8 @@ export async function GET(request: NextRequest) {
         onboarding: {
           select: {
             id: true,
-            supplierFormSubmitted: true
+            supplierFormSubmitted: true,
+            approvalStatus: true
           }
         }
       },
@@ -259,6 +260,10 @@ export async function GET(request: NextRequest) {
         supplierLocation: initiation.supplierLocation,
         currency: initiation.currency,
         customCurrency: initiation.customCurrency,
+        onboarding: initiation.onboarding ? {
+          supplierFormSubmitted: initiation.onboarding.supplierFormSubmitted,
+          approvalStatus: (initiation.onboarding as any).approvalStatus
+        } : null,
         isDelegated,
         delegationType
       }
