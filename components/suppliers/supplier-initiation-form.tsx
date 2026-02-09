@@ -831,7 +831,6 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                 <SelectItem value="PREVIOUS_SUPPLIER">Previous supplier</SelectItem>
                 <SelectItem value="RELATED_PARTY">Related party</SelectItem>
                 <SelectItem value="FAMILY_MEMBER">Family member</SelectItem>
-                <SelectItem value="BUSINESS_PARTNER">Business partner</SelectItem>
                 <SelectItem value="OTHER">Other</SelectItem>
               </SelectContent>
             </Select>

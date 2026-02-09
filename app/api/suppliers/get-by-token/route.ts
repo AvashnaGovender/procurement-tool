@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
       sheCertification: supplier.sheCertification || false,
       authorizationAgreement: supplier.authorizationAgreement || false,
       field39: supplier.field39 || '',
+      vatRegistered: (supplier.airtableData as { vatRegistered?: boolean } | null)?.vatRegistered ?? false,
     }
 
     // Get uploaded files info from airtableData if available

@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
       sheCertification: formData.get('sheCertification') === 'true',
       authorizationAgreement: formData.get('authorizationAgreement') === 'true',
       field39: formData.get('field39')?.toString() || '',
+      vatRegistered: formData.get('vatRegistered') === 'true',
     }
 
     // Validate required fields
@@ -240,6 +241,7 @@ export async function POST(request: NextRequest) {
         source: 'custom-form',
         onboardingToken: onboardingToken || undefined,
         version: versionNumber,
+        vatRegistered: supplierData.vatRegistered,
         allVersions: existingSupplier?.airtableData?.allVersions 
           ? [...existingSupplier.airtableData.allVersions, { version: versionNumber, uploadedFiles, date: new Date().toISOString() }]
           : [{ version: versionNumber, uploadedFiles, date: new Date().toISOString() }]
@@ -711,12 +713,6 @@ async function sendEmailNotifications(
                                 <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
                                   <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Trading Name:</span>
                                   <span style="color: #333;">${supplierData.tradingName || 'N/A'}</span>
-                                </td>
-                              </tr>
-                              <tr>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0;">
-                                  <span style="font-weight: 600; color: #0047AB; display: inline-block; min-width: 160px;">Registration No:</span>
-                                  <span style="color: #333;">${supplierData.companyRegistrationNo}</span>
                                 </td>
                               </tr>
                               <tr>

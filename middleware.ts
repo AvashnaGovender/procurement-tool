@@ -22,9 +22,11 @@ export async function middleware(request: NextRequest) {
     '/api/custom-options'
   ]
   const isPublicApiPath = publicApiPaths.some(path => request.nextUrl.pathname.startsWith(path))
+  // Allow suppliers to download the signed credit application (they access via token link, no session)
+  const isSignedCreditDownload = request.nextUrl.pathname.startsWith('/api/suppliers/documents/') && request.nextUrl.pathname.includes('signedCreditApplication')
   
   // Check if user is authenticated for protected routes
-  if (!token && !isPublicApiPath) {
+  if (!token && !isPublicApiPath && !isSignedCreditDownload) {
     const loginUrl = new URL('/login', request.url)
     
     // Only preserve callback URL for non-restricted routes

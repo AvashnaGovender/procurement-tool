@@ -5,10 +5,10 @@ import { existsSync } from 'fs'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { supplierCode: string; filename: string } }
+  { params }: { params: Promise<{ supplierCode: string; filename: string }> }
 ) {
   try {
-    const { supplierCode, filename } = params
+    const { supplierCode, filename } = await params
 
     // Validate parameters
     if (!supplierCode || !filename) {

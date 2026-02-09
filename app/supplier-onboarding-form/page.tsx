@@ -54,6 +54,8 @@ function SupplierOnboardingForm() {
     // Authorization (Field 11)
     authorizationAgreement: false,
     field39: "",
+    // VAT (used to conditionally require VAT certificate)
+    vatRegistered: false,
   })
 
   // File uploads state
@@ -146,6 +148,18 @@ function SupplierOnboardingForm() {
   const handlePreview = (e: React.FormEvent) => {
     e.preventDefault()
     
+    // Validate VAT certificate when supplier indicated they are VAT registered
+    if (formData.vatRegistered) {
+      const hasVatCert = (files.vatCertificate && files.vatCertificate.length > 0) ||
+                         (existingFiles.vatCertificate && existingFiles.vatCertificate.length > 0)
+      const isRevisionMode = revisionNotes && documentsToRevise.length > 0
+      const needsVatCert = !isRevisionMode || documentsToRevise.includes('vatCertificate')
+      if (needsVatCert && !hasVatCert) {
+        setError("VAT Registration Certificate is required when your company is VAT registered. Please upload the document.")
+        return
+      }
+    }
+    
     // Skip credit application validation if payment method is COD
     if (paymentMethod !== 'COD') {
       // Validate credit application document (now always required for non-COD)
@@ -169,6 +183,19 @@ function SupplierOnboardingForm() {
   const handleSubmit = async () => {
     setLoading(true)
     setError("")
+
+    // Validate VAT certificate when supplier indicated they are VAT registered
+    if (formData.vatRegistered) {
+      const hasVatCert = (files.vatCertificate && files.vatCertificate.length > 0) ||
+                         (existingFiles.vatCertificate && existingFiles.vatCertificate.length > 0)
+      const isRevisionMode = revisionNotes && documentsToRevise.length > 0
+      const needsVatCert = !isRevisionMode || documentsToRevise.includes('vatCertificate')
+      if (needsVatCert && !hasVatCert) {
+        setError("VAT Registration Certificate is required when your company is VAT registered. Please upload the document.")
+        setLoading(false)
+        return
+      }
+    }
 
     // Skip credit application validation if payment method is COD
     if (paymentMethod !== 'COD') {
@@ -270,7 +297,15 @@ function SupplierOnboardingForm() {
   // Preview/Review Screen
   if (showPreview) {
     const totalFiles = Object.values(files).reduce((acc, fileList) => acc + fileList.length, 0)
-    
+    const documentCategoryLabels: Record<string, string> = {
+      cipcCertificate: 'CIPC Certificate',
+      bbbeeScorecard: 'BBBEE Scorecard',
+      taxClearance: 'Tax Clearance Certificate',
+      vatCertificate: 'VAT Certificate',
+      bankConfirmation: 'Bank Confirmation Letter',
+      nda: 'NDA',
+      creditApplication: 'Credit Application Form',
+    }
     return (
       <div className="bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
         <div className="max-w-5xl mx-auto">
@@ -315,11 +350,14 @@ function SupplierOnboardingForm() {
                 <div className="text-sm">
                   <strong>{totalFiles} files uploaded</strong>
                   <div className="mt-2 space-y-1">
-                    {Object.entries(files).filter(([_, fileList]) => fileList.length > 0).map(([category, fileList]) => (
-                      <div key={category} className="bg-gray-50 p-2 rounded">
-                        <strong className="capitalize">{category.replace(/([A-Z])/g, ' $1').trim()}:</strong> {fileList.length} file(s)
-                      </div>
-                    ))}
+                    {Object.entries(files).filter(([_, fileList]) => fileList.length > 0).map(([category, fileList]) => {
+                      const label = documentCategoryLabels[category] ?? category.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())
+                      return (
+                        <div key={category} className="bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded border border-gray-200 dark:border-gray-700">
+                          <strong>{label}:</strong> {fileList.length} file(s)
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
@@ -609,6 +647,26 @@ function SupplierOnboardingForm() {
               )}
             </CardContent>
           </Card>
+
+          {/* VAT Registered - determines if VAT certificate is required */}
+          <Card>
+            <CardHeader>
+              <CardTitle>5a. Tax Registration</CardTitle>
+              <CardDescription>Indicate if your company is VAT registered. If yes, you will be required to upload your VAT Registration Certificate.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="vatRegistered"
+                  checked={formData.vatRegistered}
+                  onCheckedChange={(checked) => handleInputChange('vatRegistered', !!checked)}
+                />
+                <Label htmlFor="vatRegistered" className="font-normal cursor-pointer">
+                  My company is VAT registered
+                </Label>
+              </div>
+            </CardContent>
+          </Card>
           </>
           )}
 
@@ -627,13 +685,17 @@ function SupplierOnboardingForm() {
                 { key: 'cipcCertificate', label: 'CIPC Certificate (Company Registration) *', required: true },
                 { key: 'bbbeeScorecard', label: 'BBBEE Scorecard Report or Affidavit *', required: true },
                 { key: 'taxClearance', label: 'Tax Clearance Certificate *', required: true },
-                { key: 'vatCertificate', label: 'VAT Registration Certificate (If applicable)', required: false },
+                { key: 'vatCertificate', label: 'VAT Registration Certificate *', required: true }, // Shown and required only when vatRegistered is true (filtered below)
                 { key: 'bankConfirmation', label: 'Bank Confirmation Letter *', required: true },
                 { key: 'nda', label: 'Non-Disclosure Agreement (NDA) - Signed *', required: true },
                 { key: 'creditApplication', label: 'Credit Application Form *', required: true },
               ]
-              // Filter out documents based on purchase type and payment method
+              // Filter out documents based on purchase type, payment method, and VAT registration
               .filter(({ key }) => {
+                // Show VAT certificate only when supplier indicated they are VAT registered
+                if (key === 'vatCertificate') {
+                  return formData.vatRegistered === true
+                }
                 // Hide Credit Application for COD payment
                 if (paymentMethod === 'COD' && key === 'creditApplication') {
                   return false

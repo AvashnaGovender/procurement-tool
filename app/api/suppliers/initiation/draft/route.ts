@@ -303,7 +303,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Determine relationship declaration and "Other" value
-      const relationshipOptions = ["NONE", "NO_EXISTING_RELATIONSHIP", "PREVIOUS_SUPPLIER", "CURRENT_SUPPLIER", "RELATED_PARTY", "FAMILY_MEMBER", "BUSINESS_PARTNER"]
+      const relationshipOptions = ["NONE", "NO_EXISTING_RELATIONSHIP", "PREVIOUS_SUPPLIER", "CURRENT_SUPPLIER", "RELATED_PARTY", "FAMILY_MEMBER"]
       const isOther = !relationshipOptions.includes(initiation.relationshipDeclaration)
       const relationshipDeclaration = isOther ? "OTHER" : initiation.relationshipDeclaration
       const relationshipDeclarationOther = isOther ? initiation.relationshipDeclaration : ""

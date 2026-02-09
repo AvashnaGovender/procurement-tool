@@ -34,8 +34,9 @@ export function getRequiredDocuments(
     console.log('   ❌ NDA NOT added - purchase type is', purchaseType, 'not SHARED_IP')
   }
 
-  // Add Credit Application only if payment method is NOT COD
-  if (paymentMethod !== 'COD') {
+  // Add Credit Application only if payment is Account AND initiator requested credit
+  // (If initiator chose "No credit" with a reason, do not require the form)
+  if (paymentMethod !== 'COD' && creditApplication) {
     baseDocs.push('creditApplication')    // Credit Application Form
   }
 
@@ -75,8 +76,8 @@ export function getMandatoryDocuments(
     mandatoryDocs.push('nda')                  // Non-Disclosure Agreement
   }
 
-  // Add Credit Application only if payment method is NOT COD
-  if (paymentMethod !== 'COD') {
+  // Add Credit Application only if payment is Account AND initiator requested credit
+  if (paymentMethod !== 'COD' && creditApplication) {
     mandatoryDocs.push('creditApplication')    // Credit Application Form
   }
 
