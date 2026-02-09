@@ -160,17 +160,12 @@ function SupplierOnboardingForm() {
       }
     }
     
-    // Skip credit application validation if payment method is COD
-    if (paymentMethod !== 'COD') {
-      // Validate credit application document (now always required for non-COD)
-      // Check both newly uploaded files and existing files
+    // Validate credit application only when initiator required it (Account payment + credit application checked)
+    if (paymentMethod !== 'COD' && creditApplication) {
       const hasCreditApp = (files.creditApplication && files.creditApplication.length > 0) || 
                            (existingFiles.creditApplication && existingFiles.creditApplication.length > 0)
-      
-      // Only validate credit app if not in revision mode OR if credit app is specifically requested for revision
       const isRevisionMode = revisionNotes && documentsToRevise.length > 0
       const needsCreditApp = !isRevisionMode || documentsToRevise.includes('creditApplication')
-      
       if (needsCreditApp && !hasCreditApp) {
         setError("Credit Application Form is required. Please upload the document.")
         return
@@ -197,17 +192,12 @@ function SupplierOnboardingForm() {
       }
     }
 
-    // Skip credit application validation if payment method is COD
-    if (paymentMethod !== 'COD') {
-      // Validate credit application document (now always required for non-COD)
-      // Check both newly uploaded files and existing files
+    // Validate credit application only when initiator required it (Account payment + credit application checked)
+    if (paymentMethod !== 'COD' && creditApplication) {
       const hasCreditApp = (files.creditApplication && files.creditApplication.length > 0) || 
                            (existingFiles.creditApplication && existingFiles.creditApplication.length > 0)
-      
-      // Only validate credit app if not in revision mode OR if credit app is specifically requested for revision
       const isRevisionMode = revisionNotes && documentsToRevise.length > 0
       const needsCreditApp = !isRevisionMode || documentsToRevise.includes('creditApplication')
-      
       if (needsCreditApp && !hasCreditApp) {
         setError("Credit Application Form is required. Please upload the document.")
         setLoading(false)
@@ -696,9 +686,11 @@ function SupplierOnboardingForm() {
                 if (key === 'vatCertificate') {
                   return formData.vatRegistered === true
                 }
-                // Hide Credit Application for COD payment
-                if (paymentMethod === 'COD' && key === 'creditApplication') {
-                  return false
+                // Hide Credit Application when payment is COD or when initiator did not require credit
+                if (key === 'creditApplication') {
+                  if (paymentMethod === 'COD') return false
+                  if (!creditApplication) return false // Initiator unchecked "Credit application" and gave a reason
+                  return true
                 }
                 // Hide NDA unless purchase type is SHARED_IP (and not COD)
                 if (key === 'nda') {
