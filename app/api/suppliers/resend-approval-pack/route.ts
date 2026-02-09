@@ -181,7 +181,8 @@ async function sendPMApprovalPackage(
       physicalAddress: supplier.physicalAddress,
       postalAddress: supplier.postalAddress,
       tradingName: supplier.tradingName,
-      bbbeeLevel: supplier.bbbeeLevel
+      bbbeeLevel: supplier.bbbeeLevel,
+      vatRegistered: (supplier.airtableData as { vatRegistered?: boolean } | null)?.vatRegistered
     })
 
     console.log('📄 Generating initiator checklist PDF...')

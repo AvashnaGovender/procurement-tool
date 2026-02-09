@@ -12,6 +12,7 @@ interface SupplierFormData {
   postalAddress?: string | null
   tradingName?: string | null
   bbbeeLevel?: string | null
+  vatRegistered?: boolean
 }
 
 export async function generateSupplierFormPDF(data: SupplierFormData): Promise<Buffer> {
@@ -139,6 +140,11 @@ export async function generateSupplierFormPDF(data: SupplierFormData): Promise<B
     // BBBEE Level
     drawSection('BBBEE LEVEL')
     drawKeyValue('BBBEE Level', data.bbbeeLevel)
+    yPosition -= 20
+
+    // VAT Registered
+    drawSection('TAX / VAT')
+    drawKeyValue('VAT Registered', data.vatRegistered === true ? 'Yes' : data.vatRegistered === false ? 'No' : 'Not provided')
     yPosition -= 30
 
     // Footer

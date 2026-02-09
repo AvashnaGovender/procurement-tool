@@ -2103,7 +2103,8 @@ async function sendPMApprovalPackage(
         typeOfAccount: supplier.typeOfAccount,
         bbbeeLevel: supplier.bbbeeLevel,
         taxId: supplier.taxId,
-        vatNumber: supplier.vatNumber
+        vatNumber: supplier.vatNumber,
+        vatRegistered: (supplier.airtableData as { vatRegistered?: boolean } | null)?.vatRegistered
       })
 
       attachments.push({
