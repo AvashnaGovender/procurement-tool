@@ -33,7 +33,7 @@ import {
   AlertCircle
 } from "lucide-react"
 import { workerClient } from "@/lib/worker-client"
-import { getMandatoryDocuments, type PurchaseType } from "@/lib/document-requirements"
+import { getMandatoryDocuments, getDocumentDisplayName, type PurchaseType } from "@/lib/document-requirements"
 import { assignCreditController, getCreditControllers } from "@/lib/credit-controller-assignment"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
@@ -1627,10 +1627,12 @@ Procurement Team`
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {Object.entries(versionData.uploadedFiles || {}).map(([category, files]: [string, any]) => (
+                        {Object.entries(versionData.uploadedFiles || {}).map(([category, files]: [string, any]) => {
+                          const categoryLabel = getDocumentDisplayName(category) || category.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())
+                          return (
                           <div key={category}>
-                            <h4 className="font-semibold text-sm mb-2 capitalize">
-                              {category.replace(/([A-Z])/g, ' $1').trim()}
+                            <h4 className="font-semibold text-sm mb-2">
+                              {categoryLabel}
                             </h4>
                             <div className="space-y-2 pl-4">
                               {files.map((file: string, index: number) => {
@@ -1703,9 +1705,10 @@ Procurement Team`
                             </div>
                           )
                         })}
-                      </div>
-                    </div>
-                  ))}
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
                     </CardContent>
                   </Card>

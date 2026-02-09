@@ -92,8 +92,11 @@ export function getMandatoryDocuments(
 export function getDocumentDisplayName(key: string): string {
   const displayNames: Record<string, string> = {
     'cipcCertificate': 'CIPC Certificate (Company Registration)',
+    'companyRegistration': 'CIPC Certificate (Company Registration)',
     'bbbeeScorecard': 'BBBEE Scorecard Report or Affidavit',
+    'bbbeeAccreditation': 'BBBEE Scorecard Report or Affidavit',
     'taxClearance': 'Tax Clearance Certificate',
+    'goodStanding': 'Tax Clearance / Letter of Good Standing',
     'vatCertificate': 'VAT Registration Certificate',
     'bankConfirmation': 'Bank Confirmation Letter',
     'nda': 'Non-Disclosure Agreement (NDA) - Signed',

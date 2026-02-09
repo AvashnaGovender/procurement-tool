@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
       authorizationAgreement: formData.get('authorizationAgreement') === 'true',
       field39: formData.get('field39')?.toString() || '',
       vatRegistered: formData.get('vatRegistered') === 'true',
+      noCreditApplicationProcess: formData.get('noCreditApplicationProcess') === 'true',
+      postalSameAsPhysical: formData.get('postalSameAsPhysical') === 'true',
     }
 
     // Validate required fields
@@ -242,6 +244,8 @@ export async function POST(request: NextRequest) {
         onboardingToken: onboardingToken || undefined,
         version: versionNumber,
         vatRegistered: supplierData.vatRegistered,
+        noCreditApplicationProcess: supplierData.noCreditApplicationProcess,
+        postalSameAsPhysical: supplierData.postalSameAsPhysical,
         allVersions: existingSupplier?.airtableData?.allVersions 
           ? [...existingSupplier.airtableData.allVersions, { version: versionNumber, uploadedFiles, date: new Date().toISOString() }]
           : [{ version: versionNumber, uploadedFiles, date: new Date().toISOString() }]

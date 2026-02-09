@@ -83,6 +83,8 @@ export async function GET(request: NextRequest) {
       authorizationAgreement: supplier.authorizationAgreement || false,
       field39: supplier.field39 || '',
       vatRegistered: (supplier.airtableData as { vatRegistered?: boolean } | null)?.vatRegistered ?? false,
+      noCreditApplicationProcess: (supplier.airtableData as { noCreditApplicationProcess?: boolean } | null)?.noCreditApplicationProcess ?? false,
+      postalSameAsPhysical: (supplier.airtableData as { postalSameAsPhysical?: boolean } | null)?.postalSameAsPhysical ?? false,
     }
 
     // Get uploaded files info from airtableData if available

@@ -56,6 +56,10 @@ function SupplierOnboardingForm() {
     field39: "",
     // VAT (used to conditionally require VAT certificate)
     vatRegistered: false,
+    // When credit application is required: supplier can state they don't have a credit application process
+    noCreditApplicationProcess: false,
+    // Postal address same as physical address
+    postalSameAsPhysical: false,
   })
 
   // File uploads state
@@ -160,8 +164,8 @@ function SupplierOnboardingForm() {
       }
     }
     
-    // Validate credit application only when initiator required it (Account payment + credit application checked)
-    if (paymentMethod !== 'COD' && creditApplication) {
+    // Validate credit application only when required and supplier did not opt out (no credit process)
+    if (paymentMethod !== 'COD' && creditApplication && !formData.noCreditApplicationProcess) {
       const hasCreditApp = (files.creditApplication && files.creditApplication.length > 0) || 
                            (existingFiles.creditApplication && existingFiles.creditApplication.length > 0)
       const isRevisionMode = revisionNotes && documentsToRevise.length > 0
@@ -192,8 +196,8 @@ function SupplierOnboardingForm() {
       }
     }
 
-    // Validate credit application only when initiator required it (Account payment + credit application checked)
-    if (paymentMethod !== 'COD' && creditApplication) {
+    // Validate credit application only when required and supplier did not opt out (no credit process)
+    if (paymentMethod !== 'COD' && creditApplication && !formData.noCreditApplicationProcess) {
       const hasCreditApp = (files.creditApplication && files.creditApplication.length > 0) || 
                            (existingFiles.creditApplication && existingFiles.creditApplication.length > 0)
       const isRevisionMode = revisionNotes && documentsToRevise.length > 0
@@ -337,6 +341,11 @@ function SupplierOnboardingForm() {
               {/* Documents */}
               <div>
                 <h3 className="text-lg font-semibold mb-3">Uploaded Documents</h3>
+                {creditApplication && paymentMethod !== 'COD' && formData.noCreditApplicationProcess && (
+                  <p className="text-sm text-amber-700 dark:text-amber-400 mb-2">
+                    Credit application: Not applicable — you indicated your company does not have a credit application process.
+                  </p>
+                )}
                 <div className="text-sm">
                   <strong>{totalFiles} files uploaded</strong>
                   <div className="mt-2 space-y-1">
@@ -525,19 +534,43 @@ function SupplierOnboardingForm() {
                   id="physicalAddress"
                   required={!revisionNotes || documentsToRevise.length === 0}
                   value={formData.physicalAddress}
-                  onChange={(e) => handleInputChange('physicalAddress', e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    handleInputChange('physicalAddress', value)
+                    if (formData.postalSameAsPhysical) {
+                      handleInputChange('postalAddress', value)
+                    }
+                  }}
                   placeholder="Street address, city, postal code"
                   rows={3}
                 />
+              </div>
+              <div className="flex items-center space-x-2 mb-2">
+                <Checkbox
+                  id="postalSameAsPhysical"
+                  checked={formData.postalSameAsPhysical}
+                  onCheckedChange={(checked) => {
+                    const same = !!checked
+                    handleInputChange('postalSameAsPhysical', same)
+                    if (same) {
+                      handleInputChange('postalAddress', formData.physicalAddress)
+                    }
+                  }}
+                />
+                <Label htmlFor="postalSameAsPhysical" className="font-normal cursor-pointer">
+                  Same as physical address
+                </Label>
               </div>
               <div>
                 <Label htmlFor="postalAddress">Postal Address</Label>
                 <Textarea
                   id="postalAddress"
-                  value={formData.postalAddress}
+                  value={formData.postalSameAsPhysical ? formData.physicalAddress : formData.postalAddress}
                   onChange={(e) => handleInputChange('postalAddress', e.target.value)}
                   placeholder="P.O. Box or same as physical address"
                   rows={3}
+                  disabled={formData.postalSameAsPhysical}
+                  className={formData.postalSameAsPhysical ? "opacity-70 cursor-not-allowed" : ""}
                 />
               </div>
             </CardContent>
@@ -660,6 +693,30 @@ function SupplierOnboardingForm() {
           </>
           )}
 
+          {/* Credit application option: allow supplier to state they don't have a credit application process */}
+          {creditApplication && paymentMethod !== 'COD' && (!revisionNotes || documentsToRevise.length === 0) && (
+            <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Credit Application</CardTitle>
+                <CardDescription>
+                  A credit application was requested for this onboarding. If your company does not have a credit application process, you may indicate this below and you will not be required to upload a credit application document.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="noCreditApplicationProcess"
+                    checked={formData.noCreditApplicationProcess}
+                    onCheckedChange={(checked) => handleInputChange('noCreditApplicationProcess', !!checked)}
+                  />
+                  <Label htmlFor="noCreditApplicationProcess" className="font-normal cursor-pointer">
+                    We do not have a credit application process
+                  </Label>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Section 6: Document Uploads */}
           <Card>
             <CardHeader>
@@ -686,10 +743,11 @@ function SupplierOnboardingForm() {
                 if (key === 'vatCertificate') {
                   return formData.vatRegistered === true
                 }
-                // Hide Credit Application when payment is COD or when initiator did not require credit
+                // Hide Credit Application when payment is COD, initiator did not require credit, or supplier has no credit process
                 if (key === 'creditApplication') {
                   if (paymentMethod === 'COD') return false
                   if (!creditApplication) return false // Initiator unchecked "Credit application" and gave a reason
+                  if (formData.noCreditApplicationProcess) return false // Supplier stated they don't have a credit application process
                   return true
                 }
                 // Hide NDA unless purchase type is SHARED_IP (and not COD)
