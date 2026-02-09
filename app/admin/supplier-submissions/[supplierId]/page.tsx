@@ -399,8 +399,12 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       paymentMethod = supplier.onboarding.initiation.paymentMethod || null
     }
 
-    // Get mandatory documents
-    const mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication, paymentMethod)
+    // Get mandatory documents (exclude credit application if supplier has no credit process)
+    const noCreditProcess = (supplier.airtableData as { noCreditApplicationProcess?: boolean })?.noCreditApplicationProcess
+    let mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication, paymentMethod)
+    if (noCreditProcess) {
+      mandatoryDocKeys = mandatoryDocKeys.filter((k: string) => k !== 'creditApplication')
+    }
     
     // Get all uploaded files from all versions
     const allUploadedFiles: Record<string, string[]> = {}
@@ -539,8 +543,9 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const confirmApprove = async () => {
     try {
       // Only PM can approve suppliers
-      // Check if credit application is required
-      const creditApplicationRequired = supplier?.onboarding?.initiation?.creditApplication || false
+      // Check if credit application is required (initiator required it and supplier did not opt out)
+      const noCreditProcess = (supplier?.airtableData as { noCreditApplicationProcess?: boolean })?.noCreditApplicationProcess
+      const creditApplicationRequired = (supplier?.onboarding?.initiation?.creditApplication || false) && !noCreditProcess
       
       // If credit application is required, check if signed file is uploaded
       if (creditApplicationRequired && !signedCreditApplicationFile) {
@@ -1154,12 +1159,12 @@ Procurement Team`
               </CardContent>
             </Card>
 
-            {/* BBBEE & Employment */}
+            {/* BBBEE, VAT & Employment */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-blue-600" />
-                  BBBEE & Employment
+                  BBBEE, VAT & Employment
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1167,6 +1172,12 @@ Procurement Team`
                   <div>
                     <label className="text-xs text-gray-500 uppercase">BBBEE Status</label>
                     <p className="text-sm font-medium">{supplier.bbbeeLevel || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">VAT Registered</label>
+                    <p className="text-sm font-medium">
+                      {(supplier.airtableData as { vatRegistered?: boolean } | null)?.vatRegistered ? 'Yes' : 'No'}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -1176,6 +1187,15 @@ Procurement Team`
           <TabsContent value="documents">
             {supplier.airtableData?.allVersions ? (
               <div className="space-y-6">
+                {/* Supplier indicated no credit application process */}
+                {(supplier.airtableData as { noCreditApplicationProcess?: boolean })?.noCreditApplicationProcess && (
+                  <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
+                    <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <AlertDescription className="text-amber-800 dark:text-amber-200">
+                      <strong>Supplier indicated they do not have a credit application process.</strong> Credit application document is not required and will not be enforced for verification or approval.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 {/* Initial request summary for PM context */}
                 {supplier.onboarding?.initiation && (
                   <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/30">
@@ -1405,9 +1425,13 @@ Procurement Team`
                   // Get credit application status and payment method
                   const creditApplication = supplier.onboarding?.initiation?.creditApplication || false
                   const paymentMethod = supplier.onboarding?.initiation?.paymentMethod || null
+                  const noCreditProcess = (supplier.airtableData as { noCreditApplicationProcess?: boolean })?.noCreditApplicationProcess
                   
-                  // Get mandatory documents based on purchase type, credit application, and payment method
-                  const mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication, paymentMethod)
+                  // Get mandatory documents (exclude credit application if supplier has no credit process)
+                  let mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication, paymentMethod)
+                  if (noCreditProcess) {
+                    mandatoryDocKeys = mandatoryDocKeys.filter((k: string) => k !== 'creditApplication')
+                  }
                   
                   // Map document keys to display format with names and icons
                   const docDisplayMap: Record<string, { name: string, icon: string }> = {
@@ -2380,9 +2404,10 @@ Procurement Team`
               </div>
             </div>
             
-            {/* Credit Application Upload for PM */}
+            {/* Credit Application Upload for PM (only when required and supplier did not opt out) */}
             {session?.user?.role === 'PROCUREMENT_MANAGER' && 
-             supplier?.onboarding?.initiation?.creditApplication && (
+             supplier?.onboarding?.initiation?.creditApplication && 
+             !(supplier?.airtableData as { noCreditApplicationProcess?: boolean })?.noCreditApplicationProcess && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <h4 className="font-medium text-yellow-900 mb-2 flex items-center gap-2">
                   <AlertCircle className="h-4 w-4" />
