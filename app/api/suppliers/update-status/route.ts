@@ -110,8 +110,10 @@ export async function POST(request: NextRequest) {
         )
       }
       
-      // Check if credit application is required and uploaded
-      const creditApplicationRequired = supplierBeforeUpdate.onboarding?.initiation?.creditApplication || false
+      // Check if credit application is required and uploaded (not required if supplier has no credit process)
+      const initiationRequiresCredit = supplierBeforeUpdate.onboarding?.initiation?.creditApplication || false
+      const supplierNoCreditProcess = (supplierBeforeUpdate.airtableData as { noCreditApplicationProcess?: boolean } | null)?.noCreditApplicationProcess
+      const creditApplicationRequired = initiationRequiresCredit && !supplierNoCreditProcess
       
       if (creditApplicationRequired && !signedCreditApplicationFileName) {
         return NextResponse.json(
