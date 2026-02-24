@@ -829,17 +829,14 @@ function SupplierOnboardingForm() {
                 if (key === 'vatCertificate') {
                   return formData.vatRegistered === true
                 }
-                // Hide Credit Application when payment is COD, initiator did not require credit, or supplier has no credit process
+                // Credit Application: included for all; only mandatory when initiator selected credit application (and supplier did not opt out)
                 if (key === 'creditApplication') {
-                  if (paymentMethod === 'COD') return false
-                  if (!creditApplication) return false // Initiator unchecked "Credit application" and gave a reason
                   if (formData.noCreditApplicationProcess) return false // Supplier stated they don't have a credit application process
-                  return true
+                  return true // Show for all 4 categories; required state is set below
                 }
-                // Hide NDA unless purchase type is SHARED_IP (and not COD)
+                // NDA: mandatory for COD IP Shared and Credit Terms IP Shared only
                 if (key === 'nda') {
-                  const showNDA = purchaseType === 'SHARED_IP' && paymentMethod !== 'COD'
-                  console.log('🔍 NDA visibility check:', { purchaseType, paymentMethod, showNDA })
+                  const showNDA = purchaseType === 'COD_IP_SHARED' || purchaseType === 'CREDIT_TERMS_IP_SHARED'
                   return showNDA
                 }
                 return true
@@ -854,9 +851,12 @@ function SupplierOnboardingForm() {
                 return documentsToRevise.includes(key)
               })
               .map(({ key, label, required }) => {
-                // Remove existing asterisk and add it back if required
+                // Credit Application is only mandatory when initiator selected the credit application box (and not COD, and supplier did not opt out)
+                const isRequired = key === 'creditApplication'
+                  ? (creditApplication && paymentMethod !== 'COD' && !formData.noCreditApplicationProcess)
+                  : required
                 const cleanLabel = label.replace(' *', '')
-                const displayLabel = required ? `${cleanLabel} *` : cleanLabel
+                const displayLabel = isRequired ? `${cleanLabel} *` : cleanLabel
                 
                 return (
                 <div key={key} className="border rounded-lg p-4">

@@ -401,7 +401,8 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
 
     // Get mandatory documents (exclude credit application if supplier has no credit process)
     const noCreditProcess = (supplier.airtableData as { noCreditApplicationProcess?: boolean })?.noCreditApplicationProcess
-    let mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication, paymentMethod)
+    const vatRegistered = (supplier.airtableData as { vatRegistered?: boolean })?.vatRegistered
+    let mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication, paymentMethod, vatRegistered)
     if (noCreditProcess) {
       mandatoryDocKeys = mandatoryDocKeys.filter((k: string) => k !== 'creditApplication')
     }
@@ -429,6 +430,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       'bankConfirmation': 'Bank Confirmation Letter',
       'bbbeeScorecard': 'BBBEE Scorecard Report or Affidavit',
       'bbbeeAccreditation': 'B-BBEE Certificate', // Legacy key
+      'vatCertificate': 'VAT Registration Certificate',
       'nda': 'Non-Disclosure Agreement (NDA)',
       'creditApplication': 'Credit Application Form',
       'taxClearance': 'Tax Clearance Certificate or Letter of Good Standing'
@@ -1428,7 +1430,8 @@ Procurement Team`
                   const noCreditProcess = (supplier.airtableData as { noCreditApplicationProcess?: boolean })?.noCreditApplicationProcess
                   
                   // Get mandatory documents (exclude credit application if supplier has no credit process)
-                  let mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication, paymentMethod)
+                  const vatRegistered = (supplier.airtableData as { vatRegistered?: boolean })?.vatRegistered
+                  let mandatoryDocKeys = getMandatoryDocuments(purchaseType, creditApplication, paymentMethod, vatRegistered)
                   if (noCreditProcess) {
                     mandatoryDocKeys = mandatoryDocKeys.filter((k: string) => k !== 'creditApplication')
                   }
@@ -1436,6 +1439,7 @@ Procurement Team`
                   // Map document keys to display format with names and icons
                   const docDisplayMap: Record<string, { name: string, icon: string }> = {
                     'nda': { name: 'Non-Disclosure Agreement (NDA)', icon: '📄' },
+                    'vatCertificate': { name: 'VAT Registration Certificate', icon: '📋' },
                     'cipcCertificate': { name: 'CIPC Certificate (Company Registration)', icon: '🏢' },
                     'companyRegistration': { name: 'CIPC Certificate (Company Registration)', icon: '🏢' }, // Legacy key
                     'taxClearance': { name: 'Tax Clearance Certificate', icon: '📋' },

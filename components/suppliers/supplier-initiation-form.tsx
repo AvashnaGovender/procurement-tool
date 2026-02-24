@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Building2, CheckCircle, AlertCircle, Users, DollarSign, Plus, XCircle } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { PRODUCT_SERVICE_CATEGORIES } from "@/lib/product-service-categories"
 
 interface SupplierInitiationFormProps {
   onSubmissionComplete?: (initiationId: string) => void
@@ -32,15 +31,6 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
   const [errorMessage, setErrorMessage] = useState('')
   const [successDialogOpen, setSuccessDialogOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
-  const [customCategory, setCustomCategory] = useState('')
-  const [customCategories, setCustomCategories] = useState<string[]>(() => {
-    // Load custom categories from localStorage on initial mount
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('customProductCategories')
-      return saved ? JSON.parse(saved) : []
-    }
-    return []
-  })
   const [customCurrencyInput, setCustomCurrencyInput] = useState('')
   const [customCurrencies, setCustomCurrencies] = useState<string[]>(() => {
     // Load custom currencies from localStorage on initial mount
@@ -153,8 +143,19 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
             supplierContactPerson: draft.supplierContactPerson || "",
             productServiceCategory: draft.productServiceCategory || "",
             requesterName: draft.requesterName || session?.user?.name || "",
-            relationshipDeclaration: draft.relationshipDeclaration || "",
-            relationshipDeclarationOther: draft.relationshipDeclarationOther || "",
+            relationshipDeclaration: (() => {
+              const rd = draft.relationshipDeclaration || ""
+              if (rd === "NO_EXISTING_RELATIONSHIP" || rd === "None" || rd === "NONE") return "NONE"
+              if (rd === "OTHER") return "OTHER"
+              if (rd) return "OTHER" // Legacy value (e.g. PREVIOUS_SUPPLIER): show Other
+              return ""
+            })(),
+            relationshipDeclarationOther: (() => {
+              const rd = draft.relationshipDeclaration || ""
+              if (rd === "OTHER") return draft.relationshipDeclarationOther || ""
+              if (rd && rd !== "NONE" && rd !== "NO_EXISTING_RELATIONSHIP" && rd !== "None") return rd // Legacy: show in "specify" field
+              return draft.relationshipDeclarationOther || ""
+            })(),
             purchaseType: normalizedPurchaseType,
             codReason: draft.codReason || "",
             annualPurchaseValue: annualPurchaseValueStr,
@@ -184,52 +185,6 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
       console.log(`📝 Updated formData for ${field}:`, (newData as any)[field])
       return newData
     })
-  }
-
-  const handleAddCustomCategory = () => {
-    if (!customCategory.trim()) return
-    
-    const newCategory = customCategory.trim()
-    
-    // Check if category already exists (case-insensitive)
-    const existsInStandard = PRODUCT_SERVICE_CATEGORIES.some(
-      cat => cat.toLowerCase() === newCategory.toLowerCase()
-    )
-    const existsInCustom = customCategories.some(
-      cat => cat.toLowerCase() === newCategory.toLowerCase()
-    )
-    
-    if (existsInStandard || existsInCustom) {
-      // If it already exists, just select it
-      setFormData(prev => ({
-        ...prev,
-        productServiceCategory: existsInStandard 
-          ? PRODUCT_SERVICE_CATEGORIES.find(cat => cat.toLowerCase() === newCategory.toLowerCase()) || newCategory
-          : customCategories.find(cat => cat.toLowerCase() === newCategory.toLowerCase()) || newCategory
-      }))
-      setCustomCategory('')
-      return
-    }
-    
-    // Add to custom categories list and sort alphabetically
-    const updatedCategories = [...customCategories, newCategory].sort((a, b) => a.localeCompare(b))
-    
-    // Update state
-    setCustomCategories(updatedCategories)
-    
-    // Save to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('customProductCategories', JSON.stringify(updatedCategories))
-    }
-    
-    // Set as selected value
-    setFormData(prev => ({
-      ...prev,
-      productServiceCategory: newCategory
-    }))
-    
-    // Clear input
-    setCustomCategory('')
   }
 
   const handleAddCustomCurrency = () => {
@@ -305,10 +260,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     setIsSavingDraft(true)
 
     try {
-      // Combine relationship declaration: if "OTHER" is selected, use the "Other" text value
+      // Combine relationship declaration: if "OTHER" is selected, use the typed text; if "NONE", send "None"
       const relationshipDeclarationValue = formData.relationshipDeclaration === "OTHER" 
         ? formData.relationshipDeclarationOther 
-        : formData.relationshipDeclaration
+        : (formData.relationshipDeclaration === "NONE" ? "None" : formData.relationshipDeclaration)
 
       const submitData = {
         ...(currentDraftId && { id: currentDraftId }),
@@ -376,10 +331,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     setIsSubmitting(true)
 
     try {
-      // Combine relationship declaration: if "OTHER" is selected, use the "Other" text value
+      // Combine relationship declaration: if "OTHER" is selected, use the typed text; if "NONE", send "None"
       const relationshipDeclarationValue = formData.relationshipDeclaration === "OTHER" 
         ? formData.relationshipDeclarationOther 
-        : formData.relationshipDeclaration
+        : (formData.relationshipDeclaration === "NONE" ? "None" : formData.relationshipDeclaration)
 
       const submitData = {
         ...(currentDraftId && { id: currentDraftId }),
@@ -652,57 +607,15 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
             
             <div className="space-y-2">
               <Label htmlFor="productServiceCategory">Product/Service Category *</Label>
-              <Select 
-                value={formData.productServiceCategory} 
-                onValueChange={(value) => handleInputChange('productServiceCategory', value)}
-              >
-                <SelectTrigger 
-                  id="productServiceCategory"
-                  className={!formData.productServiceCategory ? "border-red-300" : ""}
-                >
-                  <SelectValue placeholder="Select product/service category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRODUCT_SERVICE_CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                  {customCategories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="productServiceCategory"
+                value={formData.productServiceCategory}
+                onChange={(e) => handleInputChange('productServiceCategory', e.target.value)}
+                placeholder="Enter product/service category or categories"
+                className={!formData.productServiceCategory ? "border-red-300" : ""}
+              />
               {!formData.productServiceCategory && (
-                <p className="text-sm text-red-600">Please select product/service category</p>
-              )}
-              
-              {/* Show custom category input when "Other Products/Services" is selected */}
-              {formData.productServiceCategory === "Other Products/Services" && (
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    value={customCategory}
-                    onChange={(e) => setCustomCategory(e.target.value)}
-                    placeholder="Enter custom category"
-                    className="flex-1"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        handleAddCustomCategory()
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    onClick={handleAddCustomCategory}
-                    disabled={!customCategory.trim()}
-                    className="px-3"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                <p className="text-sm text-red-600">Please enter product/service category</p>
               )}
             </div>
           </div>
@@ -834,10 +747,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                 <SelectValue placeholder="Select relationship declaration" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="NO_EXISTING_RELATIONSHIP">No existing relationship</SelectItem>
-                <SelectItem value="PREVIOUS_SUPPLIER">Previous supplier</SelectItem>
-                <SelectItem value="RELATED_PARTY">Related party</SelectItem>
-                <SelectItem value="FAMILY_MEMBER">Family member</SelectItem>
+                <SelectItem value="NONE">None</SelectItem>
                 <SelectItem value="OTHER">Other</SelectItem>
               </SelectContent>
             </Select>
