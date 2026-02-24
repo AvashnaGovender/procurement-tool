@@ -102,7 +102,7 @@ interface Supplier {
       supplierContactPerson?: string
       productServiceCategory?: string
       requesterName?: string
-      relationshipDeclaration?: string
+      relationshipDeclaration?: string | null
       supplierLocation?: string | null
       currency?: string | null
       customCurrency?: string | null
@@ -110,6 +110,18 @@ interface Supplier {
       onboardingReason?: string
     } | null
   } | null
+}
+
+function getQualityDisplay(supplier: Supplier): { value: string; text?: string } {
+  const v = supplier.qualityManagementCert
+  const text = (supplier.airtableData as { qualityCertificationText?: string } | null)?.qualityCertificationText
+  return { value: v ? 'Yes' : (v === false ? 'No' : 'N/A'), text }
+}
+
+function getHealthSafetyDisplay(supplier: Supplier): { value: string; text?: string } {
+  const v = supplier.sheCertification
+  const text = (supplier.airtableData as { healthSafetyCertificationText?: string } | null)?.healthSafetyCertificationText
+  return { value: v ? 'Yes' : (v === false ? 'No' : 'N/A'), text }
 }
 
 export default function SupplierDetailPage({ params }: { params: Promise<{ supplierId: string }> }) {
@@ -1105,78 +1117,227 @@ Procurement Team`
           </TabsList>
 
           <TabsContent value="details" className="space-y-6">
-            {/* Basic Information */}
+            {/* Initiator request – full information from initiation */}
+            {supplier.onboarding?.initiation && (
+              <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/30">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    Initiator request
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    All information from the initiator&apos;s request for this supplier
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-sm space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
+                    <div>
+                      <span className="text-muted-foreground">Purchase type:</span>
+                      <span className="ml-2 font-medium">
+                        {getPurchaseTypeDisplayName(supplier.onboarding.initiation.purchaseType) || '—'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Payment:</span>
+                      <span className="ml-2 font-medium">
+                        {(supplier.onboarding.initiation.purchaseType === 'COD' || supplier.onboarding.initiation.purchaseType === 'COD_IP_SHARED' || supplier.onboarding.initiation.paymentMethod === 'COD') ? 'COD' : 'Account'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Credit application:</span>
+                      <span className="ml-2 font-medium">
+                        {supplier.onboarding.initiation.creditApplication ? 'Yes' : 'No'}
+                        {!supplier.onboarding.initiation.creditApplication && supplier.onboarding.initiation.creditApplicationReason && (
+                          <span className="text-muted-foreground font-normal"> — {supplier.onboarding.initiation.creditApplicationReason}</span>
+                        )}
+                      </span>
+                    </div>
+                    {((supplier.onboarding.initiation.purchaseType === 'COD' || supplier.onboarding.initiation.purchaseType === 'COD_IP_SHARED') || supplier.onboarding.initiation.paymentMethod === 'COD') && supplier.onboarding.initiation.codReason && (
+                      <div className="sm:col-span-2">
+                        <span className="text-muted-foreground">COD reason:</span>
+                        <span className="ml-2">{supplier.onboarding.initiation.codReason}</span>
+                      </div>
+                    )}
+                    {supplier.onboarding.initiation.businessUnit != null && (
+                      <div>
+                        <span className="text-muted-foreground">Business unit(s):</span>
+                        <span className="ml-2 font-medium">
+                          {Array.isArray(supplier.onboarding.initiation.businessUnit)
+                            ? supplier.onboarding.initiation.businessUnit.join(', ')
+                            : String(supplier.onboarding.initiation.businessUnit)}
+                        </span>
+                      </div>
+                    )}
+                    {supplier.onboarding.initiation.supplierName && (
+                      <div>
+                        <span className="text-muted-foreground">Registered name (initiation):</span>
+                        <span className="ml-2 font-medium">{supplier.onboarding.initiation.supplierName}</span>
+                      </div>
+                    )}
+                    {supplier.onboarding.initiation.productServiceCategory && (
+                      <div>
+                        <span className="text-muted-foreground">Product/Service category:</span>
+                        <span className="ml-2">{supplier.onboarding.initiation.productServiceCategory}</span>
+                      </div>
+                    )}
+                    {(supplier.onboarding.initiation.relationshipDeclaration != null && supplier.onboarding.initiation.relationshipDeclaration !== '') && (
+                      <div>
+                        <span className="text-muted-foreground">Relationship declaration:</span>
+                        <span className="ml-2">{supplier.onboarding.initiation.relationshipDeclaration}</span>
+                      </div>
+                    )}
+                    {supplier.onboarding.initiation.requesterName && (
+                      <div>
+                        <span className="text-muted-foreground">Requester:</span>
+                        <span className="ml-2">{supplier.onboarding.initiation.requesterName}</span>
+                      </div>
+                    )}
+                    {supplier.onboarding.initiation.annualPurchaseValue != null && (
+                      <div>
+                        <span className="text-muted-foreground">Annual purchase value:</span>
+                        <span className="ml-2">
+                          {typeof supplier.onboarding.initiation.annualPurchaseValue === 'number'
+                            ? `R ${supplier.onboarding.initiation.annualPurchaseValue.toLocaleString()}`
+                            : String(supplier.onboarding.initiation.annualPurchaseValue)}
+                        </span>
+                      </div>
+                    )}
+                    {supplier.onboarding.initiation.supplierLocation && (
+                      <div>
+                        <span className="text-muted-foreground">Supplier location:</span>
+                        <span className="ml-2 capitalize">{supplier.onboarding.initiation.supplierLocation.toLowerCase()}</span>
+                        {supplier.onboarding.initiation.supplierLocation === 'FOREIGN' && (supplier.onboarding.initiation.currency || supplier.onboarding.initiation.customCurrency) && (
+                          <span className="ml-1">({supplier.onboarding.initiation.customCurrency || supplier.onboarding.initiation.currency})</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {supplier.onboarding.initiation.onboardingReason && (
+                    <div className="pt-2 border-t border-blue-200 dark:border-blue-800">
+                      <span className="text-muted-foreground">Onboarding reason:</span>
+                      <p className="mt-1 text-foreground">{supplier.onboarding.initiation.onboardingReason}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 1. Basic Information – matches supplier form Section 1 */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Building2 className="h-5 w-5 text-blue-600" />
-                  Basic Information
+                  1. Basic Information
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs text-muted-foreground uppercase">Supplier Name</label>
-                    <p className="text-sm font-medium">{supplier.supplierName || 'N/A'}</p>
+                    <label className="text-xs text-muted-foreground uppercase">Registered Name of Business</label>
+                    <p className="text-sm font-medium">{supplier.supplierName || supplier.companyName || 'N/A'}</p>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 uppercase">Contact Person</label>
-                    <p className="text-sm font-medium">{supplier.contactPerson || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase">Trading Name</label>
+                    <label className="text-xs text-muted-foreground uppercase">Trading Name</label>
                     <p className="text-sm font-medium">{supplier.tradingName || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground uppercase">Business Telephone No.</label>
+                    <p className="text-sm font-medium">{supplier.contactPhone || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground uppercase">Business email address</label>
+                    <p className="text-sm font-medium">{supplier.contactEmail || 'N/A'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs text-muted-foreground uppercase">Products &amp; Services</label>
+                    <p className="text-sm font-medium">{supplier.natureOfBusiness || supplier.productsAndServices || 'N/A'}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Address Information */}
+            {/* 2. Address Details – matches supplier form Section 2 */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Mail className="h-5 w-5 text-blue-600" />
-                  Address & Contact
+                  2. Address Details
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
-                    <label className="text-xs text-gray-500 uppercase">Physical Address</label>
+                    <label className="text-xs text-muted-foreground uppercase">Physical Address</label>
                     <p className="text-sm font-medium whitespace-pre-wrap">{supplier.physicalAddress || 'N/A'}</p>
                   </div>
                   <div className="md:col-span-2">
-                    <label className="text-xs text-gray-500 uppercase">Postal Address</label>
+                    <label className="text-xs text-muted-foreground uppercase">Postal Address</label>
                     <p className="text-sm font-medium whitespace-pre-wrap">{supplier.postalAddress || 'N/A'}</p>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 3. Contact Details – matches supplier form Section 3 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <UserCheck className="h-5 w-5 text-blue-600" />
+                  3. Contact Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs text-gray-500 uppercase">Contact Number</label>
+                    <label className="text-xs text-muted-foreground uppercase">Contact Person</label>
+                    <p className="text-sm font-medium">{supplier.contactPerson || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground uppercase">Telephone Number</label>
                     <p className="text-sm font-medium">{supplier.contactPhone || 'N/A'}</p>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 uppercase">E-mail Address</label>
+                    <label className="text-xs text-muted-foreground uppercase">Email address</label>
                     <p className="text-sm font-medium">{supplier.contactEmail || 'N/A'}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* BBBEE, VAT & Employment */}
+            {/* 4. Certifications – matches supplier form Section 4 */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-blue-600" />
-                  BBBEE, VAT & Employment
+                  4. Certifications
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs text-gray-500 uppercase">BBBEE Status</label>
+                    <label className="text-xs text-muted-foreground uppercase">BBBEE Level</label>
                     <p className="text-sm font-medium">{supplier.bbbeeLevel || 'N/A'}</p>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 uppercase">VAT Registered</label>
+                    <label className="text-xs text-muted-foreground uppercase">Quality</label>
+                    <p className="text-sm font-medium">
+                      {getQualityDisplay(supplier).value}
+                      {getQualityDisplay(supplier).text && (
+                        <span className="block mt-1 text-muted-foreground font-normal">{getQualityDisplay(supplier).text}</span>
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground uppercase">Health &amp; Safety</label>
+                    <p className="text-sm font-medium">
+                      {getHealthSafetyDisplay(supplier).value}
+                      {getHealthSafetyDisplay(supplier).text && (
+                        <span className="block mt-1 text-muted-foreground font-normal">{getHealthSafetyDisplay(supplier).text}</span>
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground uppercase">VAT Registered</label>
                     <p className="text-sm font-medium">
                       {(supplier.airtableData as { vatRegistered?: boolean } | null)?.vatRegistered ? 'Yes' : 'No'}
                     </p>
@@ -1265,6 +1426,12 @@ Procurement Team`
                           <div>
                             <span className="text-muted-foreground">Requester:</span>
                             <span className="ml-2">{supplier.onboarding.initiation.requesterName}</span>
+                          </div>
+                        )}
+                        {(supplier.onboarding.initiation.relationshipDeclaration != null && supplier.onboarding.initiation.relationshipDeclaration !== '') && (
+                          <div>
+                            <span className="text-muted-foreground">Relationship declaration:</span>
+                            <span className="ml-2">{supplier.onboarding.initiation.relationshipDeclaration}</span>
                           </div>
                         )}
                         {supplier.onboarding.initiation.annualPurchaseValue != null && (

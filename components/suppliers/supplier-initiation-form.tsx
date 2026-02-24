@@ -312,9 +312,15 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           router.push('/dashboard')
         }, 1500)
       } else {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('API Error:', errorData)
-        setErrorMessage(errorData.error || errorData.message || 'Failed to save draft')
+        const responseText = await response.text()
+        let errorData: { message?: string; error?: string } = {}
+        try {
+          errorData = responseText ? JSON.parse(responseText) : {}
+        } catch {
+          errorData = {}
+        }
+        console.error('Draft save failed:', response.status, Object.keys(errorData).length > 0 ? errorData : responseText?.slice(0, 500) || '(empty body)')
+        setErrorMessage(errorData.message || errorData.error || 'Failed to save draft')
         setErrorDialogOpen(true)
       }
     } catch (error) {
@@ -380,15 +386,15 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         try {
           errorData = responseText ? JSON.parse(responseText) : {}
         } catch {
-          console.error('API Error (non-JSON response):', response.status, responseText?.slice(0, 500))
+          errorData = {}
         }
-        if (Object.keys(errorData).length > 0) {
-          console.error('API Error:', response.status, errorData)
-        }
+        // Always log something useful when the API returns an error
+        console.error('Initiation submit failed:', response.status, Object.keys(errorData).length > 0 ? errorData : responseText?.slice(0, 500) || '(empty body)')
         const errorMsg =
           errorData.message ||
           errorData.error ||
           (response.status === 500 && 'Server error. Please try again or contact support.') ||
+          (response.status === 400 && 'Invalid request. Please check all required fields and try again.') ||
           `Request failed (${response.status}). ${responseText?.slice(0, 200) || 'Please try again.'}`
         setErrorMessage(errorMsg)
         setErrorDialogOpen(true)
