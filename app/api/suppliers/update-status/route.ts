@@ -8,6 +8,7 @@ import path from 'path'
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
 import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
 import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
+import { getPurchaseTypeDisplayName } from '@/lib/document-requirements'
 import { readdir, readFile } from 'fs/promises'
 
 export async function POST(request: NextRequest) {
@@ -2217,7 +2218,7 @@ async function sendPMApprovalPackage(
         <ul style="margin: 10px 0;">
           <li><strong>Supplier:</strong> ${supplier.companyName || supplier.supplierName}</li>
           <li><strong>Code:</strong> ${supplier.supplierCode}</li>
-          <li><strong>Purchase Type:</strong> ${initiation.purchaseType.replace(/_/g, ' ')}</li>
+          <li><strong>Purchase Type:</strong> ${getPurchaseTypeDisplayName(initiation.purchaseType) || initiation.purchaseType?.replace(/_/g, ' ') || '—'}</li>
           <li><strong>Business Unit(s):</strong> ${Array.isArray(initiation.businessUnit) ? initiation.businessUnit.join(', ') : initiation.businessUnit}</li>
           ${creditController ? `<li><strong>Credit Controller:</strong> ${creditController}</li>` : ''}
         </ul>

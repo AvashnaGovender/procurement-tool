@@ -33,7 +33,7 @@ import {
   AlertCircle
 } from "lucide-react"
 import { workerClient } from "@/lib/worker-client"
-import { getMandatoryDocuments, getDocumentDisplayName, type PurchaseType } from "@/lib/document-requirements"
+import { getMandatoryDocuments, getDocumentDisplayName, getPurchaseTypeDisplayName, type PurchaseType } from "@/lib/document-requirements"
 import { assignCreditController, getCreditControllers } from "@/lib/credit-controller-assignment"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
@@ -1212,14 +1212,14 @@ Procurement Team`
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
                         <div>
                           <span className="text-muted-foreground">Purchase type:</span>
-                          <span className="ml-2 font-medium capitalize">
-                            {supplier.onboarding.initiation.purchaseType === 'SHARED_IP' ? 'Shared IP' : supplier.onboarding.initiation.purchaseType === 'ONCE_OFF' ? 'Once off' : 'Regular'}
+                          <span className="ml-2 font-medium">
+                            {getPurchaseTypeDisplayName(supplier.onboarding.initiation.purchaseType) || '—'}
                           </span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Payment:</span>
                           <span className="ml-2 font-medium">
-                            {supplier.onboarding.initiation.paymentMethod === 'COD' ? 'COD' : 'Account'}
+                            {(supplier.onboarding.initiation.purchaseType === 'COD' || supplier.onboarding.initiation.purchaseType === 'COD_IP_SHARED' || supplier.onboarding.initiation.paymentMethod === 'COD') ? 'COD' : 'Account'}
                           </span>
                         </div>
                         <div>
@@ -1231,7 +1231,7 @@ Procurement Team`
                             )}
                           </span>
                         </div>
-                        {supplier.onboarding.initiation.paymentMethod === 'COD' && supplier.onboarding.initiation.codReason && (
+                        {((supplier.onboarding.initiation.purchaseType === 'COD' || supplier.onboarding.initiation.purchaseType === 'COD_IP_SHARED') || supplier.onboarding.initiation.paymentMethod === 'COD') && supplier.onboarding.initiation.codReason && (
                           <div className="sm:col-span-2">
                             <span className="text-muted-foreground">COD reason:</span>
                             <span className="ml-2">{supplier.onboarding.initiation.codReason}</span>

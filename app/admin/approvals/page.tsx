@@ -21,6 +21,7 @@ import { CheckCircle, XCircle, Clock, User, Building2, DollarSign, AlertCircle, 
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
+import { getPurchaseTypeDisplayName } from "@/lib/document-requirements"
 
 interface SupplierInitiation {
   id: string
@@ -48,6 +49,7 @@ interface SupplierInitiation {
     comments?: string
   }
   initiatedById?: string
+  purchaseType?: string
   regularPurchase: boolean
   annualPurchaseValue?: number
   onceOffPurchase: boolean
@@ -702,9 +704,7 @@ export default function ApprovalsPage() {
                                   <div>
                                     <p className="text-sm font-medium text-slate-600">Purchase Type</p>
                                     <p className="text-sm">
-                                      {initiation.regularPurchase && 'Regular Purchase'}
-                                      {initiation.regularPurchase && initiation.onceOffPurchase && ', '}
-                                      {initiation.onceOffPurchase && 'Once-off Purchase'}
+                                      {getPurchaseTypeDisplayName(initiation.purchaseType) || (initiation.regularPurchase && 'Regular Purchase') || (initiation.onceOffPurchase && 'Once-off Purchase') || '—'}
                                     </p>
                                   </div>
                                   {initiation.annualPurchaseValue && (
@@ -863,9 +863,7 @@ export default function ApprovalsPage() {
                       <div>
                         <p><strong>Purchase Type:</strong></p>
                         <p className="text-slate-700">
-                          {selectedInitiation.regularPurchase && 'Regular Purchase'}
-                          {selectedInitiation.regularPurchase && selectedInitiation.onceOffPurchase && ', '}
-                          {selectedInitiation.onceOffPurchase && 'Once-off Purchase'}
+                          {getPurchaseTypeDisplayName(selectedInitiation.purchaseType) || (selectedInitiation.regularPurchase && 'Regular Purchase') || (selectedInitiation.onceOffPurchase && 'Once-off Purchase') || '—'}
                         </p>
                         {selectedInitiation.annualPurchaseValue && (
                           <p className="mt-1"><strong>Annual Value:</strong> {formatAnnualPurchaseValue(selectedInitiation.annualPurchaseValue, selectedInitiation.currency, selectedInitiation.supplierLocation)}</p>

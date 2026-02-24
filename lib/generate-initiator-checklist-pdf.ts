@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import fs from 'fs'
 import path from 'path'
+import { getPurchaseTypeDisplayName } from './document-requirements'
 
 interface InitiatorChecklistData {
   supplierName: string
@@ -158,16 +159,18 @@ export async function generateInitiatorChecklistPDF(data: InitiatorChecklistData
 
     // Purchase Details
     drawSection('PURCHASE DETAILS')
-    drawKeyValue('Purchase Type', data.purchaseType.replace(/_/g, ' '))
-    drawKeyValue('Payment Method', data.paymentMethod)
+    const paymentMethod = ['COD', 'COD_IP_SHARED'].includes(data.purchaseType) ? 'COD' : (data.paymentMethod || 'AC')
+    drawKeyValue('Purchase Type', getPurchaseTypeDisplayName(data.purchaseType))
+    drawKeyValue('Payment Method', paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)')
     
-    if (data.paymentMethod === 'COD' && data.codReason) {
+    if ((data.purchaseType === 'COD' || data.purchaseType === 'COD_IP_SHARED' || paymentMethod === 'COD') && data.codReason) {
       yPosition -= 10
       drawText('COD Reason:', 10, font)
       drawWrappedText(data.codReason, 10, font)
     }
 
-    if (data.purchaseType === 'REGULAR' && data.annualPurchaseValue) {
+    const showAnnualValue = data.purchaseType === 'REGULAR' || data.purchaseType === 'CREDIT_TERMS' || data.purchaseType === 'CREDIT_TERMS_IP_SHARED'
+    if (showAnnualValue && data.annualPurchaseValue) {
       const symbol = data.supplierLocation === 'LOCAL' ? 'R' : (data.currency || 'USD')
       let valueRange = ''
       if (data.annualPurchaseValue <= 100000) {

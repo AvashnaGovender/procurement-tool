@@ -147,14 +147,28 @@ export async function POST(request: NextRequest) {
           productServiceCategory: productServiceCategory || existingInitiation.productServiceCategory,
           requesterName: requesterName || existingInitiation.requesterName,
           relationshipDeclaration: relationshipDeclarationValue || existingInitiation.relationshipDeclaration,
-          purchaseType: purchaseType ? (purchaseType as 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP') : existingInitiation.purchaseType,
-          paymentMethod: paymentMethod ?? existingInitiation.paymentMethod,
-          codReason: paymentMethod === 'COD' ? (codReason ?? existingInitiation.codReason) : null,
+          purchaseType: purchaseType ?? existingInitiation.purchaseType,
+          paymentMethod: (() => {
+            if (paymentMethod) return paymentMethod
+            const pt = purchaseType ?? existingInitiation.purchaseType
+            if (pt === 'COD' || pt === 'COD_IP_SHARED') return 'COD'
+            if (pt === 'CREDIT_TERMS' || pt === 'CREDIT_TERMS_IP_SHARED') return 'AC'
+            return existingInitiation.paymentMethod
+          })(),
+          codReason: (() => {
+            const pt = purchaseType ?? existingInitiation.purchaseType
+            return (pt === 'COD' || pt === 'COD_IP_SHARED') ? (codReason ?? existingInitiation.codReason) : null
+          })(),
           annualPurchaseValue: annualPurchaseValueNumber ?? existingInitiation.annualPurchaseValue,
           creditApplication: creditApplication ?? existingInitiation.creditApplication,
           creditApplicationReason: creditApplication ? null : (creditApplicationReason ?? existingInitiation.creditApplicationReason),
-          regularPurchase: regularPurchase ?? (purchaseType === 'REGULAR' ? true : existingInitiation.regularPurchase),
-          onceOffPurchase: onceOffPurchase ?? existingInitiation.onceOffPurchase,
+          regularPurchase: regularPurchase ?? (() => {
+            const pt = purchaseType ?? existingInitiation.purchaseType
+            if (pt === 'COD' || pt === 'CREDIT_TERMS') return true
+            if (pt === 'REGULAR') return true
+            return existingInitiation.regularPurchase
+          })(),
+          onceOffPurchase: onceOffPurchase ?? (purchaseType === 'ONCE_OFF' ? true : existingInitiation.onceOffPurchase),
           onboardingReason: onboardingReason || existingInitiation.onboardingReason,
           supplierLocation: supplierLocation ?? existingInitiation.supplierLocation,
           currency: currency ?? existingInitiation.currency,
@@ -182,13 +196,17 @@ export async function POST(request: NextRequest) {
         productServiceCategory: productServiceCategory || '',
         requesterName: requesterName || currentUser.name || '',
         relationshipDeclaration: relationshipDeclarationValue || '',
-        purchaseType: purchaseType ? (purchaseType as 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP') : 'REGULAR',
-        paymentMethod: paymentMethod || null,
-        codReason: paymentMethod === 'COD' ? codReason : null,
+        purchaseType: purchaseType || 'CREDIT_TERMS',
+        paymentMethod: (() => {
+          if (purchaseType === 'COD' || purchaseType === 'COD_IP_SHARED') return 'COD'
+          if (purchaseType === 'CREDIT_TERMS' || purchaseType === 'CREDIT_TERMS_IP_SHARED') return 'AC'
+          return paymentMethod || null
+        })(),
+        codReason: (purchaseType === 'COD' || purchaseType === 'COD_IP_SHARED') ? codReason : null,
         annualPurchaseValue: annualPurchaseValueNumber,
         creditApplication: creditApplication || false,
         creditApplicationReason: creditApplication ? null : creditApplicationReason,
-        regularPurchase: regularPurchase ?? (purchaseType === 'REGULAR'),
+        regularPurchase: regularPurchase ?? (purchaseType === 'COD' || purchaseType === 'CREDIT_TERMS' || purchaseType === 'REGULAR'),
         onceOffPurchase: onceOffPurchase || false,
         onboardingReason: onboardingReason || '',
         supplierLocation: supplierLocation || null,

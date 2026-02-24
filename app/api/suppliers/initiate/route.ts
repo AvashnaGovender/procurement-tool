@@ -151,19 +151,27 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Validate that a purchase type is selected
-    if (!purchaseType || !['REGULAR', 'ONCE_OFF', 'SHARED_IP'].includes(purchaseType)) {
+    const NEW_PURCHASE_TYPES = ['COD', 'COD_IP_SHARED', 'CREDIT_TERMS', 'CREDIT_TERMS_IP_SHARED']
+    const LEGACY_PURCHASE_TYPES = ['REGULAR', 'ONCE_OFF', 'SHARED_IP']
+    const validPurchaseTypes = [...NEW_PURCHASE_TYPES, ...LEGACY_PURCHASE_TYPES]
+
+    if (!purchaseType || !validPurchaseTypes.includes(purchaseType)) {
       console.error('Validation failed - Invalid purchase type:', purchaseType)
       return NextResponse.json({ 
         success: false,
         error: 'Please select a purchase type',
-        message: 'Please select a valid purchase type (Regular or Shared IP)'
+        message: 'Please select a valid purchase type (COD, COD IP Shared, Credit Terms, or Credit Terms IP Shared)'
       }, { status: 400 })
     }
 
-    // Validate payment method is selected
-    if (!paymentMethod || !['COD', 'AC'].includes(paymentMethod)) {
-      console.error('Validation failed - Invalid payment method:', paymentMethod)
+    // Derive payment method and legacy flags from purchase type (for new 4-category model)
+    const isNewPurchaseType = NEW_PURCHASE_TYPES.includes(purchaseType)
+    const derivedPaymentMethod = isNewPurchaseType
+      ? (purchaseType === 'COD' || purchaseType === 'COD_IP_SHARED' ? 'COD' : 'AC')
+      : (paymentMethod || null)
+    const effectivePaymentMethod = isNewPurchaseType ? derivedPaymentMethod : paymentMethod
+
+    if (!isNewPurchaseType && (!effectivePaymentMethod || !['COD', 'AC'].includes(effectivePaymentMethod))) {
       return NextResponse.json({ 
         success: false,
         error: 'Please select a payment method',
@@ -171,8 +179,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Validate COD reason if COD is selected
-    if (paymentMethod === 'COD' && !codReason) {
+    // Validate COD reason if COD type is selected
+    if ((purchaseType === 'COD' || purchaseType === 'COD_IP_SHARED' || effectivePaymentMethod === 'COD') && !codReason) {
       console.error('Validation failed - COD reason required')
       return NextResponse.json({ 
         success: false,
@@ -181,17 +189,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Validate annual purchase value if regular purchase is selected
-    if (purchaseType === 'REGULAR' && !annualPurchaseValue) {
-      console.error('Validation failed - Invalid annual purchase value:', annualPurchaseValue)
-      return NextResponse.json({ 
-        success: false,
-        error: 'Please select an annual purchase value for regular purchases',
-        message: 'Annual purchase value is required for regular purchases'
-      }, { status: 400 })
-    }
-
-    // Convert annual purchase value range to number
+    // Convert annual purchase value range to number (optional)
     let annualPurchaseValueNumber: number | null = null
     console.log('🔄 Converting annualPurchaseValue:', { value: annualPurchaseValue, type: typeof annualPurchaseValue })
     
@@ -235,8 +233,9 @@ export async function POST(request: NextRequest) {
     
     console.log('💰 Final annualPurchaseValueNumber:', annualPurchaseValueNumber)
 
-    // Validate credit application reason if credit application is not selected (not required for Once-off Purchase)
-    if (purchaseType !== 'ONCE_OFF' && !creditApplication && !creditApplicationReason) {
+    // Validate credit application reason for Credit Terms types (or legacy non-ONCE_OFF) when credit not selected
+    const requiresCreditReason = purchaseType === 'CREDIT_TERMS' || purchaseType === 'CREDIT_TERMS_IP_SHARED' || (LEGACY_PURCHASE_TYPES.includes(purchaseType) && purchaseType !== 'ONCE_OFF')
+    if (requiresCreditReason && !creditApplication && !creditApplicationReason) {
       console.error('Validation failed - Missing credit application reason')
       return NextResponse.json({ 
         success: false,
@@ -244,6 +243,8 @@ export async function POST(request: NextRequest) {
         message: 'If credit application is not selected, please provide a reason'
       }, { status: 400 })
     }
+
+    const purchaseTypeLabel = purchaseType === 'COD' ? 'COD' : purchaseType === 'COD_IP_SHARED' ? 'COD IP Shared' : purchaseType === 'CREDIT_TERMS' ? 'Credit Terms' : purchaseType === 'CREDIT_TERMS_IP_SHARED' ? 'Credit Terms IP Shared' : purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'
 
     // Check for duplicate suppliers
     // 1. Check if supplier already exists in the Supplier table
@@ -397,14 +398,14 @@ export async function POST(request: NextRequest) {
           productServiceCategory,
           requesterName,
           relationshipDeclaration,
-          purchaseType: purchaseType as 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP',
-          paymentMethod: paymentMethod || null,
-          codReason: paymentMethod === 'COD' ? codReason : null,
+          purchaseType: purchaseType as string,
+          paymentMethod: isNewPurchaseType ? (effectivePaymentMethod as string) : (paymentMethod || null),
+          codReason: (purchaseType === 'COD' || purchaseType === 'COD_IP_SHARED' || effectivePaymentMethod === 'COD') ? codReason : null,
           annualPurchaseValue: annualPurchaseValueNumber,
           creditApplication,
           creditApplicationReason: creditApplication ? null : creditApplicationReason,
-          regularPurchase: purchaseType === 'REGULAR',
-          onceOffPurchase: purchaseType === 'ONCE_OFF',
+          regularPurchase: isNewPurchaseType ? (purchaseType === 'COD' || purchaseType === 'CREDIT_TERMS') : (purchaseType === 'REGULAR'),
+          onceOffPurchase: isNewPurchaseType ? false : (purchaseType === 'ONCE_OFF'),
           onboardingReason,
           supplierLocation: supplierLocation || null,
           currency: currency || null,
@@ -428,14 +429,14 @@ export async function POST(request: NextRequest) {
           productServiceCategory,
           requesterName,
           relationshipDeclaration,
-          purchaseType: purchaseType as 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP',
-          paymentMethod: paymentMethod || null,
-          codReason: paymentMethod === 'COD' ? codReason : null,
+          purchaseType: purchaseType as string,
+          paymentMethod: isNewPurchaseType ? (effectivePaymentMethod as string) : (paymentMethod || null),
+          codReason: (purchaseType === 'COD' || purchaseType === 'COD_IP_SHARED' || effectivePaymentMethod === 'COD') ? codReason : null,
           annualPurchaseValue: annualPurchaseValueNumber,
           creditApplication,
           creditApplicationReason: creditApplication ? null : creditApplicationReason,
-          regularPurchase: purchaseType === 'REGULAR',
-          onceOffPurchase: purchaseType === 'ONCE_OFF',
+          regularPurchase: isNewPurchaseType ? (purchaseType === 'COD' || purchaseType === 'CREDIT_TERMS') : (purchaseType === 'REGULAR'),
+          onceOffPurchase: isNewPurchaseType ? false : (purchaseType === 'ONCE_OFF'),
           onboardingReason,
           supplierLocation: supplierLocation || null,
           currency: currency || null,
@@ -539,10 +540,10 @@ A new supplier initiation request has been submitted and requires your approval.
 - <strong>Requested by:</strong> ${requesterName}
 - <strong>Supplier Location:</strong> ${supplierLocation === 'LOCAL' ? 'Local' : supplierLocation === 'FOREIGN' ? 'Foreign' : 'Not specified'}
 ${supplierLocation === 'FOREIGN' && currency ? `- <strong>Currency:</strong> ${currency}` : ''}
-- <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
+- <strong>Purchase Type:</strong> ${purchaseTypeLabel}
 ${annualPurchaseValueNumber ? `- <strong>Annual Purchase Value:</strong> ${formatAnnualPurchaseValue(annualPurchaseValueNumber, currency, supplierLocation)}` : ''}
-- <strong>Payment Method:</strong> ${paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)'}
-${paymentMethod === 'COD' && codReason ? `- <strong>COD Reason:</strong> ${codReason}` : ''}
+${(purchaseType === 'COD' || purchaseType === 'COD_IP_SHARED' || effectivePaymentMethod === 'COD') ? `- <strong>Payment Method:</strong> Cash on Delivery (COD)` : `- <strong>Payment Method:</strong> Account (AC)`}
+${(purchaseType === 'COD' || purchaseType === 'COD_IP_SHARED' || effectivePaymentMethod === 'COD') && codReason ? `- <strong>COD Reason:</strong> ${codReason}` : ''}
 - <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}
 
 <strong>Reason for Onboarding:</strong>
@@ -590,10 +591,10 @@ A new supplier initiation request has been submitted and requires approval.
 - <strong>Requested by:</strong> ${requesterName}
 - <strong>Supplier Location:</strong> ${supplierLocation === 'LOCAL' ? 'Local' : supplierLocation === 'FOREIGN' ? 'Foreign' : 'Not specified'}
 ${supplierLocation === 'FOREIGN' && currency ? `- <strong>Currency:</strong> ${currency}` : ''}
-- <strong>Purchase Type:</strong> ${purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}
+- <strong>Purchase Type:</strong> ${purchaseTypeLabel}
 ${annualPurchaseValueNumber ? `- <strong>Annual Purchase Value:</strong> ${formatAnnualPurchaseValue(annualPurchaseValueNumber, currency, supplierLocation)}` : ''}
-- <strong>Payment Method:</strong> ${paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)'}
-${paymentMethod === 'COD' && codReason ? `- <strong>COD Reason:</strong> ${codReason}` : ''}
+${(purchaseType === 'COD' || purchaseType === 'COD_IP_SHARED' || effectivePaymentMethod === 'COD') ? `- <strong>Payment Method:</strong> Cash on Delivery (COD)` : `- <strong>Payment Method:</strong> Account (AC)`}
+${(purchaseType === 'COD' || purchaseType === 'COD_IP_SHARED' || effectivePaymentMethod === 'COD') && codReason ? `- <strong>COD Reason:</strong> ${codReason}` : ''}
 - <strong>Credit Application:</strong> ${creditApplication ? 'Yes' : 'No'}${!creditApplication && creditApplicationReason ? ` (Reason: ${creditApplicationReason})` : ''}
 
 <strong>Reason for Onboarding:</strong>

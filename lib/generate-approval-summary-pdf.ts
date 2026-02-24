@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import fs from 'fs'
 import path from 'path'
+import { getPurchaseTypeDisplayName } from './document-requirements'
 
 interface SupplierData {
   name: string
@@ -171,8 +172,9 @@ export async function generateApprovalSummaryPDF(data: ApprovalSummaryData): Pro
     drawSection('INITIATION REQUEST DETAILS')
     drawKeyValue('Requested By', `${data.initiation.initiatedBy.name} (${data.initiation.initiatedBy.email})`)
     drawKeyValue('Request Date', data.initiation.createdAt.toLocaleDateString())
-    drawKeyValue('Purchase Type', data.initiation.purchaseType.replace(/_/g, ' '))
-    drawKeyValue('Payment Method', data.initiation.paymentMethod)
+    const paymentMethod = ['COD', 'COD_IP_SHARED'].includes(data.initiation.purchaseType) ? 'COD' : (data.initiation.paymentMethod || 'AC')
+    drawKeyValue('Purchase Type', getPurchaseTypeDisplayName(data.initiation.purchaseType))
+    drawKeyValue('Payment Method', paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)')
     
     const businessUnits = Array.isArray(data.initiation.businessUnit)
       ? data.initiation.businessUnit.join(', ')
