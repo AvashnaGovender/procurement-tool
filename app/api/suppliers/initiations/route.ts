@@ -273,6 +273,8 @@ export async function GET(request: NextRequest) {
           comments: initiation.procurementApproval.comments
         } : null,
         purchaseType: initiation.purchaseType,
+        paymentMethod: initiation.paymentMethod,
+        codReason: initiation.codReason,
         regularPurchase: initiation.regularPurchase,
         onceOffPurchase: initiation.onceOffPurchase,
         annualPurchaseValue: initiation.annualPurchaseValue,

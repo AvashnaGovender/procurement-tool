@@ -50,6 +50,8 @@ interface SupplierInitiation {
   }
   initiatedById?: string
   purchaseType?: string
+  paymentMethod?: string
+  codReason?: string | null
   regularPurchase: boolean
   annualPurchaseValue?: number
   onceOffPurchase: boolean
@@ -713,6 +715,12 @@ export default function ApprovalsPage() {
                                       <p className="text-sm">{formatAnnualPurchaseValue(initiation.annualPurchaseValue, initiation.currency, initiation.supplierLocation)}</p>
                                     </div>
                                   )}
+                                  {((initiation.purchaseType === 'COD' || initiation.purchaseType === 'COD_IP_SHARED') || initiation.paymentMethod === 'COD') && (
+                                    <div>
+                                      <p className="text-sm font-medium text-slate-600">Reason for COD</p>
+                                      <p className="text-sm">{initiation.codReason || '—'}</p>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div>
@@ -878,6 +886,12 @@ export default function ApprovalsPage() {
                         )}
                       </div>
                     </div>
+                    {((selectedInitiation.purchaseType === 'COD' || selectedInitiation.purchaseType === 'COD_IP_SHARED') || selectedInitiation.paymentMethod === 'COD') && (
+                      <div className="mt-3 text-sm">
+                        <p><strong>Reason for COD:</strong></p>
+                        <p className="text-slate-700">{selectedInitiation.codReason || '—'}</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Checklist */}
