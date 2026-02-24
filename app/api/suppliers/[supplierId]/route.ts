@@ -20,7 +20,15 @@ export async function GET(
                   select: {
                     id: true,
                     name: true,
-                    email: true
+                    email: true,
+                    managerId: true,
+                    manager: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true
+                      }
+                    }
                   }
                 }
               }

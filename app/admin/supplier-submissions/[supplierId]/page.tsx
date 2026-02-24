@@ -95,6 +95,7 @@ interface Supplier {
       paymentMethod?: string | null
       codReason?: string | null
       initiatedById?: string
+      initiatedBy?: { id: string; name: string | null; email: string | null; manager?: { id: string; name: string | null; email: string | null } | null } | null
       status?: string
       businessUnit?: string | string[]
       supplierName?: string
@@ -1192,6 +1193,12 @@ Procurement Team`
                         <span className="ml-2">{supplier.onboarding.initiation.requesterName}</span>
                       </div>
                     )}
+                    {(supplier.onboarding.initiation.initiatedBy?.manager?.name != null && supplier.onboarding.initiation.initiatedBy.manager.name !== '') && (
+                      <div>
+                        <span className="text-muted-foreground">Requester&apos;s manager:</span>
+                        <span className="ml-2">{supplier.onboarding.initiation.initiatedBy.manager.name}</span>
+                      </div>
+                    )}
                     {supplier.onboarding.initiation.annualPurchaseValue != null && (
                       <div>
                         <span className="text-muted-foreground">Annual purchase value:</span>
@@ -1358,110 +1365,6 @@ Procurement Team`
                       <strong>Supplier indicated they do not have a credit application process.</strong> Credit application document is not required and will not be enforced for verification or approval.
                     </AlertDescription>
                   </Alert>
-                )}
-                {/* Initial request summary for PM context */}
-                {supplier.onboarding?.initiation && (
-                  <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/30">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        Initial request summary
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Context from the initiation request for this supplier
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-sm space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
-                        <div>
-                          <span className="text-muted-foreground">Purchase type:</span>
-                          <span className="ml-2 font-medium">
-                            {getPurchaseTypeDisplayName(supplier.onboarding.initiation.purchaseType) || '—'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Payment:</span>
-                          <span className="ml-2 font-medium">
-                            {(supplier.onboarding.initiation.purchaseType === 'COD' || supplier.onboarding.initiation.purchaseType === 'COD_IP_SHARED' || supplier.onboarding.initiation.paymentMethod === 'COD') ? 'COD' : 'Account'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Credit application:</span>
-                          <span className="ml-2 font-medium">
-                            {supplier.onboarding.initiation.creditApplication ? 'Yes' : 'No'}
-                            {!supplier.onboarding.initiation.creditApplication && supplier.onboarding.initiation.creditApplicationReason && (
-                              <span className="text-muted-foreground font-normal"> — {supplier.onboarding.initiation.creditApplicationReason}</span>
-                            )}
-                          </span>
-                        </div>
-                        {((supplier.onboarding.initiation.purchaseType === 'COD' || supplier.onboarding.initiation.purchaseType === 'COD_IP_SHARED') || supplier.onboarding.initiation.paymentMethod === 'COD') && supplier.onboarding.initiation.codReason && (
-                          <div className="sm:col-span-2">
-                            <span className="text-muted-foreground">COD reason:</span>
-                            <span className="ml-2">{supplier.onboarding.initiation.codReason}</span>
-                          </div>
-                        )}
-                        {supplier.onboarding.initiation.businessUnit != null && (
-                          <div>
-                            <span className="text-muted-foreground">Business unit(s):</span>
-                            <span className="ml-2 font-medium">
-                              {Array.isArray(supplier.onboarding.initiation.businessUnit)
-                                ? supplier.onboarding.initiation.businessUnit.join(', ')
-                                : String(supplier.onboarding.initiation.businessUnit)}
-                            </span>
-                          </div>
-                        )}
-                        {supplier.onboarding.initiation.supplierName && (
-                          <div>
-                            <span className="text-muted-foreground">Supplier (initiation):</span>
-                            <span className="ml-2 font-medium">{supplier.onboarding.initiation.supplierName}</span>
-                          </div>
-                        )}
-                        {supplier.onboarding.initiation.productServiceCategory && (
-                          <div>
-                            <span className="text-muted-foreground">Category:</span>
-                            <span className="ml-2">{supplier.onboarding.initiation.productServiceCategory}</span>
-                          </div>
-                        )}
-                        {supplier.onboarding.initiation.requesterName && (
-                          <div>
-                            <span className="text-muted-foreground">Requester:</span>
-                            <span className="ml-2">{supplier.onboarding.initiation.requesterName}</span>
-                          </div>
-                        )}
-                        {(supplier.onboarding.initiation.relationshipDeclaration != null && supplier.onboarding.initiation.relationshipDeclaration !== '') && (
-                          <div>
-                            <span className="text-muted-foreground">Relationship declaration:</span>
-                            <span className="ml-2">{supplier.onboarding.initiation.relationshipDeclaration}</span>
-                          </div>
-                        )}
-                        {supplier.onboarding.initiation.annualPurchaseValue != null && (
-                          <div>
-                            <span className="text-muted-foreground">Annual purchase value:</span>
-                            <span className="ml-2">
-                              {typeof supplier.onboarding.initiation.annualPurchaseValue === 'number'
-                                ? `R ${supplier.onboarding.initiation.annualPurchaseValue.toLocaleString()}`
-                                : String(supplier.onboarding.initiation.annualPurchaseValue)}
-                            </span>
-                          </div>
-                        )}
-                        {supplier.onboarding.initiation.supplierLocation && (
-                          <div>
-                            <span className="text-muted-foreground">Location:</span>
-                            <span className="ml-2 capitalize">{supplier.onboarding.initiation.supplierLocation.toLowerCase()}</span>
-                            {supplier.onboarding.initiation.supplierLocation === 'FOREIGN' && (supplier.onboarding.initiation.currency || supplier.onboarding.initiation.customCurrency) && (
-                              <span className="ml-1">({supplier.onboarding.initiation.customCurrency || supplier.onboarding.initiation.currency})</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      {supplier.onboarding.initiation.onboardingReason && (
-                        <div className="pt-2 border-t border-blue-200 dark:border-blue-800">
-                          <span className="text-muted-foreground">Onboarding reason:</span>
-                          <p className="mt-1 text-foreground">{supplier.onboarding.initiation.onboardingReason}</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
                 )}
                 {/* Read-only notice for approved/rejected suppliers */}
                 {(supplier.status === 'APPROVED' || supplier.status === 'REJECTED') && (
