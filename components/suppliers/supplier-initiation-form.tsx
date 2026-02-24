@@ -606,16 +606,16 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="supplierName">Supplier Name *</Label>
+              <Label htmlFor="supplierName">Registered Name of Business *</Label>
               <Input
                 id="supplierName"
                 value={formData.supplierName}
                 onChange={(e) => handleInputChange('supplierName', e.target.value)}
-                placeholder="Enter supplier name"
+                placeholder="Enter registered name of business"
                 className={!formData.supplierName ? "border-red-300" : ""}
               />
               {!formData.supplierName && (
-                <p className="text-sm text-red-600">Please enter supplier name</p>
+                <p className="text-sm text-red-600">Please enter registered name of business</p>
               )}
             </div>
             

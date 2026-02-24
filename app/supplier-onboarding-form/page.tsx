@@ -47,9 +47,12 @@ function SupplierOnboardingForm() {
     // Business Details (Field 9)
     natureOfBusiness: "",
     
-    // BBBEE (Field 10)
-    bbbeeStatus: "",
-    bbbeeOther: "",
+    // Certifications (Section 4): BBBEE Level 1-8, Quality, Health & Safety
+    bbbeeLevel: "",
+    qualityCertification: "", // "Yes" | "No"
+    qualityCertificationText: "",
+    healthSafetyCertification: "", // "Yes" | "No"
+    healthSafetyCertificationText: "",
     
     // Authorization (Field 11)
     authorizationAgreement: false,
@@ -314,27 +317,43 @@ function SupplierOnboardingForm() {
                 <h3 className="text-lg font-semibold mb-3">Basic Information</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div><strong>Supplier Name:</strong> {formData.supplierName}</div>
-                  <div><strong>Contact Person:</strong> {formData.contactPerson}</div>
                   <div><strong>Trading Name:</strong> {formData.tradingName || 'N/A'}</div>
+                  <div><strong>Business Telephone No.:</strong> {formData.contactNumber}</div>
+                  <div><strong>Business email address:</strong> {formData.emailAddress}</div>
+                  <div className="col-span-2"><strong>Products &amp; Services:</strong> {formData.natureOfBusiness}</div>
                 </div>
               </div>
 
-              {/* Contact Information */}
+              {/* Address Details */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">Contact Information</h3>
+                <h3 className="text-lg font-semibold mb-3">Address Details</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><strong>Email:</strong> {formData.emailAddress}</div>
-                  <div><strong>Phone:</strong> {formData.contactNumber}</div>
                   <div className="col-span-2"><strong>Physical Address:</strong> {formData.physicalAddress}</div>
+                  <div className="col-span-2"><strong>Postal Address:</strong> {formData.postalSameAsPhysical ? formData.physicalAddress : formData.postalAddress}</div>
                 </div>
               </div>
 
-              {/* Business Details */}
+              {/* Contact Person */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">Business Details</h3>
+                <h3 className="text-lg font-semibold mb-3">Contact Person</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><strong>Nature of Business:</strong> {formData.natureOfBusiness}</div>
-                  <div><strong>BBBEE Status:</strong> {formData.bbbeeStatus === 'Other' ? formData.bbbeeOther : formData.bbbeeStatus}</div>
+                  <div><strong>Contact Person:</strong> {formData.contactPerson}</div>
+                </div>
+              </div>
+
+              {/* Certifications */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Certifications</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><strong>BBBEE Level:</strong> {formData.bbbeeLevel}</div>
+                  <div><strong>Quality:</strong> {formData.qualityCertification}</div>
+                  {formData.qualityCertification === 'Yes' && (
+                    <div className="col-span-2"><strong>Quality certification:</strong> {formData.qualityCertificationText}</div>
+                  )}
+                  <div><strong>Health &amp; Safety:</strong> {formData.healthSafetyCertification}</div>
+                  {formData.healthSafetyCertification === 'Yes' && (
+                    <div className="col-span-2"><strong>Health &amp; Safety certification:</strong> {formData.healthSafetyCertificationText}</div>
+                  )}
                 </div>
               </div>
 
@@ -500,22 +519,44 @@ function SupplierOnboardingForm() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="contactPerson">Contact Person *</Label>
-                  <Input
-                    id="contactPerson"
-                    required={!revisionNotes || documentsToRevise.length === 0}
-                    value={formData.contactPerson}
-                    onChange={(e) => handleInputChange('contactPerson', e.target.value)}
-                    placeholder="Full name"
-                  />
-                </div>
-                <div>
                   <Label htmlFor="tradingName">Trading Name</Label>
                   <Input
                     id="tradingName"
                     value={formData.tradingName}
                     onChange={(e) => handleInputChange('tradingName', e.target.value)}
                     placeholder="Trading as..."
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="contactNumber">Business Telephone No. *</Label>
+                  <Input
+                    id="contactNumber"
+                    type="tel"
+                    required={!revisionNotes || documentsToRevise.length === 0}
+                    value={formData.contactNumber}
+                    onChange={(e) => handleInputChange('contactNumber', e.target.value)}
+                    placeholder="e.g., 0784588458"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="emailAddress">Business email address *</Label>
+                  <Input
+                    id="emailAddress"
+                    type="email"
+                    required={!revisionNotes || documentsToRevise.length === 0}
+                    value={formData.emailAddress}
+                    onChange={(e) => handleInputChange('emailAddress', e.target.value)}
+                    placeholder="e.g., info@company.co.za"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="natureOfBusiness">Products &amp; Services *</Label>
+                  <Input
+                    id="natureOfBusiness"
+                    required={!revisionNotes || documentsToRevise.length === 0}
+                    value={formData.natureOfBusiness}
+                    onChange={(e) => handleInputChange('natureOfBusiness', e.target.value)}
+                    placeholder="e.g., AI Consulting, Manufacturing"
                   />
                 </div>
               </div>
@@ -576,72 +617,41 @@ function SupplierOnboardingForm() {
             </CardContent>
           </Card>
 
-          {/* Section 3: Contact Information */}
+          {/* Section 3: Contact Person */}
           <Card>
             <CardHeader>
-              <CardTitle>3. Contact Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="contactNumber">Contact Number *</Label>
-                  <Input
-                    id="contactNumber"
-                    type="tel"
-                    required={!revisionNotes || documentsToRevise.length === 0}
-                    value={formData.contactNumber}
-                    onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                    placeholder="0784588458"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="emailAddress">E-mail Address *</Label>
-                  <Input
-                    id="emailAddress"
-                    type="email"
-                    required={!revisionNotes || documentsToRevise.length === 0}
-                    value={formData.emailAddress}
-                    onChange={(e) => handleInputChange('emailAddress', e.target.value)}
-                    placeholder="email@company.com"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Section 4: Business Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle>4. Business Details</CardTitle>
+              <CardTitle>3. Contact Person</CardTitle>
+              <CardDescription>Primary contact for this application</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="natureOfBusiness">Nature of Business *</Label>
+                <Label htmlFor="contactPerson">Contact Person *</Label>
                 <Input
-                  id="natureOfBusiness"
+                  id="contactPerson"
                   required={!revisionNotes || documentsToRevise.length === 0}
-                  value={formData.natureOfBusiness}
-                  onChange={(e) => handleInputChange('natureOfBusiness', e.target.value)}
-                  placeholder="e.g., AI Consulting, Manufacturing"
+                  value={formData.contactPerson}
+                  onChange={(e) => handleInputChange('contactPerson', e.target.value)}
+                  placeholder="Full name"
                 />
               </div>
             </CardContent>
           </Card>
 
-          {/* Section 5: BBBEE */}
+          {/* Section 4: Certifications */}
           <Card>
             <CardHeader>
-              <CardTitle>5. BBBEE</CardTitle>
+              <CardTitle>4. Certifications</CardTitle>
+              <CardDescription>BBBEE level and certification details</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="bbbeeStatus">BBBEE Status *</Label>
+                <Label htmlFor="bbbeeLevel">BBBEE Level *</Label>
                 <Select
-                  value={formData.bbbeeStatus}
-                  onValueChange={(value) => handleInputChange('bbbeeStatus', value)}
+                  value={formData.bbbeeLevel}
+                  onValueChange={(value) => handleInputChange('bbbeeLevel', value)}
                   required={!revisionNotes || documentsToRevise.length === 0}
                 >
-                  <SelectTrigger id="bbbeeStatus">
+                  <SelectTrigger id="bbbeeLevel">
                     <SelectValue placeholder="Select BBBEE Level" />
                   </SelectTrigger>
                   <SelectContent>
@@ -652,19 +662,69 @@ function SupplierOnboardingForm() {
                     <SelectItem value="Level 5">Level 5</SelectItem>
                     <SelectItem value="Level 6">Level 6</SelectItem>
                     <SelectItem value="Level 7">Level 7</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    <SelectItem value="Level 8">Level 8</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              {formData.bbbeeStatus === 'Other' && (
+              <div>
+                <Label htmlFor="qualityCertification">Quality *</Label>
+                <Select
+                  value={formData.qualityCertification}
+                  onValueChange={(value) => {
+                    handleInputChange('qualityCertification', value)
+                    if (value !== 'Yes') handleInputChange('qualityCertificationText', '')
+                  }}
+                  required={!revisionNotes || documentsToRevise.length === 0}
+                >
+                  <SelectTrigger id="qualityCertification">
+                    <SelectValue placeholder="Select Yes or No" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Yes">Yes</SelectItem>
+                    <SelectItem value="No">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {formData.qualityCertification === 'Yes' && (
                 <div>
-                  <Label htmlFor="bbbeeOther">Please Specify BBBEE Status *</Label>
+                  <Label htmlFor="qualityCertificationText">Quality certification *</Label>
                   <Input
-                    id="bbbeeOther"
+                    id="qualityCertificationText"
                     required={!revisionNotes || documentsToRevise.length === 0}
-                    value={formData.bbbeeOther}
-                    onChange={(e) => handleInputChange('bbbeeOther', e.target.value)}
-                    placeholder="Specify your BBBEE status"
+                    value={formData.qualityCertificationText}
+                    onChange={(e) => handleInputChange('qualityCertificationText', e.target.value)}
+                    placeholder="Enter certification details"
+                  />
+                </div>
+              )}
+              <div>
+                <Label htmlFor="healthSafetyCertification">Health &amp; Safety *</Label>
+                <Select
+                  value={formData.healthSafetyCertification}
+                  onValueChange={(value) => {
+                    handleInputChange('healthSafetyCertification', value)
+                    if (value !== 'Yes') handleInputChange('healthSafetyCertificationText', '')
+                  }}
+                  required={!revisionNotes || documentsToRevise.length === 0}
+                >
+                  <SelectTrigger id="healthSafetyCertification">
+                    <SelectValue placeholder="Select Yes or No" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Yes">Yes</SelectItem>
+                    <SelectItem value="No">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {formData.healthSafetyCertification === 'Yes' && (
+                <div>
+                  <Label htmlFor="healthSafetyCertificationText">Health &amp; Safety certification *</Label>
+                  <Input
+                    id="healthSafetyCertificationText"
+                    required={!revisionNotes || documentsToRevise.length === 0}
+                    value={formData.healthSafetyCertificationText}
+                    onChange={(e) => handleInputChange('healthSafetyCertificationText', e.target.value)}
+                    placeholder="Enter certification details"
                   />
                 </div>
               )}
@@ -720,7 +780,7 @@ function SupplierOnboardingForm() {
           {/* Section 6: Document Uploads */}
           <Card>
             <CardHeader>
-              <CardTitle>{revisionNotes && documentsToRevise.length > 0 ? 'Documents to Revise' : '6. Required Documents'}</CardTitle>
+              <CardTitle>{revisionNotes && documentsToRevise.length > 0 ? 'Documents to Revise' : '5. Required Documents'}</CardTitle>
               <CardDescription>
                 {revisionNotes && documentsToRevise.length > 0 
                   ? 'Please upload the documents that need revision as specified in the revision notes above.'
@@ -842,7 +902,7 @@ function SupplierOnboardingForm() {
           {/* Section 7: Authorization */}
           <Card>
             <CardHeader>
-              <CardTitle>7. Authorization</CardTitle>
+              <CardTitle>6. Authorization</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-start space-x-2">
