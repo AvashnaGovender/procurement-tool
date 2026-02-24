@@ -1193,12 +1193,16 @@ Procurement Team`
                         <span className="ml-2">{supplier.onboarding.initiation.requesterName}</span>
                       </div>
                     )}
-                    {(supplier.onboarding.initiation.initiatedBy?.manager?.name != null && supplier.onboarding.initiation.initiatedBy.manager.name !== '') && (
-                      <div>
-                        <span className="text-muted-foreground">Requester&apos;s manager:</span>
-                        <span className="ml-2">{supplier.onboarding.initiation.initiatedBy.manager.name}</span>
-                      </div>
-                    )}
+                    <div>
+                      <span className="text-muted-foreground">Requester&apos;s manager:</span>
+                      <span className="ml-2">
+                        {supplier.onboarding.initiation.initiatedBy?.manager != null
+                          ? [supplier.onboarding.initiation.initiatedBy.manager.name, supplier.onboarding.initiation.initiatedBy.manager.email]
+                              .filter(Boolean)
+                              .join(' • ') || '—'
+                          : '—'}
+                      </span>
+                    </div>
                     {supplier.onboarding.initiation.annualPurchaseValue != null && (
                       <div>
                         <span className="text-muted-foreground">Annual purchase value:</span>

@@ -11,7 +11,13 @@ interface SupplierFormData {
   physicalAddress?: string | null
   postalAddress?: string | null
   tradingName?: string | null
+  natureOfBusiness?: string | null
+  productsAndServices?: string | null
   bbbeeLevel?: string | null
+  qualityCertification?: 'Yes' | 'No' | null
+  qualityCertificationText?: string | null
+  healthSafetyCertification?: 'Yes' | 'No' | null
+  healthSafetyCertificationText?: string | null
   vatRegistered?: boolean
 }
 
@@ -110,18 +116,17 @@ export async function generateSupplierFormPDF(data: SupplierFormData): Promise<B
     drawText(dateStr, 12, font, rgb(0.4, 0.4, 0.4), (pageWidth - dateWidth) / 2)
     yPosition -= 30
 
-    // Basic Information
-    drawSection('BASIC INFORMATION')
-    drawKeyValue('Supplier Name', data.supplierName)
-    drawKeyValue('Company Name', data.companyName)
+    // 1. Basic Information (matches supplier form Section 1)
+    drawSection('1. BASIC INFORMATION')
+    drawKeyValue('Registered Name of Business', data.supplierName || data.companyName)
     drawKeyValue('Trading Name', data.tradingName)
-    drawKeyValue('Contact Person', data.contactPerson)
-    drawKeyValue('Contact Email', data.contactEmail)
-    drawKeyValue('Contact Phone', data.contactPhone)
+    drawKeyValue('Business Telephone No.', data.contactPhone)
+    drawKeyValue('Business email address', data.contactEmail)
+    drawKeyValue('Products & Services', data.natureOfBusiness || data.productsAndServices)
     yPosition -= 20
 
-    // Address Information
-    drawSection('ADDRESS INFORMATION')
+    // 2. Address Details
+    drawSection('2. ADDRESS DETAILS')
     if (data.physicalAddress) {
       drawText('Physical Address:', 10, font)
       drawWrappedText(data.physicalAddress, 10, font)
@@ -137,13 +142,28 @@ export async function generateSupplierFormPDF(data: SupplierFormData): Promise<B
     }
     yPosition -= 20
 
-    // BBBEE Level
-    drawSection('BBBEE LEVEL')
-    drawKeyValue('BBBEE Level', data.bbbeeLevel)
+    // 3. Contact Details
+    drawSection('3. CONTACT DETAILS')
+    drawKeyValue('Contact Person', data.contactPerson)
+    drawKeyValue('Telephone Number', data.contactPhone)
+    drawKeyValue('Email address', data.contactEmail)
     yPosition -= 20
 
-    // VAT Registered
-    drawSection('TAX / VAT')
+    // 4. Certifications
+    drawSection('4. CERTIFICATIONS')
+    drawKeyValue('BBBEE Level', data.bbbeeLevel)
+    drawKeyValue('Quality', data.qualityCertification ?? null)
+    if (data.qualityCertification === 'Yes' && data.qualityCertificationText) {
+      drawText('Quality certification:', 10, font)
+      drawWrappedText(data.qualityCertificationText, 10, font)
+      yPosition -= 5
+    }
+    drawKeyValue('Health & Safety', data.healthSafetyCertification ?? null)
+    if (data.healthSafetyCertification === 'Yes' && data.healthSafetyCertificationText) {
+      drawText('Health & Safety certification:', 10, font)
+      drawWrappedText(data.healthSafetyCertificationText, 10, font)
+      yPosition -= 5
+    }
     drawKeyValue('VAT Registered', data.vatRegistered === true ? 'Yes' : data.vatRegistered === false ? 'No' : 'Not provided')
     yPosition -= 30
 
