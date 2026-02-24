@@ -420,10 +420,21 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         const result = await response.json()
         onSubmissionComplete?.(result.initiationId)
       } else {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('API Error:', errorData)
-        // Show more detailed error message if available
-        const errorMsg = errorData.message || errorData.error || 'Failed to submit initiation'
+        const responseText = await response.text()
+        let errorData: { message?: string; error?: string } = {}
+        try {
+          errorData = responseText ? JSON.parse(responseText) : {}
+        } catch {
+          console.error('API Error (non-JSON response):', response.status, responseText?.slice(0, 500))
+        }
+        if (Object.keys(errorData).length > 0) {
+          console.error('API Error:', response.status, errorData)
+        }
+        const errorMsg =
+          errorData.message ||
+          errorData.error ||
+          (response.status === 500 && 'Server error. Please try again or contact support.') ||
+          `Request failed (${response.status}). ${responseText?.slice(0, 200) || 'Please try again.'}`
         setErrorMessage(errorMsg)
         setErrorDialogOpen(true)
       }
