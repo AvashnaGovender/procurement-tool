@@ -316,7 +316,7 @@ function SupplierOnboardingForm() {
               <div>
                 <h3 className="text-lg font-semibold mb-3">Basic Information</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><strong>Supplier Name:</strong> {formData.supplierName}</div>
+                  <div><strong>Registered Name of Business:</strong> {formData.supplierName}</div>
                   <div><strong>Trading Name:</strong> {formData.tradingName || 'N/A'}</div>
                   <div><strong>Business Telephone No.:</strong> {formData.contactNumber}</div>
                   <div><strong>Business email address:</strong> {formData.emailAddress}</div>
@@ -333,11 +333,13 @@ function SupplierOnboardingForm() {
                 </div>
               </div>
 
-              {/* Contact Person */}
+              {/* Contact Details */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">Contact Person</h3>
+                <h3 className="text-lg font-semibold mb-3">Contact Details</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div><strong>Contact Person:</strong> {formData.contactPerson}</div>
+                  <div><strong>Telephone Number:</strong> {formData.contactNumber}</div>
+                  <div><strong>Email address:</strong> {formData.emailAddress}</div>
                 </div>
               </div>
 
@@ -509,7 +511,7 @@ function SupplierOnboardingForm() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="supplierName">Supplier Name *</Label>
+                  <Label htmlFor="supplierName">Registered Name of Business *</Label>
                   <Input
                     id="supplierName"
                     required={!revisionNotes || documentsToRevise.length === 0}
@@ -617,22 +619,46 @@ function SupplierOnboardingForm() {
             </CardContent>
           </Card>
 
-          {/* Section 3: Contact Person */}
+          {/* Section 3: Contact Details (person of contact) */}
           <Card>
             <CardHeader>
-              <CardTitle>3. Contact Person</CardTitle>
-              <CardDescription>Primary contact for this application</CardDescription>
+              <CardTitle>3. Contact Details</CardTitle>
+              <CardDescription>Person of contact for this application</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="contactPerson">Contact Person *</Label>
-                <Input
-                  id="contactPerson"
-                  required={!revisionNotes || documentsToRevise.length === 0}
-                  value={formData.contactPerson}
-                  onChange={(e) => handleInputChange('contactPerson', e.target.value)}
-                  placeholder="Full name"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="contactPerson">Contact Person *</Label>
+                  <Input
+                    id="contactPerson"
+                    required={!revisionNotes || documentsToRevise.length === 0}
+                    value={formData.contactPerson}
+                    onChange={(e) => handleInputChange('contactPerson', e.target.value)}
+                    placeholder="Full name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="contactNumberSection3">Telephone Number *</Label>
+                  <Input
+                    id="contactNumberSection3"
+                    type="tel"
+                    required={!revisionNotes || documentsToRevise.length === 0}
+                    value={formData.contactNumber}
+                    onChange={(e) => handleInputChange('contactNumber', e.target.value)}
+                    placeholder="e.g., 0784588458"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="emailAddressSection3">Email address *</Label>
+                  <Input
+                    id="emailAddressSection3"
+                    type="email"
+                    required={!revisionNotes || documentsToRevise.length === 0}
+                    value={formData.emailAddress}
+                    onChange={(e) => handleInputChange('emailAddress', e.target.value)}
+                    placeholder="e.g., contact@company.co.za"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

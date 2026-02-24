@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!supplierData.supplierName || !supplierData.emailAddress) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields: Supplier Name and Email Address are required' },
+        { success: false, error: 'Missing required fields: Registered Name of Business and Email Address are required' },
         { status: 400 }
       )
     }
