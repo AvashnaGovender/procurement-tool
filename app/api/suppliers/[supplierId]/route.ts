@@ -45,10 +45,11 @@ export async function GET(
       )
     }
 
-    // Ensure initiator's manager is populated (nested select can omit it in some Prisma setups)
-    const initiation = (supplier as any).onboarding?.initiation
+    // Always load initiator with manager via a separate query so manager is never missing
+    const onboarding = (supplier as any).onboarding
+    const initiation = onboarding?.initiation
     const initiatedById = initiation?.initiatedById ?? initiation?.initiatedBy?.id
-    if (initiatedById && (!initiation.initiatedBy?.manager || (initiation.initiatedBy.managerId && !initiation.initiatedBy.manager))) {
+    if (initiatedById && onboarding?.initiation) {
       const userWithManager = await prisma.user.findUnique({
         where: { id: initiatedById },
         select: {
@@ -61,13 +62,23 @@ export async function GET(
           }
         }
       })
-      if (userWithManager && (supplier as any).onboarding?.initiation) {
+      if (userWithManager) {
+        let manager = userWithManager.manager
+        if (!manager && userWithManager.managerId) {
+          const managerUser = await prisma.user.findUnique({
+            where: { id: userWithManager.managerId },
+            select: { id: true, name: true, email: true }
+          })
+          if (managerUser) manager = managerUser
+        }
         ;(supplier as any).onboarding.initiation.initiatedBy = {
           id: userWithManager.id,
           name: userWithManager.name,
           email: userWithManager.email,
           managerId: userWithManager.managerId,
-          manager: userWithManager.manager
+          manager: manager
+            ? { id: manager.id, name: manager.name, email: manager.email }
+            : null
         }
       }
     }
