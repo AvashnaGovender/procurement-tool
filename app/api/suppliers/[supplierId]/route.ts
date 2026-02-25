@@ -45,6 +45,33 @@ export async function GET(
       )
     }
 
+    // Ensure initiator's manager is populated (nested select can omit it in some Prisma setups)
+    const initiation = (supplier as any).onboarding?.initiation
+    const initiatedById = initiation?.initiatedById ?? initiation?.initiatedBy?.id
+    if (initiatedById && (!initiation.initiatedBy?.manager || (initiation.initiatedBy.managerId && !initiation.initiatedBy.manager))) {
+      const userWithManager = await prisma.user.findUnique({
+        where: { id: initiatedById },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          managerId: true,
+          manager: {
+            select: { id: true, name: true, email: true }
+          }
+        }
+      })
+      if (userWithManager && (supplier as any).onboarding?.initiation) {
+        ;(supplier as any).onboarding.initiation.initiatedBy = {
+          id: userWithManager.id,
+          name: userWithManager.name,
+          email: userWithManager.email,
+          managerId: userWithManager.managerId,
+          manager: userWithManager.manager
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       supplier
