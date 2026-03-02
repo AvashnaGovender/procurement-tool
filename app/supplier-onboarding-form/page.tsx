@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 
 const DRAFT_STORAGE_KEY_PREFIX = "supplier-onboarding-draft-"
-const DRAFT_DEBOUNCE_MS = 800
+const DRAFT_DEBOUNCE_MS = 300
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -83,9 +83,12 @@ function SupplierOnboardingForm() {
   const saveDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const latestDraftRef = useRef<{ formData: typeof formData; creditApplication: boolean; paymentMethod: string | null; purchaseType: string | null; revisionNotes: string | null; documentsToRevise: string[] } | null>(null)
 
-  // Restore draft from localStorage, then fetch from server if we have a token (server overwrites draft)
+  // Restore draft from localStorage, then fetch from server (server provides metadata; draft preserves typed fields)
   useEffect(() => {
     const key = `${DRAFT_STORAGE_KEY_PREFIX}${onboardingToken ?? "anonymous"}`
+
+    // 1. Load draft from localStorage first
+    let hasDraft = false
     try {
       const raw = typeof window !== "undefined" ? localStorage.getItem(key) : null
       if (raw) {
@@ -98,12 +101,14 @@ function SupplierOnboardingForm() {
           documentsToRevise?: string[]
         }
         if (draft.formData) {
+          hasDraft = true
           setFormData(prev => ({ ...prev, ...draft.formData }))
           if (draft.creditApplication !== undefined) setCreditApplication(draft.creditApplication)
           if (draft.paymentMethod !== undefined) setPaymentMethod(draft.paymentMethod)
           if (draft.purchaseType !== undefined) setPurchaseType(draft.purchaseType)
           if (draft.revisionNotes !== undefined) setRevisionNotes(draft.revisionNotes)
           if (Array.isArray(draft.documentsToRevise)) setDocumentsToRevise(draft.documentsToRevise)
+          console.log("📝 Draft restored from localStorage")
         }
       }
     } catch (e) {
@@ -115,6 +120,8 @@ function SupplierOnboardingForm() {
       return
     }
 
+    // 2. Fetch server data for metadata (uploaded files, payment method, revision notes).
+    //    If a local draft exists we keep the typed form fields; only overwrite formData if no draft.
     const fetchExistingData = async () => {
       setLoadingData(true)
       try {
@@ -122,19 +129,30 @@ function SupplierOnboardingForm() {
         const data = await response.json()
 
         if (data.success) {
-          setFormData(data.formData)
+          // Always take server metadata (files, payment, revision notes, purchase type)
           setExistingFiles(data.uploadedFiles || {})
-          setCreditApplication(data.creditApplication || false)
-          setPaymentMethod(data.paymentMethod || null)
-          setPurchaseType(data.purchaseType || null)
-          if (data.revisionNotes) setRevisionNotes(data.revisionNotes)
-          if (data.documentsToRevise && Array.isArray(data.documentsToRevise)) {
-            setDocumentsToRevise(data.documentsToRevise)
+          if (!hasDraft) {
+            // No local draft — use everything from server
+            setFormData(data.formData)
+            setCreditApplication(data.creditApplication || false)
+            setPaymentMethod(data.paymentMethod || null)
+            setPurchaseType(data.purchaseType || null)
+            if (data.revisionNotes) setRevisionNotes(data.revisionNotes)
+            if (data.documentsToRevise && Array.isArray(data.documentsToRevise)) {
+              setDocumentsToRevise(data.documentsToRevise)
+            }
+            console.log("📋 Loaded supplier data from server (no local draft)")
+          } else {
+            // Local draft exists — keep typed fields but pull server-only metadata
+            // (creditApplication, paymentMethod, purchaseType, revisionNotes come from server
+            //  only if they weren't saved in the draft; draft values already applied above)
+            if (data.revisionNotes && !revisionNotes) setRevisionNotes(data.revisionNotes)
+            if (data.documentsToRevise && Array.isArray(data.documentsToRevise) && documentsToRevise.length === 0) {
+              setDocumentsToRevise(data.documentsToRevise)
+            }
+            // creditApplication, paymentMethod, purchaseType: prefer draft (already applied)
+            console.log("📝 Local draft kept; server metadata merged")
           }
-          try {
-            localStorage.removeItem(key)
-          } catch (_) {}
-          console.log("📋 Loaded supplier data from server")
         }
       } catch (error) {
         console.error("Error fetching existing data:", error)
@@ -144,6 +162,7 @@ function SupplierOnboardingForm() {
     }
 
     fetchExistingData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onboardingToken])
 
   // Keep a ref of the latest draft so we can flush it on tab close (debounce may not run).
@@ -185,7 +204,7 @@ function SupplierOnboardingForm() {
     }
   }, [formData, creditApplication, paymentMethod, purchaseType, revisionNotes, documentsToRevise, submitted, draftKey])
 
-  // Flush draft to localStorage when tab/window is closed or hidden (debounce often doesn't run on unload).
+  // Flush draft immediately: on tab-switch (visibilitychange), page hide, and before unload.
   useEffect(() => {
     if (typeof window === "undefined" || submitted) return
     const flushDraft = () => {
@@ -208,17 +227,17 @@ function SupplierOnboardingForm() {
         localStorage.setItem(draftKey, JSON.stringify(payload))
       } catch (_) {}
     }
-    const handleBeforeUnload = () => {
-      flushDraft()
+    // visibilitychange fires when the user switches away from the tab — most reliable save point
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flushDraft()
     }
-    const handlePageHide = () => {
-      flushDraft()
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload)
-    window.addEventListener("pagehide", handlePageHide)
+    window.addEventListener("beforeunload", flushDraft)
+    window.addEventListener("pagehide", flushDraft)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
     return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload)
-      window.removeEventListener("pagehide", handlePageHide)
+      window.removeEventListener("beforeunload", flushDraft)
+      window.removeEventListener("pagehide", flushDraft)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
   }, [submitted, draftKey])
 
