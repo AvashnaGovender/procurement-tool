@@ -331,14 +331,17 @@ async function sendEmailViaService({
     })
     
     const result = await transporter.sendMail(mailOptions)
-    console.log('✅ Email sent successfully!')
+    const rejected = result.rejected as string[] | undefined
+    if (rejected && rejected.length > 0) {
+      console.error('❌ SMTP server rejected recipient(s):', rejected)
+      throw new Error(`Recipient(s) rejected by server: ${rejected.join(', ')}`)
+    }
+    console.log('✅ SMTP server accepted message (check inbox/spam if not received)')
     console.log('Email result:', {
       messageId: result.messageId,
       accepted: result.accepted,
-      rejected: result.rejected,
       response: result.response
     })
-    
     return {
       id: result.messageId,
       status: 'sent',

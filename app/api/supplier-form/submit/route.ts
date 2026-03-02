@@ -5,7 +5,7 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } from '@/lib/smtp-admin'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -849,17 +849,7 @@ async function sendEmailNotifications(
     }
 
     console.log('📧 Sending Procurement Manager notification...')
-    console.log('📨 Sending email to Procurement Managers...')
-    console.log('   From:', pmNotification.from)
-    console.log('   To:', pmNotification.to)
-    console.log('   Subject:', pmNotification.subject)
-    
-    const pmResult = await transporter.sendMail(pmNotification)
-    
-    console.log(`✅ Procurement Manager notification email sent successfully!`)
-    console.log('   To:', recipientEmails.join(', '))
-    console.log('   Message ID:', pmResult.messageId)
-    console.log('   Response:', pmResult.response)
+    await sendMailAndCheck(transporter, pmNotification, 'PM notification (supplier form)')
 
     // Supplier thank you email removed - suppliers only receive initial onboarding email and final approval email
     console.log('📧 Skipping supplier thank you email (only initial and approval emails are sent)')

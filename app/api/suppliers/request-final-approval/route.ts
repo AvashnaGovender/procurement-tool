@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } from '@/lib/smtp-admin'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
 import { generateFinalApprovalPackagePDF } from '@/lib/generate-final-approval-package-pdf'
 
 export async function POST(request: NextRequest) {
@@ -450,10 +450,7 @@ async function sendFinalApprovalRequestEmail(supplier: any, requesterName: strin
 
     const fromAddress = getFromAddress(smtpConfig)
     for (const pm of procurementManagers) {
-      console.log('📧 Sending final approval request email to:', pm.email)
-      console.log('📎 Attaching PDF:', `Final-Approval-Package-${supplier.supplierCode}.pdf`, `(${pdfBuffer.length} bytes)`)
-      
-      await transporter.sendMail({
+      await sendMailAndCheck(transporter, {
         from: fromAddress,
         envelope: getEnvelope(smtpConfig, pm.email),
         to: pm.email,
@@ -471,10 +468,7 @@ async function sendFinalApprovalRequestEmail(supplier: any, requesterName: strin
             contentType: 'application/pdf'
           }
         ]
-      })
-
-      console.log('✅ Final approval request email sent successfully to:', pm.email)
-      console.log('📧 Email included 2 attachments: logo.png and PDF')
+      }, `Final approval request → ${pm.email}`)
     }
   } catch (error) {
     console.error('Error sending final approval request email:', error)

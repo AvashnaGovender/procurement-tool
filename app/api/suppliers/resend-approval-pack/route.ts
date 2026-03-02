@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } from '@/lib/smtp-admin'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
 import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
 import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
@@ -382,18 +382,14 @@ async function sendPMApprovalPackage(
 
     const fromAddress = getFromAddress(smtpConfig)
     console.log(`📧 Sending approval package to PM: ${pmUser.email}`)
-    console.log(`📎 Total attachments: ${attachments.length} (including 3 PDFs and ${documentsList.length} supplier documents)`)
-    
-    await transporter.sendMail({
+    await sendMailAndCheck(transporter, {
       from: fromAddress,
       envelope: getEnvelope(smtpConfig, pmUser.email),
       to: pmUser.email,
       subject: `Supplier Approval Package - ${supplier.companyName || supplier.supplierName} (${supplier.supplierCode})`,
       html: emailHtml,
       attachments: attachments
-    })
-
-    console.log('✅ Approval package sent successfully to PM:', pmUser.email)
+    }, 'Resend approval pack to PM')
   } catch (error) {
     console.error('Error sending PM approval package:', error)
     throw error

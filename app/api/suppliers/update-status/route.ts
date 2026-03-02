@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import fs from 'fs'
 import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } from '@/lib/smtp-admin'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
 import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
 import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
@@ -619,9 +619,7 @@ async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string 
     `
 
     // Send email
-    console.log('📧 Sending approval email to:', supplier.contactEmail)
-    
-    await transporter.sendMail({
+    await sendMailAndCheck(transporter, {
       from: getFromAddress(smtpConfig),
       envelope: getEnvelope(smtpConfig, supplier.contactEmail),
       to: supplier.contactEmail,
@@ -634,9 +632,7 @@ async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string 
           cid: 'logo'
         }
       ]
-    })
-
-    console.log('✅ Approval email sent successfully to:', supplier.contactEmail)
+    }, 'Approval email → supplier')
   } catch (error) {
     console.error('Error sending approval email:', error)
     throw error
@@ -832,9 +828,7 @@ async function sendRejectionEmail(supplier: any, rejectionReason: string) {
     `
 
     // Send email
-    console.log('📧 Sending rejection email to:', supplier.contactEmail)
-    
-    await transporter.sendMail({
+    await sendMailAndCheck(transporter, {
       from: getFromAddress(smtpConfig),
       envelope: getEnvelope(smtpConfig, supplier.contactEmail),
       to: supplier.contactEmail,
@@ -847,9 +841,7 @@ async function sendRejectionEmail(supplier: any, rejectionReason: string) {
           cid: 'logo'
         }
       ]
-    })
-
-    console.log('✅ Rejection email sent successfully to:', supplier.contactEmail)
+    }, 'Rejection email → supplier')
   } catch (error) {
     console.error('Error sending rejection email:', error)
     throw error
@@ -1091,9 +1083,7 @@ async function sendInitiatorApprovalEmail(supplier: any, initiator: { name: stri
     `
 
     // Send email
-    console.log('📧 Sending initiator approval notification email to:', initiator.email)
-    
-    await transporter.sendMail({
+    await sendMailAndCheck(transporter, {
       from: getFromAddress(smtpConfig),
       envelope: getEnvelope(smtpConfig, initiator.email),
       to: initiator.email,
@@ -1106,9 +1096,7 @@ async function sendInitiatorApprovalEmail(supplier: any, initiator: { name: stri
           cid: 'logo'
         }
       ]
-    })
-
-    console.log('✅ Initiator approval notification email sent successfully to:', initiator.email)
+    }, 'Initiator approval notification')
   } catch (error) {
     console.error('Error sending initiator approval notification email:', error)
     throw error
@@ -1326,9 +1314,7 @@ async function sendManagerApprovalEmail(supplier: any, manager: { name: string, 
     `
 
     // Send email
-    console.log('📧 Sending manager approval notification email to:', manager.email)
-    
-    await transporter.sendMail({
+    await sendMailAndCheck(transporter, {
       from: getFromAddress(smtpConfig),
       envelope: getEnvelope(smtpConfig, manager.email),
       to: manager.email,
@@ -1341,9 +1327,7 @@ async function sendManagerApprovalEmail(supplier: any, manager: { name: string, 
           cid: 'logo'
         }
       ]
-    })
-
-    console.log('✅ Manager approval notification email sent successfully to:', manager.email)
+    }, 'Manager approval notification')
   } catch (error) {
     console.error('Error sending manager approval notification email:', error)
     throw error
@@ -1564,9 +1548,7 @@ async function sendInitiatorRejectionEmail(supplier: any, initiator: { name: str
     `
 
     // Send email
-    console.log('📧 Sending initiator rejection notification email to:', initiator.email)
-    
-    await transporter.sendMail({
+    await sendMailAndCheck(transporter, {
       from: getFromAddress(smtpConfig),
       envelope: getEnvelope(smtpConfig, initiator.email),
       to: initiator.email,
@@ -1579,9 +1561,7 @@ async function sendInitiatorRejectionEmail(supplier: any, initiator: { name: str
           cid: 'logo'
         }
       ]
-    })
-
-    console.log('✅ Initiator rejection notification email sent successfully to:', initiator.email)
+    }, 'Initiator rejection notification')
   } catch (error) {
     console.error('Error sending initiator rejection notification email:', error)
     throw error
@@ -1806,9 +1786,7 @@ async function sendManagerRejectionEmail(supplier: any, manager: { name: string,
     `
 
     // Send email
-    console.log('📧 Sending manager rejection notification email to:', manager.email)
-    
-    await transporter.sendMail({
+    await sendMailAndCheck(transporter, {
       from: getFromAddress(smtpConfig),
       envelope: getEnvelope(smtpConfig, manager.email),
       to: manager.email,
@@ -1821,9 +1799,7 @@ async function sendManagerRejectionEmail(supplier: any, manager: { name: string,
           cid: 'logo'
         }
       ]
-    })
-
-    console.log('✅ Manager rejection notification email sent successfully to:', manager.email)
+    }, 'Manager rejection notification')
   } catch (error) {
     console.error('Error sending manager rejection notification email:', error)
     throw error
@@ -2147,18 +2123,14 @@ async function sendPMApprovalPackage(
 
     // Send email
     console.log(`📧 Sending comprehensive approval package to PM: ${pmUser.email}`)
-    console.log(`📎 Total attachments: ${attachments.length} (including 3 PDFs and ${documentsList.length} supplier documents)`)
-    
-    await transporter.sendMail({
+    await sendMailAndCheck(transporter, {
       from: getFromAddress(smtpConfig),
       envelope: getEnvelope(smtpConfig, pmUser.email),
       to: pmUser.email,
       subject: `Supplier Approval Package - ${supplier.companyName || supplier.supplierName} (${supplier.supplierCode})`,
       html: emailHtml,
       attachments: attachments
-    })
-
-    console.log('✅ Comprehensive approval package sent successfully to PM:', pmUser.email)
+    }, 'Approval package → PM')
   } catch (error) {
     console.error('Error sending PM approval package:', error)
     throw error

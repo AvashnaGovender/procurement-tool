@@ -306,9 +306,21 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 
     const info = await transporter.sendMail(mailOptions)
 
-    console.log('✅ Email sent successfully!')
-    console.log('Message ID:', info.messageId)
-    console.log('Response:', info.response)
+    const rejected = (info as { rejected?: string[] }).rejected
+    if (rejected && rejected.length > 0) {
+      console.error('❌ SMTP server rejected recipient(s):', rejected)
+      return {
+        success: false,
+        message: `Recipient(s) rejected by server: ${rejected.join(', ')}`,
+        emailId: undefined
+      }
+    }
+
+    const accepted = (info as { accepted?: string[] }).accepted
+    console.log('✅ SMTP server accepted message (check inbox/spam if not received)')
+    console.log('   Message ID:', info.messageId)
+    console.log('   Response:', info.response)
+    console.log('   Accepted:', accepted ?? [mailOptions.to])
 
     return {
       success: true,

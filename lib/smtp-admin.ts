@@ -94,3 +94,30 @@ export function getMailTransporter(config: AdminSmtpConfig): Transporter {
     },
   })
 }
+
+export interface SendMailResult {
+  messageId?: string
+  accepted?: string[]
+  rejected?: string[]
+  response?: string
+}
+
+/**
+ * Send mail and check for rejected recipients. Throws if any recipient was rejected by the SMTP server.
+ * Use this everywhere we send email so "some emails not getting sent" is visible (rejected → throw → logged).
+ */
+export async function sendMailAndCheck(
+  transporter: Transporter,
+  options: Parameters<Transporter['sendMail']>[0],
+  logLabel: string
+): Promise<SendMailResult> {
+  const to = Array.isArray(options.to) ? options.to.join(', ') : (options.to as string)
+  const result = (await transporter.sendMail(options)) as SendMailResult
+  const rejected = result.rejected
+  if (rejected && rejected.length > 0) {
+    console.error(`❌ [${logLabel}] SMTP server rejected recipient(s):`, rejected, 'To:', to)
+    throw new Error(`Recipient(s) rejected: ${rejected.join(', ')}`)
+  }
+  console.log(`✅ [${logLabel}] Accepted → ${to} | MessageID: ${result.messageId ?? 'n/a'}`)
+  return result
+}

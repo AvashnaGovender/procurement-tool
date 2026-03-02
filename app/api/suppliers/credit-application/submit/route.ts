@@ -4,7 +4,7 @@ import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } from '@/lib/smtp-admin'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -338,9 +338,7 @@ export async function POST(request: NextRequest) {
 
         const fromAddress = getFromAddress(smtpConfig)
         for (const pm of recipients) {
-          console.log('📧 Sending credit application notification to:', pm.email)
-          
-          await transporter.sendMail({
+          await sendMailAndCheck(transporter, {
             from: fromAddress,
             envelope: getEnvelope(smtpConfig, pm.email),
             to: pm.email,
@@ -358,9 +356,7 @@ export async function POST(request: NextRequest) {
                 contentType: 'application/pdf'
               }
             ]
-          })
-
-          console.log('✅ Credit application notification sent successfully to:', pm.email)
+          }, `Credit application notification → ${pm.email}`)
         }
       }
     } catch (emailError) {

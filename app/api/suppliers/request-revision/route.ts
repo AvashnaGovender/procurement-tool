@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } from '@/lib/smtp-admin'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -356,8 +356,7 @@ async function sendRevisionRequestEmail(supplier: any, revisionNotes: string, on
 </html>
     `
 
-    console.log('📧 Sending revision request email to:', supplier.contactEmail)
-    await transporter.sendMail({
+    await sendMailAndCheck(transporter, {
       from: getFromAddress(smtpConfig),
       envelope: getEnvelope(smtpConfig, supplier.contactEmail),
       to: supplier.contactEmail,
@@ -370,9 +369,7 @@ async function sendRevisionRequestEmail(supplier: any, revisionNotes: string, on
           cid: 'logo'
         }
       ]
-    })
-
-    console.log('✅ Revision request email sent successfully to:', supplier.contactEmail)
+    }, 'Revision request')
   } catch (error) {
     console.error('Error sending revision request email:', error)
     throw error
