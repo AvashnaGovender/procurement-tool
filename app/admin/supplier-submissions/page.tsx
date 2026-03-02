@@ -86,6 +86,8 @@ interface Supplier {
     id: string
     revisionCount: number
     revisionRequested: boolean
+    revisionRequestedAt?: string | null
+    supplierFormSubmittedAt?: string | null
     emailSent: boolean
     supplierFormSubmitted: boolean
     currentStep: string
@@ -239,12 +241,17 @@ export default function SupplierSubmissionsPage() {
         supplier.supplierCode.toLowerCase().includes(searchTerm.toLowerCase())
       
       let matchesStatus = false
+      const displayStatus = getStatusDisplay(supplier)
       if (statusFilter === "all") {
         matchesStatus = true
       } else if (statusFilter === "AWAITING_DOCUMENTS") {
         const { status, onboarding } = supplier
         matchesStatus = (status === 'PENDING' && onboarding?.overallStatus === 'AWAITING_RESPONSE') ||
                        (!onboarding?.supplierFormSubmitted && onboarding?.emailSent)
+      } else if (statusFilter === "PENDING_REVISION") {
+        matchesStatus = displayStatus === 'PENDING REVISION'
+      } else if (statusFilter === "REVISED") {
+        matchesStatus = displayStatus === 'REVISED'
       } else {
         matchesStatus = supplier.status === statusFilter
       }
@@ -284,6 +291,8 @@ export default function SupplierSubmissionsPage() {
       case 'PENDING': return 'bg-gray-500'
       case 'AWAITING DOCUMENTS': return 'bg-orange-500 text-white'
       case 'AWAITING_DOCUMENTS': return 'bg-orange-500 text-white'
+      case 'PENDING REVISION': return 'bg-amber-500 text-white'
+      case 'REVISED': return 'bg-blue-500 text-white'
       default: return 'bg-blue-500'
     }
   }
@@ -325,6 +334,18 @@ export default function SupplierSubmissionsPage() {
       return status.replace(/_/g, ' ')
     }
 
+    // Revision requested but supplier has not submitted yet → Pending revision
+    if (onboarding.revisionRequested) {
+      return 'PENDING REVISION'
+    }
+
+    // Revision was requested and supplier has submitted after that → Revised (ready for PM to review again)
+    const revAt = onboarding.revisionRequestedAt ? new Date(onboarding.revisionRequestedAt).getTime() : 0
+    const submittedAt = onboarding.supplierFormSubmittedAt ? new Date(onboarding.supplierFormSubmittedAt).getTime() : 0
+    if (revAt > 0 && submittedAt > revAt && status === 'UNDER_REVIEW') {
+      return 'REVISED'
+    }
+
     // If form not submitted yet, show "Awaiting Documents"
     if (!onboarding.supplierFormSubmitted && onboarding.emailSent) {
       return 'AWAITING DOCUMENTS'
@@ -354,6 +375,8 @@ export default function SupplierSubmissionsPage() {
       return (status === 'PENDING' && onboarding?.overallStatus === 'AWAITING_RESPONSE') ||
              (!onboarding?.supplierFormSubmitted && onboarding?.emailSent)
     }).length,
+    PENDING_REVISION: suppliers.filter(s => getStatusDisplay(s) === 'PENDING REVISION').length,
+    REVISED: suppliers.filter(s => getStatusDisplay(s) === 'REVISED').length,
   }
 
   // Show loading state while checking authentication
@@ -419,12 +442,12 @@ export default function SupplierSubmissionsPage() {
       <main className="flex-1 overflow-y-auto p-8 bg-slate-100">
         <div className="max-w-7xl mx-auto space-y-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
               <Card className="cursor-pointer hover:shadow-md transition-shadow bg-white border-slate-200 hover:bg-slate-50" onClick={() => setStatusFilter('all')}>
                 <CardContent className="pt-6">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-slate-900">{statusCounts.all}</div>
-                    <div className="text-sm text-slate-600">Total Submissions</div>
+                    <div className="text-sm text-slate-600">Total</div>
                   </div>
                 </CardContent>
               </Card>
@@ -441,6 +464,22 @@ export default function SupplierSubmissionsPage() {
                   <div className="text-center">
                     <div className="text-2xl font-bold text-yellow-600">{statusCounts.UNDER_REVIEW}</div>
                     <div className="text-sm text-slate-600">Under Review</div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow bg-white border-slate-200 hover:bg-slate-50" onClick={() => setStatusFilter('PENDING_REVISION')}>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-amber-600">{statusCounts.PENDING_REVISION}</div>
+                    <div className="text-sm text-slate-600">Pending Revision</div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow bg-white border-slate-200 hover:bg-slate-50" onClick={() => setStatusFilter('REVISED')}>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{statusCounts.REVISED}</div>
+                    <div className="text-sm text-slate-600">Revised</div>
                   </div>
                 </CardContent>
               </Card>

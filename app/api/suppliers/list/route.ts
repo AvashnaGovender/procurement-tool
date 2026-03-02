@@ -60,6 +60,8 @@ export async function GET(request: NextRequest) {
             id: true,
             revisionCount: true,
             revisionRequested: true,
+            revisionRequestedAt: true,
+            supplierFormSubmittedAt: true,
             emailSent: true,
             supplierFormSubmitted: true,
             currentStep: true,
