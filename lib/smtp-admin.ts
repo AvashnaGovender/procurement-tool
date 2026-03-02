@@ -55,18 +55,19 @@ export function loadAdminSmtpConfig(): AdminSmtpConfig {
 }
 
 /**
- * Sender address for visible "From" header: admin-configured From email, or SMTP login user.
+ * Sender address for visible "From" and SMTP MAIL FROM.
+ * Uses the SMTP login user so strict relays (e.g. mtaroutes) that verify sender
+ * accept the message. Normalized to lowercase for relay compatibility.
  */
 export function getFromAddress(config: AdminSmtpConfig): string {
-  return config.fromEmail || config.user
+  return config.user.trim().toLowerCase()
 }
 
 /**
- * Envelope sender (SMTP MAIL FROM). Use the authenticated user so strict relays
- * (e.g. mtaroutes) accept the message and don't return "451 unable to verify sender".
+ * Envelope sender (SMTP MAIL FROM). Same as getFromAddress for strict relays.
  */
 export function getEnvelopeFrom(config: AdminSmtpConfig): string {
-  return config.user
+  return getFromAddress(config)
 }
 
 /**

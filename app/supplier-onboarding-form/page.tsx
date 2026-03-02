@@ -81,6 +81,7 @@ function SupplierOnboardingForm() {
 
   const draftKey = `${DRAFT_STORAGE_KEY_PREFIX}${onboardingToken ?? "anonymous"}`
   const saveDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const latestDraftRef = useRef<{ formData: typeof formData; creditApplication: boolean; paymentMethod: string | null; purchaseType: string | null; revisionNotes: string | null; documentsToRevise: string[] } | null>(null)
 
   // Restore draft from localStorage, then fetch from server if we have a token (server overwrites draft)
   useEffect(() => {
@@ -145,6 +146,19 @@ function SupplierOnboardingForm() {
     fetchExistingData()
   }, [onboardingToken])
 
+  // Keep a ref of the latest draft so we can flush it on tab close (debounce may not run).
+  useEffect(() => {
+    if (submitted) return
+    latestDraftRef.current = {
+      formData,
+      creditApplication,
+      paymentMethod,
+      purchaseType,
+      revisionNotes,
+      documentsToRevise,
+    }
+  }, [formData, creditApplication, paymentMethod, purchaseType, revisionNotes, documentsToRevise, submitted])
+
   // Auto-save draft to localStorage (debounced). File uploads are not saved; user must re-attach after returning.
   useEffect(() => {
     if (typeof window === "undefined" || submitted) return
@@ -170,6 +184,43 @@ function SupplierOnboardingForm() {
       if (saveDraftTimerRef.current) clearTimeout(saveDraftTimerRef.current)
     }
   }, [formData, creditApplication, paymentMethod, purchaseType, revisionNotes, documentsToRevise, submitted, draftKey])
+
+  // Flush draft to localStorage when tab/window is closed or hidden (debounce often doesn't run on unload).
+  useEffect(() => {
+    if (typeof window === "undefined" || submitted) return
+    const flushDraft = () => {
+      if (saveDraftTimerRef.current) {
+        clearTimeout(saveDraftTimerRef.current)
+        saveDraftTimerRef.current = null
+      }
+      const draft = latestDraftRef.current
+      if (!draft) return
+      try {
+        const payload = {
+          formData: draft.formData,
+          creditApplication: draft.creditApplication,
+          paymentMethod: draft.paymentMethod,
+          purchaseType: draft.purchaseType,
+          revisionNotes: draft.revisionNotes,
+          documentsToRevise: draft.documentsToRevise,
+          savedAt: Date.now(),
+        }
+        localStorage.setItem(draftKey, JSON.stringify(payload))
+      } catch (_) {}
+    }
+    const handleBeforeUnload = () => {
+      flushDraft()
+    }
+    const handlePageHide = () => {
+      flushDraft()
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    window.addEventListener("pagehide", handlePageHide)
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+      window.removeEventListener("pagehide", handlePageHide)
+    }
+  }, [submitted, draftKey])
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))

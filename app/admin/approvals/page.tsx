@@ -79,6 +79,8 @@ interface Supplier {
     id: string
     revisionCount: number
     revisionRequested: boolean
+    revisionRequestedAt?: string | null
+    supplierFormSubmittedAt?: string | null
     emailSent: boolean
     supplierFormSubmitted: boolean
     currentStep: string
@@ -358,11 +360,23 @@ export default function ApprovalsPage() {
     return 'Pending'
   }
 
-  // Helper functions for suppliers tab
+  // Display status for Document Reviews: includes PENDING REVISION and REVISED from onboarding state
+  const getStatusDisplay = (supplier: Supplier) => {
+    const { status, onboarding } = supplier
+    if (!onboarding) return status.replace(/_/g, ' ')
+    if (onboarding.revisionRequested) return 'PENDING REVISION'
+    const revAt = onboarding.revisionRequestedAt ? new Date(onboarding.revisionRequestedAt).getTime() : 0
+    const submittedAt = onboarding.supplierFormSubmittedAt ? new Date(onboarding.supplierFormSubmittedAt).getTime() : 0
+    if (revAt > 0 && submittedAt > revAt && status === 'UNDER_REVIEW') return 'REVISED'
+    return status.replace(/_/g, ' ')
+  }
+
   const getSupplierStatusColor = (status: string) => {
-    switch (status.toUpperCase()) {
+    switch (status.toUpperCase().replace(/\s/g, '_')) {
       case 'PENDING': return 'bg-yellow-100 text-yellow-800'
       case 'UNDER_REVIEW': return 'bg-blue-100 text-blue-800'
+      case 'PENDING_REVISION': return 'bg-amber-100 text-amber-800'
+      case 'REVISED': return 'bg-indigo-100 text-indigo-800'
       case 'AWAITING_FINAL_APPROVAL': return 'bg-purple-100 text-purple-800'
       case 'APPROVED': return 'bg-green-100 text-green-800'
       case 'REJECTED': return 'bg-red-100 text-red-800'
@@ -371,9 +385,12 @@ export default function ApprovalsPage() {
   }
 
   const getSupplierStatusIcon = (status: string) => {
-    switch (status.toUpperCase()) {
+    const key = status.toUpperCase().replace(/\s/g, '_')
+    switch (key) {
       case 'PENDING': return <Clock className="h-4 w-4" />
       case 'UNDER_REVIEW': return <Eye className="h-4 w-4" />
+      case 'PENDING_REVISION': return <AlertCircle className="h-4 w-4" />
+      case 'REVISED': return <RefreshCw className="h-4 w-4" />
       case 'AWAITING_FINAL_APPROVAL': return <AlertCircle className="h-4 w-4" />
       case 'APPROVED': return <CheckCircle className="h-4 w-4" />
       case 'REJECTED': return <XCircle className="h-4 w-4" />
@@ -384,7 +401,6 @@ export default function ApprovalsPage() {
   const sortSuppliers = (suppliers: Supplier[]) => {
     return [...suppliers].sort((a, b) => {
       let comparison = 0
-      
       switch (sortField) {
         case 'supplierCode':
           comparison = a.supplierCode.localeCompare(b.supplierCode)
@@ -393,13 +409,12 @@ export default function ApprovalsPage() {
           comparison = a.companyName.localeCompare(b.companyName)
           break
         case 'status':
-          comparison = a.status.localeCompare(b.status)
+          comparison = getStatusDisplay(a).localeCompare(getStatusDisplay(b))
           break
         case 'createdAt':
           comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
           break
       }
-      
       return sortDirection === 'asc' ? comparison : -comparison
     })
   }
@@ -428,9 +443,11 @@ export default function ApprovalsPage() {
         supplier.companyName.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
         supplier.supplierCode.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
         supplier.contactEmail.toLowerCase().includes(supplierSearchTerm.toLowerCase())
-      
-      const matchesStatus = statusFilter === "all" || supplier.status === statusFilter
-      
+      const displayStatus = getStatusDisplay(supplier)
+      const matchesStatus = statusFilter === "all" ||
+        (statusFilter === "PENDING REVISION" ? displayStatus === 'PENDING REVISION' :
+         statusFilter === "REVISED" ? displayStatus === 'REVISED' :
+         supplier.status === statusFilter)
       return matchesSearch && matchesStatus
     })
   )
@@ -439,6 +456,8 @@ export default function ApprovalsPage() {
     all: suppliers.length,
     PENDING: suppliers.filter(s => s.status === 'PENDING').length,
     UNDER_REVIEW: suppliers.filter(s => s.status === 'UNDER_REVIEW').length,
+    'PENDING REVISION': suppliers.filter(s => getStatusDisplay(s) === 'PENDING REVISION').length,
+    REVISED: suppliers.filter(s => getStatusDisplay(s) === 'REVISED').length,
     AWAITING_FINAL_APPROVAL: suppliers.filter(s => s.status === 'AWAITING_FINAL_APPROVAL').length,
     APPROVED: suppliers.filter(s => s.status === 'APPROVED').length,
     REJECTED: suppliers.filter(s => s.status === 'REJECTED').length,
@@ -1019,6 +1038,20 @@ export default function ApprovalsPage() {
                 Under Review ({statusCounts.UNDER_REVIEW})
               </Button>
               <Button
+                variant={statusFilter === "PENDING REVISION" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("PENDING REVISION")}
+              >
+                Pending Revision ({statusCounts['PENDING REVISION']})
+              </Button>
+              <Button
+                variant={statusFilter === "REVISED" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("REVISED")}
+              >
+                Revised ({statusCounts.REVISED})
+              </Button>
+              <Button
                 variant={statusFilter === "AWAITING_FINAL_APPROVAL" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setStatusFilter("AWAITING_FINAL_APPROVAL")}
@@ -1098,10 +1131,15 @@ export default function ApprovalsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={getSupplierStatusColor(supplier.status)}>
-                          {getSupplierStatusIcon(supplier.status)}
-                          <span className="ml-1">{supplier.status.replace(/_/g, ' ')}</span>
-                        </Badge>
+                        {(() => {
+                          const displayStatus = getStatusDisplay(supplier)
+                          return (
+                            <Badge className={getSupplierStatusColor(displayStatus)}>
+                              {getSupplierStatusIcon(displayStatus)}
+                              <span className="ml-1">{displayStatus}</span>
+                            </Badge>
+                          )
+                        })()}
                       </TableCell>
                       <TableCell>
                         {new Date(supplier.createdAt).toLocaleDateString()}
