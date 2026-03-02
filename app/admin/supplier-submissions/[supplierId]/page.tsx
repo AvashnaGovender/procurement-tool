@@ -557,21 +557,13 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
 
   const confirmApprove = async () => {
     try {
-      // Only PM can approve suppliers
-      // Check if credit application is required (initiator required it and supplier did not opt out)
+      // Only PM can approve suppliers. Credit form upload is optional.
       const noCreditProcess = (supplier?.airtableData as { noCreditApplicationProcess?: boolean })?.noCreditApplicationProcess
-      const creditApplicationRequired = (supplier?.onboarding?.initiation?.creditApplication || false) && !noCreditProcess
-      
-      // If credit application is required, check if signed file is uploaded
-      if (creditApplicationRequired && !signedCreditApplicationFile) {
-        setErrorMessage('Please upload the signed Credit Application document before approving. The signed document will be sent to the supplier.')
-        setErrorDialogOpen(true)
-        return
-      }
+      const creditApplicationApplicable = (supplier?.onboarding?.initiation?.creditApplication || false) && !noCreditProcess
 
-      // Upload signed credit application if provided
+      // Upload signed credit application if provided (optional)
       let signedCreditAppFileName = null
-      if (creditApplicationRequired && signedCreditApplicationFile) {
+      if (creditApplicationApplicable && signedCreditApplicationFile) {
         setUploadingSignedCreditApp(true)
         try {
           const formData = new FormData()
@@ -2482,18 +2474,18 @@ Procurement Team`
               </div>
             </div>
             
-            {/* Credit Application Upload for PM (only when required and supplier did not opt out) */}
+            {/* Credit Application Upload for PM (optional when credit application applies) */}
             {session?.user?.role === 'PROCUREMENT_MANAGER' && 
              supplier?.onboarding?.initiation?.creditApplication && 
              !(supplier?.airtableData as { noCreditApplicationProcess?: boolean })?.noCreditApplicationProcess && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h4 className="font-medium text-yellow-900 mb-2 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  Required: Upload Signed Credit Application
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                <h4 className="font-medium text-slate-800 mb-2 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-slate-600" />
+                  Optional: Upload Signed Credit Application
                 </h4>
-                <p className="text-sm text-yellow-800 mb-3">
-                  A Credit Application was required for this supplier. Please upload the signed Credit Application document. 
-                  This document will be sent to the supplier upon approval.
+                <p className="text-sm text-slate-600 mb-3">
+                  A Credit Application applies to this supplier. You may upload the signed document here if available; 
+                  it will be sent to the supplier upon approval. Upload is not required to approve.
                 </p>
                 <div className="space-y-2">
                   <Input

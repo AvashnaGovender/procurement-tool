@@ -111,20 +111,7 @@ export async function POST(request: NextRequest) {
         )
       }
       
-      // Check if credit application is required and uploaded (not required if supplier has no credit process)
-      const initiationRequiresCredit = supplierBeforeUpdate.onboarding?.initiation?.creditApplication || false
-      const supplierNoCreditProcess = (supplierBeforeUpdate.airtableData as { noCreditApplicationProcess?: boolean } | null)?.noCreditApplicationProcess
-      const creditApplicationRequired = initiationRequiresCredit && !supplierNoCreditProcess
-      
-      if (creditApplicationRequired && !signedCreditApplicationFileName) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'Signed Credit Application document is required before approval. Please upload the signed document first.' 
-          },
-          { status: 400 }
-        )
-      }
+      // Credit application upload is optional when PM approves; they may upload the signed form if available
     }
 
     // Update supplier status (supplier should already exist, we're not creating a new one)
