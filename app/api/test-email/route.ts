@@ -17,7 +17,17 @@ export async function GET() {
     }
     
     const configData = fs.readFileSync(configPath, 'utf8')
-    const emailConfig = JSON.parse(configData)
+    const raw = JSON.parse(configData)
+    // Trim string fields so leading/trailing spaces don't break DNS (e.g. " smtp.host.com")
+    const emailConfig = {
+      ...raw,
+      host: typeof raw.host === 'string' ? raw.host.trim() : raw.host,
+      user: typeof raw.user === 'string' ? raw.user.trim() : raw.user,
+      pass: typeof raw.pass === 'string' ? raw.pass.trim() : raw.pass,
+      fromEmail: typeof raw.fromEmail === 'string' ? raw.fromEmail.trim() : raw.fromEmail,
+      companyName: typeof raw.companyName === 'string' ? raw.companyName.trim() : raw.companyName,
+      companyWebsite: typeof raw.companyWebsite === 'string' ? raw.companyWebsite.trim() : raw.companyWebsite,
+    }
     
     console.log('Configuration loaded:', {
       host: emailConfig.host,
@@ -40,11 +50,14 @@ export async function GET() {
     
     // Try to connect to SMTP server
     const nodemailer = require('nodemailer')
-    
+    // Port 465 = implicit SSL; 587/25 = STARTTLS (must use secure: false so we upgrade after connect)
+    const port = Number(emailConfig.port) || 587
+    const useSecure = port === 465
+
     const transporter = nodemailer.createTransport({
       host: emailConfig.host,
-      port: emailConfig.port,
-      secure: emailConfig.secure,
+      port,
+      secure: useSecure,
       auth: {
         user: emailConfig.user,
         pass: emailConfig.pass
@@ -81,6 +94,8 @@ export async function GET() {
         errorMessage = 'Connection refused. Please check your SMTP host and port.'
       } else if (error.message.includes('ETIMEDOUT') || error.message.includes('ENOTFOUND')) {
         errorMessage = 'Cannot reach SMTP server. Please check your host name.'
+      } else if (error.message.includes('wrong version number') || (error as NodeJS.ErrnoException).code === 'ESOCKET') {
+        errorMessage = 'SSL/connection error: for port 587 use STARTTLS (do not use SSL from the start). The app now does this automatically—try the test again.'
       } else {
         errorMessage = error.message
       }

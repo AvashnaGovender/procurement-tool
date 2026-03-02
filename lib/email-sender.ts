@@ -53,10 +53,15 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   try {
     const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
     const configData = fs.readFileSync(configPath, 'utf8')
-    smtpConfig = JSON.parse(configData)
-    
-    if (!smtpConfig) {
-      throw new Error('SMTP configuration not found')
+    const raw = JSON.parse(configData)
+    if (!raw) throw new Error('SMTP configuration not found')
+    // Trim string fields so leading/trailing spaces don't break DNS
+    smtpConfig = {
+      ...raw,
+      host: typeof raw.host === 'string' ? raw.host.trim() : raw.host,
+      user: typeof raw.user === 'string' ? raw.user.trim() : raw.user,
+      pass: typeof raw.pass === 'string' ? raw.pass.trim() : raw.pass,
+      fromEmail: typeof raw.fromEmail === 'string' ? raw.fromEmail.trim() : raw.fromEmail,
     }
   } catch (error) {
     console.error('Failed to load SMTP config:', error)
@@ -142,11 +147,14 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   }
   console.log('========================')
   
-  // Create transporter
+  // Port 465 = implicit SSL; 587/25 = STARTTLS (secure: false so we upgrade after connect)
+  const port = Number(smtpConfig.port) || 587
+  const useSecure = port === 465
+
   const transporter = nodemailer.createTransport({
     host: smtpConfig.host,
-    port: smtpConfig.port || 587,
-    secure: smtpConfig.secure !== undefined ? smtpConfig.secure : false,
+    port,
+    secure: useSecure,
     auth: {
       user: smtpConfig.user,
       pass: smtpConfig.pass,

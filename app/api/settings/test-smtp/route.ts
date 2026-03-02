@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const config = await request.json()
+    const raw = await request.json()
+    // Trim so leading/trailing spaces don't break connection (e.g. " smtp.host.com")
+    const config = {
+      ...raw,
+      host: typeof raw.host === 'string' ? raw.host.trim() : raw.host,
+      user: typeof raw.user === 'string' ? raw.user.trim() : raw.user,
+      pass: typeof raw.pass === 'string' ? raw.pass.trim() : raw.pass,
+    }
     
     // Validate required fields
     if (!config.host || !config.user || !config.pass) {
@@ -15,17 +22,21 @@ export async function POST(request: NextRequest) {
     // Test SMTP connection using nodemailer
     const nodemailer = require('nodemailer')
     
+    // Port 465 = implicit SSL; 587/25 = STARTTLS (secure: false for STARTTLS)
+    const port = Number(config.port) || 587
+    const useSecure = port === 465
+
     console.log('Testing SMTP configuration:', {
       host: config.host,
-      port: config.port,
+      port,
       user: config.user,
-      secure: config.secure
+      secure: useSecure
     })
 
     const transporter = nodemailer.createTransporter({
       host: config.host,
-      port: config.port,
-      secure: config.secure,
+      port,
+      secure: useSecure,
       auth: {
         user: config.user,
         pass: config.pass
