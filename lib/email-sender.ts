@@ -168,8 +168,8 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
     console.log('Attempting to send email via SMTP...')
     console.log('SMTP Config:', {
       host: smtpConfig.host,
-      port: smtpConfig.port,
-      secure: smtpConfig.secure,
+      port,
+      secure: useSecure,
       user: smtpConfig.user
     })
 
@@ -324,8 +324,10 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 </html>
     `
 
+    // Use address-only From to avoid "451 unable to verify sender" from strict SMTP providers (e.g. mtaroutes)
+    const fromAddress = smtpConfig.fromEmail || smtpConfig.user
     const mailOptions = {
-      from: `"${smtpConfig.companyName || 'SS Supplier Onboarding'}" <${smtpConfig.fromEmail || smtpConfig.user}>`,
+      from: fromAddress,
       to: to,
       subject: emailSubject,
       html: htmlContent,
