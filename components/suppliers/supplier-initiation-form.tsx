@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Building2, CheckCircle, AlertCircle, Users, DollarSign, Plus, XCircle } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { PRODUCT_SERVICE_CATEGORIES } from "@/lib/product-service-categories"
 
 interface SupplierInitiationFormProps {
   onSubmissionComplete?: (initiationId: string) => void
@@ -32,15 +31,6 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
   const [errorMessage, setErrorMessage] = useState('')
   const [successDialogOpen, setSuccessDialogOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
-  const [customCategory, setCustomCategory] = useState('')
-  const [customCategories, setCustomCategories] = useState<string[]>(() => {
-    // Load custom categories from localStorage on initial mount
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('customProductCategories')
-      return saved ? JSON.parse(saved) : []
-    }
-    return []
-  })
   const [customCurrencyInput, setCustomCurrencyInput] = useState('')
   const [customCurrencies, setCustomCurrencies] = useState<string[]>(() => {
     // Load custom currencies from localStorage on initial mount
@@ -57,7 +47,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     rejectedByName?: string
   } | null>(null)
   const [formData, setFormData] = useState({
-    businessUnit: [] as string[],
+    businessUnit: ["SCHAUENBURG_PTY_LTD_300", "SCHAUENBURG_SYSTEMS_200"] as string[],
     processReadUnderstood: false,
     dueDiligenceCompleted: false,
     supplierName: "",
@@ -67,8 +57,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     requesterName: session?.user?.name || "",
     relationshipDeclaration: "",
     relationshipDeclarationOther: "",
-    purchaseType: "", // "REGULAR" or "SHARED_IP"
-    paymentMethod: "", // "COD" or "AC"
+    purchaseType: "", // "COD" | "COD_IP_SHARED" | "CREDIT_TERMS" | "CREDIT_TERMS_IP_SHARED"
     codReason: "",
     annualPurchaseValue: "",
     creditApplication: false,
@@ -128,21 +117,22 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
             ? draft.businessUnit 
             : (draft.businessUnit ? [draft.businessUnit] : [])
 
-          // Determine purchase type from draft
-          const purchaseType = draft.purchaseType || (draft.regularPurchase ? 'REGULAR' : (draft.onceOffPurchase ? 'ONCE_OFF' : 'SHARED_IP'))
-          console.log('📝 Purchase type determination:', {
-            draftPurchaseType: draft.purchaseType,
-            draftRegularPurchase: draft.regularPurchase,
-            determinedPurchaseType: purchaseType
-          })
-          // Convert ONCE_OFF to SHARED_IP for new structure
-          const normalizedPurchaseType = purchaseType === 'ONCE_OFF' ? 'SHARED_IP' : (purchaseType === 'REGULAR' ? 'REGULAR' : 'SHARED_IP')
-          console.log('📝 Normalized purchase type:', normalizedPurchaseType)
-          
-          // The API already converts the numeric value to string format, so just use it directly
+          // Map draft purchase type to new 4-category purchase type
+          const legacyPurchaseType = draft.purchaseType || (draft.regularPurchase ? 'REGULAR' : (draft.onceOffPurchase ? 'ONCE_OFF' : 'SHARED_IP'))
+          const legacyPaymentMethod = draft.paymentMethod || 'AC'
+          const isLegacy = ['REGULAR', 'ONCE_OFF', 'SHARED_IP'].includes(legacyPurchaseType)
+          const normalizedPurchaseType = isLegacy
+            ? (legacyPurchaseType === 'REGULAR' && legacyPaymentMethod === 'COD')
+              ? 'COD'
+              : (legacyPurchaseType === 'REGULAR' && legacyPaymentMethod === 'AC')
+                ? 'CREDIT_TERMS'
+                : ((legacyPurchaseType === 'SHARED_IP' || legacyPurchaseType === 'ONCE_OFF') && legacyPaymentMethod === 'COD')
+                  ? 'COD_IP_SHARED'
+                  : 'CREDIT_TERMS_IP_SHARED'
+            : (draft.purchaseType as string) // already COD, COD_IP_SHARED, CREDIT_TERMS, CREDIT_TERMS_IP_SHARED
+          console.log('📝 Purchase type from draft:', { legacyPurchaseType, legacyPaymentMethod, normalizedPurchaseType })
+
           const annualPurchaseValueStr = draft.annualPurchaseValue || ""
-          console.log('💰 Annual Purchase Value for form:', annualPurchaseValueStr)
-          console.log('🔍 Will annual purchase field show?', normalizedPurchaseType === 'REGULAR')
           
           setFormData({
             businessUnit: businessUnit || [],
@@ -153,10 +143,20 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
             supplierContactPerson: draft.supplierContactPerson || "",
             productServiceCategory: draft.productServiceCategory || "",
             requesterName: draft.requesterName || session?.user?.name || "",
-            relationshipDeclaration: draft.relationshipDeclaration || "",
-            relationshipDeclarationOther: draft.relationshipDeclarationOther || "",
+            relationshipDeclaration: (() => {
+              const rd = draft.relationshipDeclaration || ""
+              if (rd === "NO_EXISTING_RELATIONSHIP" || rd === "None" || rd === "NONE") return "NONE"
+              if (rd === "OTHER") return "OTHER"
+              if (rd) return "OTHER" // Legacy value (e.g. PREVIOUS_SUPPLIER): show Other
+              return ""
+            })(),
+            relationshipDeclarationOther: (() => {
+              const rd = draft.relationshipDeclaration || ""
+              if (rd === "OTHER") return draft.relationshipDeclarationOther || ""
+              if (rd && rd !== "NONE" && rd !== "NO_EXISTING_RELATIONSHIP" && rd !== "None") return rd // Legacy: show in "specify" field
+              return draft.relationshipDeclarationOther || ""
+            })(),
             purchaseType: normalizedPurchaseType,
-            paymentMethod: draft.paymentMethod || "",
             codReason: draft.codReason || "",
             annualPurchaseValue: annualPurchaseValueStr,
             creditApplication: draft.creditApplication || false,
@@ -185,52 +185,6 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
       console.log(`📝 Updated formData for ${field}:`, (newData as any)[field])
       return newData
     })
-  }
-
-  const handleAddCustomCategory = () => {
-    if (!customCategory.trim()) return
-    
-    const newCategory = customCategory.trim()
-    
-    // Check if category already exists (case-insensitive)
-    const existsInStandard = PRODUCT_SERVICE_CATEGORIES.some(
-      cat => cat.toLowerCase() === newCategory.toLowerCase()
-    )
-    const existsInCustom = customCategories.some(
-      cat => cat.toLowerCase() === newCategory.toLowerCase()
-    )
-    
-    if (existsInStandard || existsInCustom) {
-      // If it already exists, just select it
-      setFormData(prev => ({
-        ...prev,
-        productServiceCategory: existsInStandard 
-          ? PRODUCT_SERVICE_CATEGORIES.find(cat => cat.toLowerCase() === newCategory.toLowerCase()) || newCategory
-          : customCategories.find(cat => cat.toLowerCase() === newCategory.toLowerCase()) || newCategory
-      }))
-      setCustomCategory('')
-      return
-    }
-    
-    // Add to custom categories list and sort alphabetically
-    const updatedCategories = [...customCategories, newCategory].sort((a, b) => a.localeCompare(b))
-    
-    // Update state
-    setCustomCategories(updatedCategories)
-    
-    // Save to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('customProductCategories', JSON.stringify(updatedCategories))
-    }
-    
-    // Set as selected value
-    setFormData(prev => ({
-      ...prev,
-      productServiceCategory: newCategory
-    }))
-    
-    // Clear input
-    setCustomCategory('')
   }
 
   const handleAddCustomCurrency = () => {
@@ -306,10 +260,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     setIsSavingDraft(true)
 
     try {
-      // Combine relationship declaration: if "OTHER" is selected, use the "Other" text value
+      // Combine relationship declaration: if "OTHER" is selected, use the typed text; if "NONE", send "None"
       const relationshipDeclarationValue = formData.relationshipDeclaration === "OTHER" 
         ? formData.relationshipDeclarationOther 
-        : formData.relationshipDeclaration
+        : (formData.relationshipDeclaration === "NONE" ? "None" : formData.relationshipDeclaration)
 
       const submitData = {
         ...(currentDraftId && { id: currentDraftId }),
@@ -323,13 +277,12 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         requesterName: formData.requesterName,
         relationshipDeclaration: relationshipDeclarationValue,
         relationshipDeclarationOther: formData.relationshipDeclarationOther,
-        purchaseType: formData.purchaseType || 'REGULAR',
-        paymentMethod: formData.paymentMethod,
-        codReason: formData.paymentMethod === 'COD' ? formData.codReason : null,
-        annualPurchaseValue: formData.annualPurchaseValue, // Send string value, API will convert to number
+        purchaseType: formData.purchaseType || '',
+        codReason: (formData.purchaseType === 'COD' || formData.purchaseType === 'COD_IP_SHARED') ? formData.codReason : null,
+        annualPurchaseValue: formData.annualPurchaseValue,
         creditApplication: formData.creditApplication,
-        creditApplicationReason: formData.paymentMethod === 'COD' ? 'COD payment - credit not required' : formData.creditApplicationReason,
-        regularPurchase: formData.purchaseType === 'REGULAR',
+        creditApplicationReason: (formData.purchaseType === 'COD' || formData.purchaseType === 'COD_IP_SHARED') ? 'COD - credit not required' : formData.creditApplicationReason,
+        regularPurchase: formData.purchaseType === 'COD' || formData.purchaseType === 'CREDIT_TERMS',
         onceOffPurchase: false,
         onboardingReason: formData.onboardingReason,
         supplierLocation: formData.supplierLocation,
@@ -337,7 +290,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         customCurrency: formData.customCurrency
       }
       
-      console.log('💾 Saving draft with annualPurchaseValue:', formData.annualPurchaseValue)
+      console.log('💾 Saving draft with purchaseType:', formData.purchaseType, 'annualPurchaseValue:', formData.annualPurchaseValue)
       console.log('💾 Full submitData:', submitData)
 
       const response = await fetch('/api/suppliers/initiation/draft', {
@@ -359,9 +312,15 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           router.push('/dashboard')
         }, 1500)
       } else {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('API Error:', errorData)
-        setErrorMessage(errorData.error || errorData.message || 'Failed to save draft')
+        const responseText = await response.text()
+        let errorData: { message?: string; error?: string } = {}
+        try {
+          errorData = responseText ? JSON.parse(responseText) : {}
+        } catch {
+          errorData = {}
+        }
+        console.error('Draft save failed:', response.status, Object.keys(errorData).length > 0 ? errorData : responseText?.slice(0, 500) || '(empty body)')
+        setErrorMessage(errorData.message || errorData.error || 'Failed to save draft')
         setErrorDialogOpen(true)
       }
     } catch (error) {
@@ -378,10 +337,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     setIsSubmitting(true)
 
     try {
-      // Combine relationship declaration: if "OTHER" is selected, use the "Other" text value
+      // Combine relationship declaration: if "OTHER" is selected, use the typed text; if "NONE", send "None"
       const relationshipDeclarationValue = formData.relationshipDeclaration === "OTHER" 
         ? formData.relationshipDeclarationOther 
-        : formData.relationshipDeclaration
+        : (formData.relationshipDeclaration === "NONE" ? "None" : formData.relationshipDeclaration)
 
       const submitData = {
         ...(currentDraftId && { id: currentDraftId }),
@@ -394,21 +353,20 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         productServiceCategory: formData.productServiceCategory,
         requesterName: formData.requesterName,
         relationshipDeclaration: relationshipDeclarationValue,
-        purchaseType: formData.purchaseType || 'REGULAR',
-        paymentMethod: formData.paymentMethod,
-        codReason: formData.paymentMethod === 'COD' ? formData.codReason : null,
-        annualPurchaseValue: formData.annualPurchaseValue, // Send string value, API will convert to number
+        purchaseType: formData.purchaseType || '',
+        codReason: (formData.purchaseType === 'COD' || formData.purchaseType === 'COD_IP_SHARED') ? formData.codReason : null,
+        annualPurchaseValue: formData.annualPurchaseValue,
         creditApplication: formData.creditApplication,
-        creditApplicationReason: formData.paymentMethod === 'COD' ? 'COD payment - credit not required' : formData.creditApplicationReason,
-        regularPurchase: formData.purchaseType === 'REGULAR',
-        onceOffPurchase: false, // No longer used, but keep for backward compatibility
+        creditApplicationReason: (formData.purchaseType === 'COD' || formData.purchaseType === 'COD_IP_SHARED') ? 'COD - credit not required' : formData.creditApplicationReason,
+        regularPurchase: formData.purchaseType === 'COD' || formData.purchaseType === 'CREDIT_TERMS',
+        onceOffPurchase: false,
         onboardingReason: formData.onboardingReason,
         supplierLocation: formData.supplierLocation,
         currency: formData.currency,
         customCurrency: formData.customCurrency
       }
       
-      console.log('📤 Submitting with annualPurchaseValue:', formData.annualPurchaseValue)
+      console.log('📤 Submitting with purchaseType:', formData.purchaseType, 'annualPurchaseValue:', formData.annualPurchaseValue)
       console.log('📤 Full submitData:', submitData)
 
       const response = await fetch('/api/suppliers/initiate', {
@@ -423,10 +381,21 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         const result = await response.json()
         onSubmissionComplete?.(result.initiationId)
       } else {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('API Error:', errorData)
-        // Show more detailed error message if available
-        const errorMsg = errorData.message || errorData.error || 'Failed to submit initiation'
+        const responseText = await response.text()
+        let errorData: { message?: string; error?: string } = {}
+        try {
+          errorData = responseText ? JSON.parse(responseText) : {}
+        } catch {
+          errorData = {}
+        }
+        // Always log something useful when the API returns an error
+        console.error('Initiation submit failed:', response.status, Object.keys(errorData).length > 0 ? errorData : responseText?.slice(0, 500) || '(empty body)')
+        const errorMsg =
+          errorData.message ||
+          errorData.error ||
+          (response.status === 500 && 'Server error. Please try again or contact support.') ||
+          (response.status === 400 && 'Invalid request. Please check all required fields and try again.') ||
+          `Request failed (${response.status}). ${responseText?.slice(0, 200) || 'Please try again.'}`
         setErrorMessage(errorMsg)
         setErrorDialogOpen(true)
       }
@@ -449,15 +418,14 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     const hasSupplierLocation = !!formData.supplierLocation
     const hasCurrency = formData.supplierLocation !== 'FOREIGN' || !!formData.currency // Foreign requires currency
     const hasSupplierInfo = !!formData.supplierName && !!formData.supplierEmail && !!formData.supplierContactPerson && !!formData.productServiceCategory && !!formData.requesterName && hasRelationshipDeclaration && hasSupplierLocation && hasCurrency
-    const hasPurchaseType = !!formData.purchaseType // Must be REGULAR or SHARED_IP
-    const hasPaymentMethod = !!formData.paymentMethod // Must be COD or AC
-    const hasCodReason = formData.paymentMethod !== 'COD' || !!formData.codReason // COD requires reason
-    const hasAnnualValue = formData.purchaseType !== 'REGULAR' || !!formData.annualPurchaseValue // Regular requires annual value
-    // If COD, credit reason is not required (COD reason covers it). Otherwise, check credit application reason
-    const hasCreditReason = formData.paymentMethod === 'COD' || formData.creditApplication || (!formData.creditApplication && formData.creditApplicationReason)
+    const isCodType = formData.purchaseType === 'COD' || formData.purchaseType === 'COD_IP_SHARED'
+    const isCreditTermsType = formData.purchaseType === 'CREDIT_TERMS' || formData.purchaseType === 'CREDIT_TERMS_IP_SHARED'
+    const hasPurchaseType = !!formData.purchaseType
+    const hasCodReason = !isCodType || !!formData.codReason
+    const hasCreditReason = !isCreditTermsType || formData.creditApplication || (!formData.creditApplication && !!formData.creditApplicationReason)
     const hasOnboardingReason = !!formData.onboardingReason
 
-    return hasBusinessUnit && hasChecklist && hasSupplierInfo && hasPurchaseType && hasPaymentMethod && hasCodReason && hasAnnualValue && hasCreditReason && hasOnboardingReason
+    return hasBusinessUnit && hasChecklist && hasSupplierInfo && hasPurchaseType && hasCodReason && hasCreditReason && hasOnboardingReason
   }
 
   if (loadingDraft) {
@@ -599,16 +567,16 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="supplierName">Supplier Name *</Label>
+              <Label htmlFor="supplierName">Registered Name of Business *</Label>
               <Input
                 id="supplierName"
                 value={formData.supplierName}
                 onChange={(e) => handleInputChange('supplierName', e.target.value)}
-                placeholder="Enter supplier name"
+                placeholder="Enter registered name of business"
                 className={!formData.supplierName ? "border-red-300" : ""}
               />
               {!formData.supplierName && (
-                <p className="text-sm text-red-600">Please enter supplier name</p>
+                <p className="text-sm text-red-600">Please enter registered name of business</p>
               )}
             </div>
             
@@ -645,57 +613,15 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
             
             <div className="space-y-2">
               <Label htmlFor="productServiceCategory">Product/Service Category *</Label>
-              <Select 
-                value={formData.productServiceCategory} 
-                onValueChange={(value) => handleInputChange('productServiceCategory', value)}
-              >
-                <SelectTrigger 
-                  id="productServiceCategory"
-                  className={!formData.productServiceCategory ? "border-red-300" : ""}
-                >
-                  <SelectValue placeholder="Select product/service category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRODUCT_SERVICE_CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                  {customCategories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="productServiceCategory"
+                value={formData.productServiceCategory}
+                onChange={(e) => handleInputChange('productServiceCategory', e.target.value)}
+                placeholder="Enter product/service category or categories"
+                className={!formData.productServiceCategory ? "border-red-300" : ""}
+              />
               {!formData.productServiceCategory && (
-                <p className="text-sm text-red-600">Please select product/service category</p>
-              )}
-              
-              {/* Show custom category input when "Other Products/Services" is selected */}
-              {formData.productServiceCategory === "Other Products/Services" && (
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    value={customCategory}
-                    onChange={(e) => setCustomCategory(e.target.value)}
-                    placeholder="Enter custom category"
-                    className="flex-1"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        handleAddCustomCategory()
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    onClick={handleAddCustomCategory}
-                    disabled={!customCategory.trim()}
-                    className="px-3"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                <p className="text-sm text-red-600">Please enter product/service category</p>
               )}
             </div>
           </div>
@@ -827,10 +753,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                 <SelectValue placeholder="Select relationship declaration" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="NO_EXISTING_RELATIONSHIP">No existing relationship</SelectItem>
-                <SelectItem value="PREVIOUS_SUPPLIER">Previous supplier</SelectItem>
-                <SelectItem value="RELATED_PARTY">Related party</SelectItem>
-                <SelectItem value="FAMILY_MEMBER">Family member</SelectItem>
+                <SelectItem value="NONE">None</SelectItem>
                 <SelectItem value="OTHER">Other</SelectItem>
               </SelectContent>
             </Select>
@@ -866,16 +789,21 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Purchase Type Selection */}
+          {/* Purchase Type Selection - 4 categories */}
           <div className="space-y-2">
             <Label htmlFor="purchaseType">Purchase Type *</Label>
             <Select 
               value={formData.purchaseType} 
               onValueChange={(value) => {
                 handleInputChange('purchaseType', value)
-                // Clear payment method when purchase type changes
-                handleInputChange('paymentMethod', "")
-                handleInputChange('codReason', "")
+                if (value !== 'COD' && value !== 'COD_IP_SHARED') {
+                  handleInputChange('codReason', "")
+                }
+                if (value !== 'CREDIT_TERMS' && value !== 'CREDIT_TERMS_IP_SHARED') {
+                  handleInputChange('annualPurchaseValue', "")
+                  handleInputChange('creditApplication', false)
+                  handleInputChange('creditApplicationReason', "")
+                }
               }}
             >
               <SelectTrigger 
@@ -885,8 +813,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                 <SelectValue placeholder="Select purchase type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="REGULAR">Regular</SelectItem>
-                <SelectItem value="SHARED_IP">Shared IP</SelectItem>
+                <SelectItem value="COD">COD</SelectItem>
+                <SelectItem value="COD_IP_SHARED">COD IP Shared</SelectItem>
+                <SelectItem value="CREDIT_TERMS">Credit Terms</SelectItem>
+                <SelectItem value="CREDIT_TERMS_IP_SHARED">Credit Terms IP Shared</SelectItem>
               </SelectContent>
             </Select>
             {!formData.purchaseType && (
@@ -894,19 +824,34 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
             )}
           </div>
 
-          {/* Annual Purchase Value - Only for Regular */}
-          {formData.purchaseType === 'REGULAR' && (
+          {/* COD Reason - Required for COD and COD IP Shared */}
+          {(formData.purchaseType === 'COD' || formData.purchaseType === 'COD_IP_SHARED') && (
             <div className="space-y-2">
-              <Label htmlFor="annualPurchaseValue">Annual Purchase Value Range *</Label>
+              <Label htmlFor="codReason">Reason for COD *</Label>
+              <Textarea
+                id="codReason"
+                value={formData.codReason}
+                onChange={(e) => handleInputChange('codReason', e.target.value)}
+                placeholder={formData.purchaseType === 'COD_IP_SHARED' ? "Provide reason for requiring COD IP Shared" : "Provide reason for requiring COD payment"}
+                rows={3}
+                className={!formData.codReason ? "border-red-300" : ""}
+              />
+              {!formData.codReason && (
+                <p className="text-sm text-red-600">Please provide a reason for requiring COD</p>
+              )}
+            </div>
+          )}
+
+          {/* Annual Purchase Value - Only for Credit Terms types */}
+          {(formData.purchaseType === 'CREDIT_TERMS' || formData.purchaseType === 'CREDIT_TERMS_IP_SHARED') && (
+            <div className="space-y-2">
+              <Label htmlFor="annualPurchaseValue">Annual Purchase Value Range (optional)</Label>
               <Select 
                 value={formData.annualPurchaseValue} 
                 onValueChange={(value) => handleInputChange('annualPurchaseValue', value)}
               >
-                <SelectTrigger 
-                  id="annualPurchaseValue"
-                  className={!formData.annualPurchaseValue ? "border-red-300" : ""}
-                >
-                  <SelectValue placeholder="Select annual purchase value range" />
+                <SelectTrigger id="annualPurchaseValue">
+                  <SelectValue placeholder="Select annual purchase value range (optional)" />
                 </SelectTrigger>
                 <SelectContent>
                   {(() => {
@@ -932,84 +877,26 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                   })()}
                 </SelectContent>
               </Select>
-              {!formData.annualPurchaseValue && (
-                <p className="text-sm text-red-600">Please select an annual purchase value range</p>
-              )}
-            </div>
-          )}
-
-          {/* Payment Method - Required for both Regular and Shared IP */}
-          {formData.purchaseType && (
-            <div className="space-y-2">
-              <Label htmlFor="paymentMethod">Payment Method *</Label>
-              <Select 
-                value={formData.paymentMethod} 
-                onValueChange={(value) => {
-                  handleInputChange('paymentMethod', value)
-                  // Clear COD reason if switching away from COD
-                  if (value !== 'COD') {
-                    handleInputChange('codReason', "")
-                  } else {
-                    // If COD is selected, automatically set credit application to false
-                    handleInputChange('creditApplication', false)
-                    handleInputChange('creditApplicationReason', "")
-                  }
-                }}
-              >
-                <SelectTrigger 
-                  id="paymentMethod"
-                  className={!formData.paymentMethod ? "border-red-300" : ""}
-                >
-                  <SelectValue placeholder="Select payment method" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="AC">A/C (Account)</SelectItem>
-                  <SelectItem value="COD">COD (Cash on Delivery)</SelectItem>
-                </SelectContent>
-              </Select>
-              {!formData.paymentMethod && (
-                <p className="text-sm text-red-600">Please select a payment method</p>
-              )}
-            </div>
-          )}
-
-          {/* COD Reason - Required if COD is selected */}
-          {formData.paymentMethod === 'COD' && (
-            <div className="space-y-2">
-              <Label htmlFor="codReason">Reason for COD *</Label>
-              <Textarea
-                id="codReason"
-                value={formData.codReason}
-                onChange={(e) => handleInputChange('codReason', e.target.value)}
-                placeholder="Provide reason for requiring COD payment"
-                rows={3}
-                className={!formData.codReason ? "border-red-300" : ""}
-              />
-              {!formData.codReason && (
-                <p className="text-sm text-red-600">Please provide a reason for requiring COD payment</p>
-              )}
             </div>
           )}
 
           <Separator />
 
-          {/* Credit Application */}
+          {/* Credit Application - Only for Credit Terms types */}
+          {(formData.purchaseType === 'CREDIT_TERMS' || formData.purchaseType === 'CREDIT_TERMS_IP_SHARED') && (
+            <>
           <div className="flex items-center space-x-2">
             <Checkbox 
               id="creditApplication"
               checked={formData.creditApplication}
               onCheckedChange={(checked) => handleInputChange('creditApplication', checked)}
-              disabled={formData.paymentMethod === 'COD'}
             />
-            <Label htmlFor="creditApplication" className={formData.paymentMethod === 'COD' ? "text-gray-400" : ""}>
+            <Label htmlFor="creditApplication">
               Credit Application *
-              {formData.paymentMethod === 'COD' && (
-                <span className="ml-2 text-xs text-gray-500">(Not applicable for COD)</span>
-              )}
             </Label>
           </div>
 
-          {!formData.creditApplication && formData.paymentMethod !== 'COD' && (
+          {!formData.creditApplication && (
             <div className="ml-6 space-y-2">
               <Label htmlFor="creditApplicationReason">Reason for No Credit Application *</Label>
               <Textarea
@@ -1024,6 +911,8 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                 <p className="text-sm text-red-600">Please provide a reason for not requiring credit application</p>
               )}
             </div>
+          )}
+            </>
           )}
 
           <Separator />

@@ -1,84 +1,130 @@
 export type PurchaseType = 'REGULAR' | 'ONCE_OFF' | 'SHARED_IP'
 export type PaymentMethod = 'COD' | 'AC'
 
+const NEW_PURCHASE_TYPES = ['COD', 'COD_IP_SHARED', 'CREDIT_TERMS', 'CREDIT_TERMS_IP_SHARED'] as const
+
 /**
- * Get the list of required documents based on purchase type, credit application status, and payment method
- * @param purchaseType - The type of purchase (REGULAR, ONCE_OFF, SHARED_IP)
- * @param creditApplication - Whether credit application is required
- * @param paymentMethod - The payment method (COD or AC)
- * @returns Array of document keys that are required
+ * Maps purchase type (including new 4-category: COD, COD_IP_SHARED, CREDIT_TERMS, CREDIT_TERMS_IP_SHARED)
+ * to legacy PurchaseType and PaymentMethod for document logic.
  */
-export function getRequiredDocuments(
-  purchaseType: PurchaseType,
-  creditApplication: boolean,
+export function toLegacyPurchaseInfo(
+  purchaseType: string,
   paymentMethod?: PaymentMethod | string | null
-): string[] {
-  console.log('🔍 getRequiredDocuments called with:', { purchaseType, creditApplication, paymentMethod })
-  
-  // Base mandatory documents for all suppliers
-  let baseDocs = [
-    'cipcCertificate',      // CIPC Certificate (Company Registration)
-    'bbbeeScorecard',       // BBBEE Scorecard Report or Affidavit
-    'taxClearance',         // Tax Clearance Certificate
-    'bankConfirmation',     // Bank Confirmation Letter
-  ]
-
-  // Add NDA only for SHARED_IP purchase type (and only if payment method is NOT COD)
-  const shouldAddNDA = purchaseType === 'SHARED_IP' && paymentMethod !== 'COD'
-  console.log('   Should add NDA?', shouldAddNDA, '(purchaseType === SHARED_IP:', purchaseType === 'SHARED_IP', 'paymentMethod !== COD:', paymentMethod !== 'COD', ')')
-  
-  if (shouldAddNDA) {
-    baseDocs.push('nda')                  // Non-Disclosure Agreement
-    console.log('   ✅ NDA added to required documents')
-  } else {
-    console.log('   ❌ NDA NOT added - purchase type is', purchaseType, 'not SHARED_IP')
+): { purchaseType: PurchaseType; paymentMethod: PaymentMethod } {
+  if (purchaseType === 'COD' || purchaseType === 'COD_IP_SHARED') {
+    return {
+      purchaseType: purchaseType === 'COD' ? 'REGULAR' : 'SHARED_IP',
+      paymentMethod: 'COD'
+    }
   }
-
-  // Add Credit Application only if payment is Account AND initiator requested credit
-  // (If initiator chose "No credit" with a reason, do not require the form)
-  if (paymentMethod !== 'COD' && creditApplication) {
-    baseDocs.push('creditApplication')    // Credit Application Form
+  if (purchaseType === 'CREDIT_TERMS' || purchaseType === 'CREDIT_TERMS_IP_SHARED') {
+    return {
+      purchaseType: purchaseType === 'CREDIT_TERMS' ? 'REGULAR' : 'SHARED_IP',
+      paymentMethod: 'AC'
+    }
   }
-
-  // Optional documents that may be included
-  const optionalDocs = [
-    'vatCertificate',       // VAT Registration Certificate (if applicable)
-  ]
-
-  // Return all documents (base + optional)
-  const allDocs = [...baseDocs, ...optionalDocs]
-  console.log('   📋 Final required documents:', allDocs)
-  return allDocs
+  return {
+    purchaseType: purchaseType as PurchaseType,
+    paymentMethod: (paymentMethod === 'COD' ? 'COD' : 'AC') as PaymentMethod
+  }
 }
 
 /**
- * Get the list of mandatory documents (excluding optional ones)
- * @param purchaseType - The type of purchase (REGULAR, ONCE_OFF, SHARED_IP)
- * @param creditApplication - Whether credit application is required
- * @param paymentMethod - The payment method (COD or AC)
- * @returns Array of mandatory document keys
+ * Get display label for purchase type (supports legacy and new 4-category types).
  */
-export function getMandatoryDocuments(
-  purchaseType: PurchaseType,
+export function getPurchaseTypeDisplayName(purchaseType: string | null | undefined): string {
+  if (!purchaseType) return ''
+  const labels: Record<string, string> = {
+    COD: 'COD',
+    COD_IP_SHARED: 'COD IP Shared',
+    CREDIT_TERMS: 'Credit Terms',
+    CREDIT_TERMS_IP_SHARED: 'Credit Terms IP Shared',
+    REGULAR: 'Regular Purchase',
+    ONCE_OFF: 'Once-off Purchase',
+    SHARED_IP: 'Shared IP'
+  }
+  return labels[purchaseType] ?? purchaseType.replace(/_/g, ' ')
+}
+
+/**
+ * Get the list of required documents (shown to supplier; includes all that may apply).
+ * Rules: (1) All 4 categories: Company Reg, BBBEE, Tax Clearance/Good Standing, Bank Confirmation; (2) If VAT registered, VAT Certificate; (3) COD IP Shared & Credit Terms IP Shared: NDA mandatory; (4) Credit Application included for all but only mandatory when credit application box was selected.
+ * @param purchaseType - The type of purchase (REGULAR, ONCE_OFF, SHARED_IP, or COD, COD_IP_SHARED, CREDIT_TERMS, CREDIT_TERMS_IP_SHARED)
+ * @param creditApplication - Whether the initiator selected the credit application box (makes credit application mandatory)
+ * @param paymentMethod - The payment method (COD or AC) - optional when using new 4-category purchase types
+ * @param vatRegistered - If true, VAT Certificate is included (and mandatory when true)
+ */
+export function getRequiredDocuments(
+  purchaseType: PurchaseType | string,
   creditApplication: boolean,
-  paymentMethod?: PaymentMethod | string | null
+  paymentMethod?: PaymentMethod | string | null,
+  vatRegistered?: boolean
 ): string[] {
-  // Base mandatory documents
-  let mandatoryDocs = [
-    'cipcCertificate',      // CIPC Certificate (Company Registration)
-    'bbbeeScorecard',       // BBBEE Scorecard Report or Affidavit
-    'taxClearance',         // Tax Clearance Certificate
-    'bankConfirmation',     // Bank Confirmation Letter
+  const legacy = NEW_PURCHASE_TYPES.includes(purchaseType as any)
+    ? toLegacyPurchaseInfo(purchaseType)
+    : { purchaseType: purchaseType as PurchaseType, paymentMethod: (paymentMethod === 'COD' ? 'COD' : 'AC') as PaymentMethod }
+  const { purchaseType: pt } = legacy
+
+  // 1–4: Mandatory for all 4 categories
+  const baseDocs = [
+    'cipcCertificate',      // 1. Company Reg (CIPC / Company Registration)
+    'bbbeeScorecard',      // 2. BBBEE certificate
+    'taxClearance',        // 3. Tax Clearance / Good Standing
+    'bankConfirmation',    // 4. Bank Confirmation Letter
   ]
 
-  // Add NDA only for SHARED_IP purchase type (and only if payment method is NOT COD)
-  if (purchaseType === 'SHARED_IP' && paymentMethod !== 'COD') {
-    mandatoryDocs.push('nda')                  // Non-Disclosure Agreement
+  // 5. VAT Certificate – mandatory only if VAT registered
+  if (vatRegistered === true) {
+    baseDocs.push('vatCertificate')
   }
 
-  // Add Credit Application only if payment is Account AND initiator requested credit
-  if (paymentMethod !== 'COD' && creditApplication) {
-    mandatoryDocs.push('creditApplication')    // Credit Application Form
+  // NDA – mandatory for COD IP Shared and Credit Terms IP Shared only (i.e. when pt is SHARED_IP)
+  if (pt === 'SHARED_IP') {
+    baseDocs.push('nda')
+  }
+
+  // Credit Application – included for all (shown to supplier) but only mandatory when credit application box was selected (handled in getMandatoryDocuments)
+  baseDocs.push('creditApplication')
+
+  return baseDocs
+}
+
+/**
+ * Get the list of mandatory documents (must be provided to submit).
+ * Rules: (1) All 4 categories: Company Reg, BBBEE, Tax Clearance/Good Standing, Bank Confirmation; (2) If VAT registered, VAT Certificate; (3) COD IP Shared & Credit Terms IP Shared: NDA; (4) Credit Application only mandatory when credit application box was selected.
+ */
+export function getMandatoryDocuments(
+  purchaseType: PurchaseType | string,
+  creditApplication: boolean,
+  paymentMethod?: PaymentMethod | string | null,
+  vatRegistered?: boolean
+): string[] {
+  const legacy = NEW_PURCHASE_TYPES.includes(purchaseType as any)
+    ? toLegacyPurchaseInfo(purchaseType)
+    : { purchaseType: purchaseType as PurchaseType, paymentMethod: (paymentMethod === 'COD' ? 'COD' : 'AC') as PaymentMethod }
+  const { purchaseType: pt, paymentMethod: pm } = legacy
+
+  // 1–4: Mandatory for all 4 categories
+  const mandatoryDocs = [
+    'cipcCertificate',      // 1. Company Reg
+    'bbbeeScorecard',       // 2. BBBEE certificate
+    'taxClearance',         // 3. Tax Clearance / Good Standing
+    'bankConfirmation',     // 4. Bank Confirmation Letter
+  ]
+
+  // 5. VAT Certificate – mandatory only if VAT registered
+  if (vatRegistered === true) {
+    mandatoryDocs.push('vatCertificate')
+  }
+
+  // NDA – mandatory for COD IP Shared and Credit Terms IP Shared only
+  if (pt === 'SHARED_IP') {
+    mandatoryDocs.push('nda')
+  }
+
+  // Credit Application – mandatory only when initiator selected the credit application box (not for COD; for Credit Terms only when selected)
+  if (pm !== 'COD' && creditApplication) {
+    mandatoryDocs.push('creditApplication')
   }
 
   return mandatoryDocs
@@ -108,18 +154,14 @@ export function getDocumentDisplayName(key: string): string {
 
 /**
  * Check if a document is mandatory
- * @param key - The document key
- * @param purchaseType - The type of purchase
- * @param creditApplication - Whether credit application is required
- * @param paymentMethod - The payment method (COD or AC)
- * @returns Whether the document is mandatory
  */
 export function isDocumentMandatory(
   key: string,
-  purchaseType: PurchaseType,
+  purchaseType: PurchaseType | string,
   creditApplication: boolean,
-  paymentMethod?: PaymentMethod | string | null
+  paymentMethod?: PaymentMethod | string | null,
+  vatRegistered?: boolean
 ): boolean {
-  const mandatoryDocs = getMandatoryDocuments(purchaseType, creditApplication, paymentMethod)
+  const mandatoryDocs = getMandatoryDocuments(purchaseType, creditApplication, paymentMethod, vatRegistered)
   return mandatoryDocs.includes(key)
 }

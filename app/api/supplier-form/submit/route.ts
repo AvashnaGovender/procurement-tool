@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       contactNumber: formData.get('contactNumber')?.toString() || '',
       emailAddress: formData.get('emailAddress')?.toString() || '',
       natureOfBusiness: formData.get('natureOfBusiness')?.toString() || '',
-      productsAndServices: formData.get('productsAndServices')?.toString() || '',
+      productsAndServices: formData.get('productsAndServices')?.toString() || formData.get('natureOfBusiness')?.toString() || '',
       associatedCompany: formData.get('associatedCompany')?.toString() || '',
       associatedCompanyRegistrationNo: formData.get('associatedCompanyRegistrationNo')?.toString() || '',
       branchesContactNumbers: formData.get('branchesContactNumbers')?.toString() || '',
@@ -44,14 +44,18 @@ export async function POST(request: NextRequest) {
       rpSHE: formData.get('rpSHE')?.toString() || '',
       rpSHEPhone: formData.get('rpSHEPhone')?.toString() || '',
       rpSHEEmail: formData.get('rpSHEEmail')?.toString() || '',
-      bbbeeStatus: formData.get('bbbeeStatus')?.toString() || '',
+      bbbeeLevel: formData.get('bbbeeLevel')?.toString() || formData.get('bbbeeStatus')?.toString() || '',
+      qualityCertification: formData.get('qualityCertification')?.toString() || '',
+      qualityCertificationText: formData.get('qualityCertificationText')?.toString() || '',
+      healthSafetyCertification: formData.get('healthSafetyCertification')?.toString() || '',
+      healthSafetyCertificationText: formData.get('healthSafetyCertificationText')?.toString() || '',
       numberOfEmployees: formData.get('numberOfEmployees')?.toString() || '0',
       rpBBBEE: formData.get('rpBBBEE')?.toString() || '',
       rpBBBEEPhone: formData.get('rpBBBEEPhone')?.toString() || '',
       rpBBBEEEmail: formData.get('rpBBBEEEmail')?.toString() || '',
       associatedCompanyBranchName: formData.get('associatedCompanyBranchName')?.toString() || '',
-      qualityManagementCert: formData.get('qualityManagementCert') === 'true',
-      sheCertification: formData.get('sheCertification') === 'true',
+      qualityManagementCert: (formData.get('qualityCertification')?.toString() || formData.get('qualityManagementCert')?.toString()) === 'Yes' || formData.get('qualityManagementCert') === 'true',
+      sheCertification: (formData.get('healthSafetyCertification')?.toString() || formData.get('sheCertification')?.toString()) === 'Yes' || formData.get('sheCertification') === 'true',
       authorizationAgreement: formData.get('authorizationAgreement') === 'true',
       field39: formData.get('field39')?.toString() || '',
       vatRegistered: formData.get('vatRegistered') === 'true',
@@ -62,7 +66,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!supplierData.supplierName || !supplierData.emailAddress) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields: Supplier Name and Email Address are required' },
+        { success: false, error: 'Missing required fields: Registered Name of Business and Email Address are required' },
         { status: 400 }
       )
     }
@@ -225,7 +229,7 @@ export async function POST(request: NextRequest) {
       rpSHE: supplierData.rpSHE,
       rpSHEPhone: supplierData.rpSHEPhone,
       rpSHEEmail: supplierData.rpSHEEmail,
-      bbbeeLevel: supplierData.bbbeeStatus,
+      bbbeeLevel: supplierData.bbbeeLevel,
       numberOfEmployees: parseInt(supplierData.numberOfEmployees) || 0,
       rpBBBEE: supplierData.rpBBBEE,
       rpBBBEEPhone: supplierData.rpBBBEEPhone,
@@ -246,6 +250,8 @@ export async function POST(request: NextRequest) {
         vatRegistered: supplierData.vatRegistered,
         noCreditApplicationProcess: supplierData.noCreditApplicationProcess,
         postalSameAsPhysical: supplierData.postalSameAsPhysical,
+        qualityCertificationText: supplierData.qualityCertificationText || undefined,
+        healthSafetyCertificationText: supplierData.healthSafetyCertificationText || undefined,
         allVersions: existingSupplier?.airtableData?.allVersions 
           ? [...existingSupplier.airtableData.allVersions, { version: versionNumber, uploadedFiles, date: new Date().toISOString() }]
           : [{ version: versionNumber, uploadedFiles, date: new Date().toISOString() }]
@@ -385,15 +391,28 @@ export async function POST(request: NextRequest) {
           console.log('📧 Using admin emails as fallback for notifications:', recipientEmails)
         }
       }
+      // Fallback: env-based notification email so PM always gets notified if set
+      if (recipientEmails.length === 0) {
+        const fallbackEmail = process.env.PM_NOTIFICATION_EMAIL || process.env.NOTIFICATION_EMAIL
+        if (fallbackEmail) {
+          recipientEmails = [fallbackEmail]
+          recipientNames = ['Procurement']
+          console.log('📧 Using fallback notification email from env:', fallbackEmail)
+        }
+      }
     } catch (error) {
-      console.log('⚠️ Could not determine recipient emails, will use system default')
+      console.log('⚠️ Could not determine recipient emails:', error)
     }
 
-    // Send email notifications
+    // Send email notifications (skip only if no recipients at all; sendEmailNotifications will skip if SMTP not configured)
     try {
-      console.log('📧 Attempting to send email notifications to Procurement Managers...')
-      await sendEmailNotifications(supplier, supplierData, uploadedFiles, recipientEmails, recipientNames, existingOnboarding)
-      console.log('✅ Email notifications sent successfully')
+      if (recipientEmails.length === 0) {
+        console.warn('⚠️ No PM or fallback emails configured; skipping email notification. Set role PROCUREMENT_MANAGER for users or PM_NOTIFICATION_EMAIL env.')
+      } else {
+        console.log('📧 Attempting to send email notifications to Procurement Managers...')
+        await sendEmailNotifications(supplier, supplierData, uploadedFiles, recipientEmails, recipientNames, existingOnboarding)
+        console.log('✅ Email notifications sent successfully')
+      }
     } catch (emailError) {
       console.error('⚠️ Email notification failed (form still submitted):')
       console.error(emailError)
@@ -433,23 +452,39 @@ async function sendEmailNotifications(
 ) {
   try {
     console.log('📧 sendEmailNotifications called')
-    console.log('PM emails:', pmEmails.join(', '))
+    console.log('PM emails:', pmEmails.length ? pmEmails.join(', ') : '(none)')
     console.log('Supplier email:', supplierData.emailAddress)
-    
-    // Load SMTP configuration
+
+    if (pmEmails.length === 0) {
+      console.warn('⚠️ No recipient emails provided to sendEmailNotifications')
+      return
+    }
+
+    // Load SMTP configuration (same path as lib/email-sender)
     const configPath = join(process.cwd(), 'data', 'smtp-config.json')
-    const configData = await readFile(configPath, 'utf8')
-    const smtpConfig = JSON.parse(configData)
+    if (!existsSync(configPath)) {
+      console.error('⚠️ SMTP config file not found at data/smtp-config.json - PM notification skipped. Configure SMTP in Settings.')
+      return
+    }
+    let smtpConfig: any
+    try {
+      const configData = await readFile(configPath, 'utf8')
+      smtpConfig = JSON.parse(configData)
+    } catch (configError) {
+      console.error('⚠️ Failed to read or parse data/smtp-config.json:', configError)
+      return
+    }
 
     console.log('SMTP Config loaded:', {
-      host: smtpConfig.host,
-      port: smtpConfig.port,
-      user: smtpConfig.user,
-      hasPassword: !!smtpConfig.pass
+      host: smtpConfig?.host,
+      port: smtpConfig?.port,
+      user: smtpConfig?.user,
+      hasPassword: !!(smtpConfig?.pass || smtpConfig?.password),
+      fromEmail: smtpConfig?.fromEmail || '(not set)'
     })
 
     if (!smtpConfig || !smtpConfig.host) {
-      console.log('⚠️ SMTP not configured, skipping email notifications')
+      console.error('⚠️ SMTP not configured (missing host in data/smtp-config.json), skipping email notifications')
       return
     }
 

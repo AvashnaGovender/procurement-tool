@@ -20,7 +20,15 @@ export async function GET(
                   select: {
                     id: true,
                     name: true,
-                    email: true
+                    email: true,
+                    managerId: true,
+                    manager: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true
+                      }
+                    }
                   }
                 }
               }
@@ -35,6 +43,50 @@ export async function GET(
         { success: false, error: 'Supplier not found' },
         { status: 404 }
       )
+    }
+
+    // Load initiator + manager from DB using onboarding.initiationId so we never rely on nested include shape
+    const onboarding = (supplier as any).onboarding
+    const initiationId = onboarding?.initiationId ?? onboarding?.initiation?.id
+    if (initiationId && onboarding?.initiation) {
+      const initiationRow = await prisma.supplierInitiation.findUnique({
+        where: { id: initiationId },
+        select: { initiatedById: true }
+      })
+      const initiatedById = initiationRow?.initiatedById ?? (onboarding.initiation as any)?.initiatedById ?? (onboarding.initiation as any)?.initiatedBy?.id
+      if (initiatedById) {
+        const userWithManager = await prisma.user.findUnique({
+          where: { id: initiatedById },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            managerId: true,
+            manager: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        })
+        if (userWithManager) {
+          let manager = userWithManager.manager
+          if (!manager && userWithManager.managerId) {
+            const managerUser = await prisma.user.findUnique({
+              where: { id: userWithManager.managerId },
+              select: { id: true, name: true, email: true }
+            })
+            if (managerUser) manager = managerUser
+          }
+          ;(supplier as any).onboarding.initiation.initiatedBy = {
+            id: userWithManager.id,
+            name: userWithManager.name,
+            email: userWithManager.email,
+            managerId: userWithManager.managerId,
+            manager: manager
+              ? { id: manager.id, name: manager.name, email: manager.email }
+              : null
+          }
+        }
+      }
     }
 
     return NextResponse.json({

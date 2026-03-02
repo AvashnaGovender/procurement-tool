@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import { getPurchaseTypeDisplayName } from './document-requirements'
 
 interface FinalApprovalPackageData {
   // Supplier Information (from supplier questionnaire)
@@ -292,10 +293,11 @@ export async function generateFinalApprovalPackagePDF(data: FinalApprovalPackage
     yPosition -= 20
 
     drawSectionHeader('PURCHASE DETAILS')
-    drawKeyValue('Purchase Type', data.initiation.purchaseType.replace(/_/g, ' '))
-    drawKeyValue('Payment Method', data.initiation.paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)')
+    const paymentMethod = ['COD', 'COD_IP_SHARED'].includes(data.initiation.purchaseType) ? 'COD' : (data.initiation.paymentMethod || 'AC')
+    drawKeyValue('Purchase Type', getPurchaseTypeDisplayName(data.initiation.purchaseType))
+    drawKeyValue('Payment Method', paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)')
     
-    if (data.initiation.paymentMethod === 'COD' && data.initiation.codReason) {
+    if ((data.initiation.purchaseType === 'COD' || data.initiation.purchaseType === 'COD_IP_SHARED' || paymentMethod === 'COD') && data.initiation.codReason) {
       yPosition -= 10
       drawWrappedText(`COD Reason: ${data.initiation.codReason}`, 10, timesRomanFont)
     }
@@ -306,7 +308,8 @@ export async function generateFinalApprovalPackagePDF(data: FinalApprovalPackage
       drawKeyValue('Currency', data.initiation.customCurrency || data.initiation.currency)
     }
 
-    if (data.initiation.purchaseType === 'REGULAR' && data.initiation.annualPurchaseValue) {
+    const showAnnualValue = data.initiation.purchaseType === 'REGULAR' || data.initiation.purchaseType === 'CREDIT_TERMS' || data.initiation.purchaseType === 'CREDIT_TERMS_IP_SHARED'
+    if (showAnnualValue && data.initiation.annualPurchaseValue) {
       const symbol = data.initiation.supplierLocation === 'LOCAL' ? 'R' : (data.initiation.currency || 'USD')
       let valueRange = ''
       if (data.initiation.annualPurchaseValue <= 100000) {

@@ -20,6 +20,7 @@ import { CheckCircle, XCircle, Clock, User, Building2, DollarSign, AlertCircle, 
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { SupplierInitiationStatus } from "@/components/suppliers/supplier-initiation-status"
+import { getPurchaseTypeDisplayName } from "@/lib/document-requirements"
 
 // Helper function to get currency symbol
 function getCurrencySymbol(currency: string | null | undefined, supplierLocation: string | null | undefined): string {
@@ -436,14 +437,7 @@ export default function SupplierInitiationsPage() {
                                 <div>
                                   <Label className="text-sm font-medium text-gray-600">Purchase Type</Label>
                                   <p className="text-sm">
-                                    {(() => {
-                                      if (initiation.purchaseType === 'REGULAR') return 'Regular Purchase'
-                                      if (initiation.purchaseType === 'ONCE_OFF') return 'Once-off Purchase'
-                                      if (initiation.purchaseType === 'SHARED_IP') return 'Shared IP'
-                                      if (initiation.regularPurchase) return 'Regular Purchase'
-                                      if (initiation.onceOffPurchase) return 'Once-off Purchase'
-                                      return 'Not specified'
-                                    })()}
+                                    {getPurchaseTypeDisplayName(initiation.purchaseType) || (initiation.regularPurchase ? 'Regular Purchase' : initiation.onceOffPurchase ? 'Once-off Purchase' : 'Not specified')}
                                   </p>
                                 </div>
                                 {initiation.annualPurchaseValue && (

@@ -8,6 +8,7 @@ import path from 'path'
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
 import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
 import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
+import { getPurchaseTypeDisplayName } from '@/lib/document-requirements'
 import { readdir, readFile } from 'fs/promises'
 
 export async function POST(request: NextRequest) {
@@ -573,9 +574,17 @@ async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string 
       
       <div class="info-box">
         <div class="info-box-title">Your Supplier Details</div>
-        <div class="info-item"><strong>Company Name:</strong> ${supplier.companyName}</div>
-        <div class="info-item"><strong>Supplier Code:</strong> ${supplier.supplierCode}</div>
+        <div class="info-item"><strong>Registered Name of Business:</strong> ${supplier.supplierName || supplier.companyName}</div>
+        <div class="info-item"><strong>Trading Name:</strong> ${supplier.tradingName || '—'}</div>
+        <div class="info-item"><strong>Business Telephone No.:</strong> ${supplier.contactPhone || '—'}</div>
+        <div class="info-item"><strong>Business email address:</strong> ${supplier.contactEmail}</div>
+        <div class="info-item"><strong>Products &amp; Services:</strong> ${supplier.natureOfBusiness || supplier.productsAndServices || '—'}</div>
         <div class="info-item"><strong>Contact Person:</strong> ${supplier.contactPerson}</div>
+        <div class="info-item"><strong>BBBEE Level:</strong> ${supplier.bbbeeLevel || '—'}</div>
+        <div class="info-item"><strong>Quality certification:</strong> ${supplier.qualityManagementCert ? 'Yes' : (supplier.qualityManagementCert === false ? 'No' : '—')}</div>
+        <div class="info-item"><strong>Health &amp; Safety certification:</strong> ${supplier.sheCertification ? 'Yes' : (supplier.sheCertification === false ? 'No' : '—')}</div>
+        <div class="info-item"><strong>VAT Registered:</strong> ${(supplier.airtableData && (supplier.airtableData as { vatRegistered?: boolean }).vatRegistered) ? 'Yes' : 'No'}</div>
+        <div class="info-item"><strong>Supplier Code:</strong> ${supplier.supplierCode}</div>
         <div class="info-item"><strong>Status:</strong> <span style="color: #10b981; font-weight: bold;">APPROVED</span></div>
       </div>
       
@@ -2028,6 +2037,7 @@ async function sendPMApprovalPackage(
 
     // Generate PDF Summary
     try {
+      const airtable = (supplier.airtableData || {}) as { vatRegistered?: boolean; qualityCertificationText?: string; healthSafetyCertificationText?: string }
       const pdfBuffer = await generateApprovalSummaryPDF({
         supplier: {
           name: supplier.companyName || supplier.supplierName || 'Unknown',
@@ -2036,13 +2046,24 @@ async function sendPMApprovalPackage(
           contactEmail: supplier.contactEmail,
           contactPhone: supplier.contactPhone,
           address: supplier.physicalAddress,
+          physicalAddress: supplier.physicalAddress,
+          postalAddress: supplier.postalAddress,
           city: supplier.city,
           state: supplier.state,
           zipCode: supplier.zipCode,
           country: supplier.country,
           website: supplier.website,
           taxId: supplier.taxId,
-          dunsNumber: supplier.dunsNumber
+          dunsNumber: supplier.dunsNumber,
+          tradingName: supplier.tradingName,
+          natureOfBusiness: supplier.natureOfBusiness,
+          productsAndServices: supplier.productsAndServices,
+          bbbeeLevel: supplier.bbbeeLevel,
+          qualityCertification: supplier.qualityManagementCert ? 'Yes' : (supplier.qualityManagementCert === false ? 'No' : null),
+          qualityCertificationText: airtable.qualityCertificationText,
+          healthSafetyCertification: supplier.sheCertification ? 'Yes' : (supplier.sheCertification === false ? 'No' : null),
+          healthSafetyCertificationText: airtable.healthSafetyCertificationText,
+          vatRegistered: airtable.vatRegistered
         },
         initiation: {
           supplierName: initiation.supplierName,
@@ -2083,8 +2104,9 @@ async function sendPMApprovalPackage(
 
     // Generate Supplier Form PDF
     try {
+      const supplierFormAir = (supplier.airtableData || {}) as { vatRegistered?: boolean; qualityCertificationText?: string; healthSafetyCertificationText?: string }
       const supplierFormPdfBuffer = await generateSupplierFormPDF({
-        supplierName: supplier.supplierName,
+        supplierName: supplier.supplierName || supplier.companyName,
         companyName: supplier.companyName,
         contactPerson: supplier.contactPerson,
         contactEmail: supplier.contactEmail,
@@ -2092,19 +2114,14 @@ async function sendPMApprovalPackage(
         physicalAddress: supplier.physicalAddress,
         postalAddress: supplier.postalAddress,
         tradingName: supplier.tradingName,
-        registrationNumber: supplier.registrationNumber,
         natureOfBusiness: supplier.natureOfBusiness,
         productsAndServices: supplier.productsAndServices,
-        bankAccountName: supplier.bankAccountName,
-        bankName: supplier.bankName,
-        branchName: supplier.branchName,
-        branchNumber: supplier.branchNumber,
-        accountNumber: supplier.accountNumber,
-        typeOfAccount: supplier.typeOfAccount,
         bbbeeLevel: supplier.bbbeeLevel,
-        taxId: supplier.taxId,
-        vatNumber: supplier.vatNumber,
-        vatRegistered: (supplier.airtableData as { vatRegistered?: boolean } | null)?.vatRegistered
+        qualityCertification: supplier.qualityManagementCert ? 'Yes' : (supplier.qualityManagementCert === false ? 'No' : null),
+        qualityCertificationText: supplierFormAir.qualityCertificationText,
+        healthSafetyCertification: supplier.sheCertification ? 'Yes' : (supplier.sheCertification === false ? 'No' : null),
+        healthSafetyCertificationText: supplierFormAir.healthSafetyCertificationText,
+        vatRegistered: supplierFormAir.vatRegistered
       })
 
       attachments.push({
@@ -2217,7 +2234,7 @@ async function sendPMApprovalPackage(
         <ul style="margin: 10px 0;">
           <li><strong>Supplier:</strong> ${supplier.companyName || supplier.supplierName}</li>
           <li><strong>Code:</strong> ${supplier.supplierCode}</li>
-          <li><strong>Purchase Type:</strong> ${initiation.purchaseType.replace(/_/g, ' ')}</li>
+          <li><strong>Purchase Type:</strong> ${getPurchaseTypeDisplayName(initiation.purchaseType) || initiation.purchaseType?.replace(/_/g, ' ') || '—'}</li>
           <li><strong>Business Unit(s):</strong> ${Array.isArray(initiation.businessUnit) ? initiation.businessUnit.join(', ') : initiation.businessUnit}</li>
           ${creditController ? `<li><strong>Credit Controller:</strong> ${creditController}</li>` : ''}
         </ul>

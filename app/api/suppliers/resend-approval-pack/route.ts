@@ -136,6 +136,7 @@ async function sendPMApprovalPackage(
 
     // Generate PDFs
     console.log('📄 Generating approval summary PDF...')
+    const airtableResend = (supplier.airtableData || {}) as { vatRegistered?: boolean; qualityCertificationText?: string; healthSafetyCertificationText?: string }
     const approvalSummaryPDF = await generateApprovalSummaryPDF({
       supplier: {
         name: supplier.companyName || supplier.supplierName || 'Unknown',
@@ -144,13 +145,24 @@ async function sendPMApprovalPackage(
         contactEmail: supplier.contactEmail,
         contactPhone: supplier.contactPhone,
         address: supplier.physicalAddress,
+        physicalAddress: supplier.physicalAddress,
+        postalAddress: supplier.postalAddress,
         city: null,
         state: null,
         zipCode: null,
         country: null,
         website: null,
         taxId: supplier.taxId,
-        dunsNumber: null
+        dunsNumber: null,
+        tradingName: supplier.tradingName,
+        natureOfBusiness: supplier.natureOfBusiness,
+        productsAndServices: supplier.productsAndServices,
+        bbbeeLevel: supplier.bbbeeLevel,
+        qualityCertification: supplier.qualityManagementCert ? 'Yes' : (supplier.qualityManagementCert === false ? 'No' : null),
+        qualityCertificationText: airtableResend.qualityCertificationText,
+        healthSafetyCertification: supplier.sheCertification ? 'Yes' : (supplier.sheCertification === false ? 'No' : null),
+        healthSafetyCertificationText: airtableResend.healthSafetyCertificationText,
+        vatRegistered: airtableResend.vatRegistered
       },
       initiation: {
         supplierName: initiation.supplierName,
@@ -173,7 +185,7 @@ async function sendPMApprovalPackage(
 
     console.log('📄 Generating supplier form PDF...')
     const supplierFormPDF = await generateSupplierFormPDF({
-      supplierName: supplier.companyName,
+      supplierName: supplier.supplierName || supplier.companyName,
       companyName: supplier.companyName,
       contactPerson: supplier.contactPerson,
       contactEmail: supplier.contactEmail,
@@ -181,8 +193,14 @@ async function sendPMApprovalPackage(
       physicalAddress: supplier.physicalAddress,
       postalAddress: supplier.postalAddress,
       tradingName: supplier.tradingName,
+      natureOfBusiness: supplier.natureOfBusiness,
+      productsAndServices: supplier.productsAndServices,
       bbbeeLevel: supplier.bbbeeLevel,
-      vatRegistered: (supplier.airtableData as { vatRegistered?: boolean } | null)?.vatRegistered
+      qualityCertification: supplier.qualityManagementCert ? 'Yes' : (supplier.qualityManagementCert === false ? 'No' : null),
+      qualityCertificationText: airtableResend.qualityCertificationText,
+      healthSafetyCertification: supplier.sheCertification ? 'Yes' : (supplier.sheCertification === false ? 'No' : null),
+      healthSafetyCertificationText: airtableResend.healthSafetyCertificationText,
+      vatRegistered: airtableResend.vatRegistered
     })
 
     console.log('📄 Generating initiator checklist PDF...')

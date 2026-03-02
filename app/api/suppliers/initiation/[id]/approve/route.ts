@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-sender'
+import { getPurchaseTypeDisplayName } from '@/lib/document-requirements'
 
 // Helper function to get currency symbol
 function getCurrencySymbol(currency: string | null | undefined, supplierLocation: string | null | undefined): string {
@@ -332,7 +333,7 @@ Your onboarding request has been reviewed and approved. We're excited to begin w
 <strong>Your Request Details:</strong>
 - Business Unit: ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200')}
 - Product/Service Category: ${initiationDetails.productServiceCategory}
-${(initiationDetails as any).purchaseType ? `- Purchase Type: ${(initiationDetails as any).purchaseType === 'REGULAR' ? 'Regular Purchase' : (initiationDetails as any).purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'}` : ''}
+${(initiationDetails as any).purchaseType ? `- Purchase Type: ${getPurchaseTypeDisplayName((initiationDetails as any).purchaseType)}` : ''}
 ${(initiationDetails as any).annualPurchaseValue ? `- Annual Purchase Value: ${formatAnnualPurchaseValue((initiationDetails as any).annualPurchaseValue, (initiationDetails as any).currency, (initiationDetails as any).supplierLocation)}` : ''}
 
 <strong>Next Step:</strong>

@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import fs from 'fs'
 import path from 'path'
+import { getPurchaseTypeDisplayName } from './document-requirements'
 
 interface SupplierData {
   name: string
@@ -9,6 +10,8 @@ interface SupplierData {
   contactEmail?: string | null
   contactPhone?: string | null
   address?: string | null
+  physicalAddress?: string | null
+  postalAddress?: string | null
   city?: string | null
   state?: string | null
   zipCode?: string | null
@@ -16,6 +19,15 @@ interface SupplierData {
   website?: string | null
   taxId?: string | null
   dunsNumber?: string | null
+  tradingName?: string | null
+  natureOfBusiness?: string | null
+  productsAndServices?: string | null
+  bbbeeLevel?: string | null
+  qualityCertification?: 'Yes' | 'No' | null
+  qualityCertificationText?: string | null
+  healthSafetyCertification?: 'Yes' | 'No' | null
+  healthSafetyCertificationText?: string | null
+  vatRegistered?: boolean | null
 }
 
 interface InitiationData {
@@ -147,32 +159,82 @@ export async function generateApprovalSummaryPDF(data: ApprovalSummaryData): Pro
     drawText(dateStr, 12, font, rgb(0.4, 0.4, 0.4), (pageWidth - dateWidth) / 2)
     yPosition -= 30
 
-    // Supplier Information
-    drawSection('SUPPLIER INFORMATION')
-    drawKeyValue('Supplier Name', data.supplier.name)
-    drawKeyValue('Supplier Code', data.supplier.supplierCode)
-    drawKeyValue('Contact Name', data.supplier.contactName)
-    drawKeyValue('Contact Email', data.supplier.contactEmail)
-    drawKeyValue('Contact Phone', data.supplier.contactPhone)
-    drawKeyValue('Address', data.supplier.address)
-    
-    const locationParts = [data.supplier.city, data.supplier.state, data.supplier.zipCode].filter(Boolean)
-    if (locationParts.length > 0) {
-      drawKeyValue('Location', locationParts.join(', '))
-    }
-    
-    drawKeyValue('Country', data.supplier.country)
-    drawKeyValue('Website', data.supplier.website)
-    drawKeyValue('Tax ID', data.supplier.taxId)
-    drawKeyValue('DUNS Number', data.supplier.dunsNumber)
+    // 1. Basic Information (matches supplier form Section 1)
+    drawSection('1. BASIC INFORMATION')
+    drawKeyValue('Registered Name of Business', data.supplier.name)
+    drawKeyValue('Trading Name', data.supplier.tradingName)
+    drawKeyValue('Business Telephone No.', data.supplier.contactPhone)
+    drawKeyValue('Business email address', data.supplier.contactEmail)
+    drawKeyValue('Products & Services', data.supplier.natureOfBusiness || data.supplier.productsAndServices)
     yPosition -= 20
+
+    // 2. Address Details
+    drawSection('2. ADDRESS DETAILS')
+    const physAddr = data.supplier.physicalAddress || data.supplier.address
+    if (physAddr) {
+      drawText('Physical Address:', 10, font)
+      drawWrappedText(physAddr, 10, font)
+      yPosition -= 5
+    } else {
+      drawKeyValue('Physical Address', null)
+    }
+    if (data.supplier.postalAddress) {
+      drawText('Postal Address:', 10, font)
+      drawWrappedText(data.supplier.postalAddress, 10, font)
+    } else {
+      drawKeyValue('Postal Address', null)
+    }
+    yPosition -= 20
+
+    // 3. Contact Details
+    drawSection('3. CONTACT DETAILS')
+    drawKeyValue('Contact Person', data.supplier.contactName)
+    drawKeyValue('Telephone Number', data.supplier.contactPhone)
+    drawKeyValue('Email address', data.supplier.contactEmail)
+    yPosition -= 20
+
+    // 4. Certifications
+    drawSection('4. CERTIFICATIONS')
+    drawKeyValue('BBBEE Level', data.supplier.bbbeeLevel)
+    drawKeyValue('Quality', data.supplier.qualityCertification ?? null)
+    if (data.supplier.qualityCertification === 'Yes' && data.supplier.qualityCertificationText) {
+      drawText('Quality certification:', 10, font)
+      drawWrappedText(data.supplier.qualityCertificationText, 10, font)
+      yPosition -= 5
+    }
+    drawKeyValue('Health & Safety', data.supplier.healthSafetyCertification ?? null)
+    if (data.supplier.healthSafetyCertification === 'Yes' && data.supplier.healthSafetyCertificationText) {
+      drawText('Health & Safety certification:', 10, font)
+      drawWrappedText(data.supplier.healthSafetyCertificationText, 10, font)
+      yPosition -= 5
+    }
+    drawKeyValue('VAT Registered', data.supplier.vatRegistered === true ? 'Yes' : data.supplier.vatRegistered === false ? 'No' : null)
+    yPosition -= 20
+
+    // Legacy / extra supplier info if present
+    const locationParts = [data.supplier.city, data.supplier.state, data.supplier.zipCode].filter(Boolean)
+    if (locationParts.length > 0 || data.supplier.country || data.supplier.website || data.supplier.taxId || data.supplier.dunsNumber) {
+      drawSection('SUPPLIER CODE & ADDITIONAL INFO')
+      drawKeyValue('Supplier Code', data.supplier.supplierCode)
+      if (locationParts.length > 0) drawKeyValue('Location', locationParts.join(', '))
+      drawKeyValue('Country', data.supplier.country)
+      drawKeyValue('Website', data.supplier.website)
+      drawKeyValue('Tax ID', data.supplier.taxId)
+      drawKeyValue('DUNS Number', data.supplier.dunsNumber)
+      yPosition -= 20
+    } else {
+      drawSection('SUPPLIER CODE')
+      drawKeyValue('Supplier Code', data.supplier.supplierCode)
+      yPosition -= 20
+    }
 
     // Initiation Request Details
     drawSection('INITIATION REQUEST DETAILS')
     drawKeyValue('Requested By', `${data.initiation.initiatedBy.name} (${data.initiation.initiatedBy.email})`)
     drawKeyValue('Request Date', data.initiation.createdAt.toLocaleDateString())
-    drawKeyValue('Purchase Type', data.initiation.purchaseType.replace(/_/g, ' '))
-    drawKeyValue('Payment Method', data.initiation.paymentMethod)
+    const paymentMethod = ['COD', 'COD_IP_SHARED'].includes(data.initiation.purchaseType) ? 'COD' : (data.initiation.paymentMethod || 'AC')
+    drawKeyValue('Purchase Type', getPurchaseTypeDisplayName(data.initiation.purchaseType))
+    drawKeyValue('Payment Method', paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : 'Account (AC)')
     
     const businessUnits = Array.isArray(data.initiation.businessUnit)
       ? data.initiation.businessUnit.join(', ')
