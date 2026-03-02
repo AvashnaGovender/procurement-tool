@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import nodemailer from 'nodemailer'
-import fs from 'fs'
 import path from 'path'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress } from '@/lib/smtp-admin'
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
 import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
 import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
@@ -114,26 +113,8 @@ async function sendPMApprovalPackage(
   try {
     console.log('📦 Preparing comprehensive approval package for PM:', pmUser.email)
 
-    // Load SMTP configuration
-    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
-    const configData = fs.readFileSync(configPath, 'utf8')
-    const smtpConfig = JSON.parse(configData)
-
-    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-      throw new Error('SMTP configuration not properly set up')
-    }
-
-    const port = Number(smtpConfig.port) || 587
-    const useSecure = port === 465
-    const transporter = nodemailer.createTransport({
-      host: smtpConfig.host,
-      port,
-      secure: useSecure,
-      auth: {
-        user: smtpConfig.user,
-        pass: smtpConfig.pass
-      }
-    })
+    const smtpConfig = loadAdminSmtpConfig()
+    const transporter = getMailTransporter(smtpConfig)
 
     // Generate PDFs
     console.log('📄 Generating approval summary PDF...')
@@ -399,12 +380,12 @@ async function sendPMApprovalPackage(
 </html>
     `
 
-    // Send email
+    const fromAddress = getFromAddress(smtpConfig)
     console.log(`📧 Sending approval package to PM: ${pmUser.email}`)
     console.log(`📎 Total attachments: ${attachments.length} (including 3 PDFs and ${documentsList.length} supplier documents)`)
     
     await transporter.sendMail({
-      from: `"${smtpConfig.companyName || 'SS Supplier Onboarding'}" <${smtpConfig.fromEmail}>`,
+      from: fromAddress,
       to: pmUser.email,
       subject: `Supplier Approval Package - ${supplier.companyName || supplier.supplierName} (${supplier.supplierCode})`,
       html: emailHtml,

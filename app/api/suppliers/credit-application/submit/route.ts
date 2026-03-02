@@ -3,9 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
-import nodemailer from 'nodemailer'
 import path from 'path'
-import fs from 'fs'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress } from '@/lib/smtp-admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -180,26 +179,8 @@ export async function POST(request: NextRequest) {
         supplierCode: supplierDetails.supplierCode
       })
 
-      // Load SMTP configuration
-      const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
-      const configData = fs.readFileSync(configPath, 'utf8')
-      const smtpConfig = JSON.parse(configData)
-
-      if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-        throw new Error('SMTP configuration not properly set up')
-      }
-
-      const port = Number(smtpConfig.port) || 587
-      const useSecure = port === 465
-      const transporter = nodemailer.createTransport({
-        host: smtpConfig.host,
-        port,
-        secure: useSecure,
-        auth: {
-          user: smtpConfig.user,
-          pass: smtpConfig.pass
-        }
-      })
+      const smtpConfig = loadAdminSmtpConfig()
+      const transporter = getMailTransporter(smtpConfig)
 
       // Get all Procurement Managers
       const procurementManagers = await prisma.user.findMany({
@@ -355,12 +336,12 @@ export async function POST(request: NextRequest) {
 </html>
         `
 
-        // Send email to each PM
+        const fromAddress = getFromAddress(smtpConfig)
         for (const pm of recipients) {
           console.log('📧 Sending credit application notification to:', pm.email)
           
           await transporter.sendMail({
-            from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
+            from: fromAddress,
             to: pm.email,
             subject: emailSubject,
             html: emailHtml,

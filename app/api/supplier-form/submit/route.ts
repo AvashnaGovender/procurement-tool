@@ -3,9 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
-import nodemailer from 'nodemailer'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress } from '@/lib/smtp-admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -460,51 +460,21 @@ async function sendEmailNotifications(
       return
     }
 
-    // Load SMTP configuration (same path as lib/email-sender)
-    const configPath = join(process.cwd(), 'data', 'smtp-config.json')
-    if (!existsSync(configPath)) {
-      console.error('⚠️ SMTP config file not found at data/smtp-config.json - PM notification skipped. Configure SMTP in Settings.')
-      return
-    }
-    let smtpConfig: any
+    let smtpConfig
     try {
-      const configData = await readFile(configPath, 'utf8')
-      smtpConfig = JSON.parse(configData)
+      smtpConfig = loadAdminSmtpConfig()
     } catch (configError) {
-      console.error('⚠️ Failed to read or parse data/smtp-config.json:', configError)
+      console.error('⚠️ SMTP not configured or failed to load (data/smtp-config.json). Skipping PM notification.', configError)
       return
     }
-
-    console.log('SMTP Config loaded:', {
-      host: smtpConfig?.host,
-      port: smtpConfig?.port,
-      user: smtpConfig?.user,
-      hasPassword: !!(smtpConfig?.pass || smtpConfig?.password),
-      fromEmail: smtpConfig?.fromEmail || '(not set)'
-    })
-
-    if (!smtpConfig || !smtpConfig.host) {
-      console.error('⚠️ SMTP not configured (missing host in data/smtp-config.json), skipping email notifications')
-      return
-    }
-
-    const port = Number(smtpConfig.port) || 587
-    const useSecure = port === 465
-    const transporter = nodemailer.createTransport({
-      host: smtpConfig.host,
-      port,
-      secure: useSecure,
-      auth: {
-        user: smtpConfig.user || smtpConfig.username,
-        pass: smtpConfig.pass || smtpConfig.password,
-      },
-    })
+    const transporter = getMailTransporter(smtpConfig)
+    console.log('SMTP (admin config):', { host: smtpConfig.host, from: getFromAddress(smtpConfig) })
 
     const totalFiles = Object.values(uploadedFiles).reduce((acc, files) => acc + files.length, 0)
     const documentCategories = Object.keys(uploadedFiles).join(', ')
 
     // Use Procurement Manager emails or fallback to company email
-    const recipientEmails = pmEmails.length > 0 ? pmEmails : [smtpConfig.fromEmail]
+    const recipientEmails = pmEmails.length > 0 ? pmEmails : [getFromAddress(smtpConfig)]
     const recipientNamesStr = pmNames.length > 0 ? pmNames.join(', ') : 'Procurement Team'
     
     console.log('\n📧 ===== SENDING EMAIL TO PROCUREMENT MANAGERS =====')
@@ -523,7 +493,7 @@ async function sendEmailNotifications(
 
     // 1. Send notification to Procurement Managers (NOT initiator)
     const pmNotification = {
-      from: smtpConfig.fromEmail,
+      from: getFromAddress(smtpConfig),
       to: recipientEmails.join(', '), // Send to all Procurement Managers
       subject: isRevision 
         ? `Supplier Revision Submitted: ${supplierData.supplierName} (Revision ${onboarding.revisionCount})`

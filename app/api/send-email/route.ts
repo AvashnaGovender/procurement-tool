@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs'
 import path from 'path'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress } from '@/lib/smtp-admin'
 
 export async function POST(request: NextRequest) {
   console.log('🚀 /api/send-email POST endpoint called!')
@@ -38,17 +38,9 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Load SMTP configuration from settings file
     let smtpConfig
-    
     try {
-      const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
-      const configData = fs.readFileSync(configPath, 'utf8')
-      smtpConfig = JSON.parse(configData)
-      
-      if (!smtpConfig) {
-        throw new Error('SMTP configuration not found')
-      }
+      smtpConfig = loadAdminSmtpConfig()
     } catch (error) {
       console.error('Failed to load SMTP config:', error)
       return NextResponse.json(
@@ -56,20 +48,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-    
-    // Validate email configuration
-    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-      console.error('Invalid email configuration:', { 
-        host: smtpConfig.host, 
-        user: smtpConfig.user, 
-        hasPass: !!smtpConfig.pass 
-      })
-      return NextResponse.json(
-        { success: false, message: 'Email service not properly configured. Please check SMTP settings.' },
-        { status: 500 }
-      )
-    }
-    
+
     // Use provided content (already templated from frontend)
     // emailSubject already defined above
     
@@ -143,7 +122,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// This function would integrate with your chosen email service
 async function sendEmailViaService({ 
   to, 
   subject, 
@@ -157,32 +135,14 @@ async function sendEmailViaService({
   content: string
   supplierName: string
   businessType: string
-  config: any
+  config: ReturnType<typeof loadAdminSmtpConfig>
 }) {
-  // Determine if this is an approval email (manager/procurement approval)
   const isApprovalEmail = subject.toLowerCase().includes('approval required') || 
                           subject.toLowerCase().includes('approval pending')
   
-  // Send email using Nodemailer
-  const nodemailer = require('nodemailer')
-  
   try {
-    console.log('Creating transporter with config:', {
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      user: config.user
-    })
-    
-    const transporter = nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: {
-        user: config.user,
-        pass: config.pass
-      }
-    })
+    const transporter = getMailTransporter(config)
+    console.log('Using admin SMTP config:', { host: config.host, port: Number(config.port) || 587, user: config.user })
     
     // Verify connection configuration
     console.log('🔍 Verifying SMTP connection...')
@@ -349,7 +309,7 @@ async function sendEmailViaService({
         `
         
         const mailOptions = {
-          from: `"${config.companyName || 'SS Supplier Onboarding'}" <${config.fromEmail}>`,
+          from: getFromAddress(config),
           to: to,
           subject: subject,
           html: htmlContent,

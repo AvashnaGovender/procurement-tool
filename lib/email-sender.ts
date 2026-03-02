@@ -1,6 +1,5 @@
-import fs from 'fs'
 import path from 'path'
-import nodemailer from 'nodemailer'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress } from '@/lib/smtp-admin'
 
 interface EmailOptions {
   to: string
@@ -47,22 +46,10 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
     }
   }
 
-  // Load SMTP configuration from settings file
+  // Use admin-captured SMTP settings only (data/smtp-config.json)
   let smtpConfig
-  
   try {
-    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
-    const configData = fs.readFileSync(configPath, 'utf8')
-    const raw = JSON.parse(configData)
-    if (!raw) throw new Error('SMTP configuration not found')
-    // Trim string fields so leading/trailing spaces don't break DNS
-    smtpConfig = {
-      ...raw,
-      host: typeof raw.host === 'string' ? raw.host.trim() : raw.host,
-      user: typeof raw.user === 'string' ? raw.user.trim() : raw.user,
-      pass: typeof raw.pass === 'string' ? raw.pass.trim() : raw.pass,
-      fromEmail: typeof raw.fromEmail === 'string' ? raw.fromEmail.trim() : raw.fromEmail,
-    }
+    smtpConfig = loadAdminSmtpConfig()
   } catch (error) {
     console.error('Failed to load SMTP config:', error)
     return {
@@ -70,20 +57,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
       message: 'Email service not configured. Please configure SMTP settings first in the Email Settings dialog.'
     }
   }
-  
-  // Validate email configuration
-  if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-    console.error('Invalid email configuration:', { 
-      host: smtpConfig.host, 
-      user: smtpConfig.user, 
-      hasPass: !!smtpConfig.pass 
-    })
-    return {
-      success: false,
-      message: 'Email service not properly configured. Please check SMTP settings.'
-    }
-  }
-  
+
   // Use provided content (already templated from frontend)
   const emailSubject = subject || 'Supplier Onboarding - Welcome'
   
@@ -147,29 +121,13 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   }
   console.log('========================')
   
-  // Port 465 = implicit SSL; 587/25 = STARTTLS (secure: false so we upgrade after connect)
-  const port = Number(smtpConfig.port) || 587
-  const useSecure = port === 465
-
-  const transporter = nodemailer.createTransport({
-    host: smtpConfig.host,
-    port,
-    secure: useSecure,
-    auth: {
-      user: smtpConfig.user,
-      pass: smtpConfig.pass,
-    },
-    tls: {
-      rejectUnauthorized: false
-    }
-  })
+  const transporter = getMailTransporter(smtpConfig)
 
   try {
-    console.log('Attempting to send email via SMTP...')
+    console.log('Attempting to send email via SMTP (admin config)...')
     console.log('SMTP Config:', {
       host: smtpConfig.host,
-      port,
-      secure: useSecure,
+      port: Number(smtpConfig.port) || 587,
       user: smtpConfig.user
     })
 
@@ -324,10 +282,8 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 </html>
     `
 
-    // Use address-only From to avoid "451 unable to verify sender" from strict SMTP providers (e.g. mtaroutes)
-    const fromAddress = smtpConfig.fromEmail || smtpConfig.user
     const mailOptions = {
-      from: fromAddress,
+      from: getFromAddress(smtpConfig),
       to: to,
       subject: emailSubject,
       html: htmlContent,

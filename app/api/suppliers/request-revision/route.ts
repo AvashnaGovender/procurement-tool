@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import nodemailer from 'nodemailer'
-import fs from 'fs'
 import path from 'path'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress } from '@/lib/smtp-admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -119,27 +118,8 @@ export async function POST(request: NextRequest) {
 
 async function sendRevisionRequestEmail(supplier: any, revisionNotes: string, onboardingToken: string | null) {
   try {
-    // Load SMTP configuration
-    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
-    const configData = fs.readFileSync(configPath, 'utf8')
-    const smtpConfig = JSON.parse(configData)
-
-    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-      throw new Error('SMTP configuration not properly set up')
-    }
-
-    // Port 465 = implicit SSL; 587/25 = STARTTLS (secure: false)
-    const port = Number(smtpConfig.port) || 587
-    const useSecure = port === 465
-    const transporter = nodemailer.createTransport({
-      host: smtpConfig.host,
-      port,
-      secure: useSecure,
-      auth: {
-        user: smtpConfig.user,
-        pass: smtpConfig.pass
-      }
-    })
+    const smtpConfig = loadAdminSmtpConfig()
+    const transporter = getMailTransporter(smtpConfig)
 
     // Create form URL with token if available
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
@@ -376,11 +356,9 @@ async function sendRevisionRequestEmail(supplier: any, revisionNotes: string, on
 </html>
     `
 
-    // Send email
     console.log('📧 Sending revision request email to:', supplier.contactEmail)
-    
     await transporter.sendMail({
-      from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
+      from: getFromAddress(smtpConfig),
       to: supplier.contactEmail,
       subject: emailSubject,
       html: emailHtml,

@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import nodemailer from 'nodemailer'
-import fs from 'fs'
 import path from 'path'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress } from '@/lib/smtp-admin'
 import { generateFinalApprovalPackagePDF } from '@/lib/generate-final-approval-package-pdf'
 
 export async function POST(request: NextRequest) {
@@ -135,26 +134,8 @@ export async function POST(request: NextRequest) {
 
 async function sendFinalApprovalRequestEmail(supplier: any, requesterName: string) {
   try {
-    // Load SMTP configuration
-    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
-    const configData = fs.readFileSync(configPath, 'utf8')
-    const smtpConfig = JSON.parse(configData)
-
-    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-      throw new Error('SMTP configuration not properly set up')
-    }
-
-    const port = Number(smtpConfig.port) || 587
-    const useSecure = port === 465
-    const transporter = nodemailer.createTransport({
-      host: smtpConfig.host,
-      port,
-      secure: useSecure,
-      auth: {
-        user: smtpConfig.user,
-        pass: smtpConfig.pass
-      }
-    })
+    const smtpConfig = loadAdminSmtpConfig()
+    const transporter = getMailTransporter(smtpConfig)
 
     // Get all Procurement Managers
     const procurementManagers = await prisma.user.findMany({
@@ -467,13 +448,13 @@ async function sendFinalApprovalRequestEmail(supplier: any, requesterName: strin
 </html>
     `
 
-    // Send email to all Procurement Managers
+    const fromAddress = getFromAddress(smtpConfig)
     for (const pm of procurementManagers) {
       console.log('📧 Sending final approval request email to:', pm.email)
       console.log('📎 Attaching PDF:', `Final-Approval-Package-${supplier.supplierCode}.pdf`, `(${pdfBuffer.length} bytes)`)
       
       await transporter.sendMail({
-        from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
+        from: fromAddress,
         to: pm.email,
         subject: emailSubject,
         html: emailHtml,

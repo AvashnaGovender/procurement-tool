@@ -1,0 +1,79 @@
+/**
+ * Single source for outgoing email: all platform emails use the SMTP settings
+ * captured by the admin in Settings (data/smtp-config.json). No env or hardcoded senders.
+ */
+import fs from 'fs'
+import path from 'path'
+import nodemailer from 'nodemailer'
+import type { Transporter } from 'nodemailer'
+
+export interface AdminSmtpConfig {
+  host: string
+  port?: number | string
+  user: string
+  pass: string
+  fromEmail?: string
+  companyName?: string
+  companyWebsite?: string
+  [key: string]: unknown
+}
+
+const CONFIG_PATH = path.join(process.cwd(), 'data', 'smtp-config.json')
+
+function trim(s: unknown): string | undefined {
+  if (typeof s !== 'string') return undefined
+  const t = s.trim()
+  return t === '' ? undefined : t
+}
+
+/**
+ * Load and normalize SMTP config from admin settings (data/smtp-config.json).
+ * All platform emails must use this config for host, port, auth, and sender.
+ */
+export function loadAdminSmtpConfig(): AdminSmtpConfig {
+  const configData = fs.readFileSync(CONFIG_PATH, 'utf8')
+  const raw = JSON.parse(configData) as Record<string, unknown>
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('SMTP configuration not found')
+  }
+  const host = trim(raw.host)
+  const user = trim(raw.user)
+  const pass = raw.pass != null ? String(raw.pass) : ''
+  if (!host || !user || !pass) {
+    throw new Error('Email service not properly configured. Please set Host, User, and Password in Settings.')
+  }
+  return {
+    ...raw,
+    host,
+    port: raw.port,
+    user,
+    pass,
+    fromEmail: trim(raw.fromEmail) ?? undefined,
+    companyName: trim(raw.companyName) ?? undefined,
+    companyWebsite: trim(raw.companyWebsite) ?? undefined,
+  } as AdminSmtpConfig
+}
+
+/**
+ * Sender address for all outgoing mail: admin-configured "From" email, or SMTP login user.
+ */
+export function getFromAddress(config: AdminSmtpConfig): string {
+  return config.fromEmail || config.user
+}
+
+/**
+ * Nodemailer transporter using admin config. Port 465 = SSL, else STARTTLS.
+ */
+export function getMailTransporter(config: AdminSmtpConfig): Transporter {
+  const port = Number(config.port) || 587
+  const secure = port === 465
+  return nodemailer.createTransport({
+    host: config.host,
+    port,
+    secure,
+    auth: {
+      user: config.user,
+      pass: config.pass,
+    },
+  })
+}

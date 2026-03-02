@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import nodemailer from 'nodemailer'
 import fs from 'fs'
 import path from 'path'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress } from '@/lib/smtp-admin'
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
 import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
 import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
@@ -413,26 +413,8 @@ export async function POST(request: NextRequest) {
 
 async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string | null = null) {
   try {
-    // Load SMTP configuration
-    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
-    const configData = fs.readFileSync(configPath, 'utf8')
-    const smtpConfig = JSON.parse(configData)
-
-    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-      throw new Error('SMTP configuration not properly set up')
-    }
-
-    const port = Number(smtpConfig.port) || 587
-    const useSecure = port === 465
-    const transporter = nodemailer.createTransport({
-      host: smtpConfig.host,
-      port,
-      secure: useSecure,
-      auth: {
-        user: smtpConfig.user,
-        pass: smtpConfig.pass
-      }
-    })
+    const smtpConfig = loadAdminSmtpConfig()
+    const transporter = getMailTransporter(smtpConfig)
 
     // Create approval email content
     const emailSubject = 'Supplier Onboarding Approved - Welcome to Schauenburg Systems'
@@ -640,7 +622,7 @@ async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string 
     console.log('📧 Sending approval email to:', supplier.contactEmail)
     
     await transporter.sendMail({
-      from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
+      from: getFromAddress(smtpConfig),
       to: supplier.contactEmail,
       subject: emailSubject,
       html: emailHtml,
@@ -662,26 +644,8 @@ async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string 
 
 async function sendRejectionEmail(supplier: any, rejectionReason: string) {
   try {
-    // Load SMTP configuration
-    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
-    const configData = fs.readFileSync(configPath, 'utf8')
-    const smtpConfig = JSON.parse(configData)
-
-    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-      throw new Error('SMTP configuration not properly set up')
-    }
-
-    const port = Number(smtpConfig.port) || 587
-    const useSecure = port === 465
-    const transporter = nodemailer.createTransport({
-      host: smtpConfig.host,
-      port,
-      secure: useSecure,
-      auth: {
-        user: smtpConfig.user,
-        pass: smtpConfig.pass
-      }
-    })
+    const smtpConfig = loadAdminSmtpConfig()
+    const transporter = getMailTransporter(smtpConfig)
 
     // Create rejection email content
     const emailSubject = 'Supplier Registration Update - Schauenburg Systems'
@@ -870,7 +834,7 @@ async function sendRejectionEmail(supplier: any, rejectionReason: string) {
     console.log('📧 Sending rejection email to:', supplier.contactEmail)
     
     await transporter.sendMail({
-      from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
+      from: getFromAddress(smtpConfig),
       to: supplier.contactEmail,
       subject: emailSubject,
       html: emailHtml,
@@ -892,26 +856,8 @@ async function sendRejectionEmail(supplier: any, rejectionReason: string) {
 
 async function sendInitiatorApprovalEmail(supplier: any, initiator: { name: string, email: string }) {
   try {
-    // Load SMTP configuration
-    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
-    const configData = fs.readFileSync(configPath, 'utf8')
-    const smtpConfig = JSON.parse(configData)
-
-    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-      throw new Error('SMTP configuration not properly set up')
-    }
-
-    const port = Number(smtpConfig.port) || 587
-    const useSecure = port === 465
-    const transporter = nodemailer.createTransport({
-      host: smtpConfig.host,
-      port,
-      secure: useSecure,
-      auth: {
-        user: smtpConfig.user,
-        pass: smtpConfig.pass
-      }
-    })
+    const smtpConfig = loadAdminSmtpConfig()
+    const transporter = getMailTransporter(smtpConfig)
 
     const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
 
@@ -1146,7 +1092,7 @@ async function sendInitiatorApprovalEmail(supplier: any, initiator: { name: stri
     console.log('📧 Sending initiator approval notification email to:', initiator.email)
     
     await transporter.sendMail({
-      from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
+      from: getFromAddress(smtpConfig),
       to: initiator.email,
       subject: emailSubject,
       html: emailHtml,
@@ -1168,26 +1114,8 @@ async function sendInitiatorApprovalEmail(supplier: any, initiator: { name: stri
 
 async function sendManagerApprovalEmail(supplier: any, manager: { name: string, email: string }) {
   try {
-    // Load SMTP configuration
-    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
-    const configData = fs.readFileSync(configPath, 'utf8')
-    const smtpConfig = JSON.parse(configData)
-
-    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-      throw new Error('SMTP configuration not properly set up')
-    }
-
-    const port = Number(smtpConfig.port) || 587
-    const useSecure = port === 465
-    const transporter = nodemailer.createTransport({
-      host: smtpConfig.host,
-      port,
-      secure: useSecure,
-      auth: {
-        user: smtpConfig.user,
-        pass: smtpConfig.pass
-      }
-    })
+    const smtpConfig = loadAdminSmtpConfig()
+    const transporter = getMailTransporter(smtpConfig)
 
     const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
 
@@ -1398,7 +1326,7 @@ async function sendManagerApprovalEmail(supplier: any, manager: { name: string, 
     console.log('📧 Sending manager approval notification email to:', manager.email)
     
     await transporter.sendMail({
-      from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
+      from: getFromAddress(smtpConfig),
       to: manager.email,
       subject: emailSubject,
       html: emailHtml,
@@ -1420,26 +1348,8 @@ async function sendManagerApprovalEmail(supplier: any, manager: { name: string, 
 
 async function sendInitiatorRejectionEmail(supplier: any, initiator: { name: string, email: string }, rejectionReason: string) {
   try {
-    // Load SMTP configuration
-    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
-    const configData = fs.readFileSync(configPath, 'utf8')
-    const smtpConfig = JSON.parse(configData)
-
-    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-      throw new Error('SMTP configuration not properly set up')
-    }
-
-    const port = Number(smtpConfig.port) || 587
-    const useSecure = port === 465
-    const transporter = nodemailer.createTransport({
-      host: smtpConfig.host,
-      port,
-      secure: useSecure,
-      auth: {
-        user: smtpConfig.user,
-        pass: smtpConfig.pass
-      }
-    })
+    const smtpConfig = loadAdminSmtpConfig()
+    const transporter = getMailTransporter(smtpConfig)
 
     const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
 
@@ -1653,7 +1563,7 @@ async function sendInitiatorRejectionEmail(supplier: any, initiator: { name: str
     console.log('📧 Sending initiator rejection notification email to:', initiator.email)
     
     await transporter.sendMail({
-      from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
+      from: getFromAddress(smtpConfig),
       to: initiator.email,
       subject: emailSubject,
       html: emailHtml,
@@ -1675,26 +1585,8 @@ async function sendInitiatorRejectionEmail(supplier: any, initiator: { name: str
 
 async function sendManagerRejectionEmail(supplier: any, manager: { name: string, email: string }, rejectionReason: string) {
   try {
-    // Load SMTP configuration
-    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
-    const configData = fs.readFileSync(configPath, 'utf8')
-    const smtpConfig = JSON.parse(configData)
-
-    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-      throw new Error('SMTP configuration not properly set up')
-    }
-
-    const port = Number(smtpConfig.port) || 587
-    const useSecure = port === 465
-    const transporter = nodemailer.createTransport({
-      host: smtpConfig.host,
-      port,
-      secure: useSecure,
-      auth: {
-        user: smtpConfig.user,
-        pass: smtpConfig.pass
-      }
-    })
+    const smtpConfig = loadAdminSmtpConfig()
+    const transporter = getMailTransporter(smtpConfig)
 
     const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
 
@@ -1912,7 +1804,7 @@ async function sendManagerRejectionEmail(supplier: any, manager: { name: string,
     console.log('📧 Sending manager rejection notification email to:', manager.email)
     
     await transporter.sendMail({
-      from: `"${smtpConfig.companyName}" <${smtpConfig.fromEmail}>`,
+      from: getFromAddress(smtpConfig),
       to: manager.email,
       subject: emailSubject,
       html: emailHtml,
@@ -1941,26 +1833,8 @@ async function sendPMApprovalPackage(
   try {
     console.log('📦 Preparing comprehensive approval package for PM:', pmUser.email)
 
-    // Load SMTP configuration
-    const configPath = path.join(process.cwd(), 'data', 'smtp-config.json')
-    const configData = fs.readFileSync(configPath, 'utf8')
-    const smtpConfig = JSON.parse(configData)
-
-    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-      throw new Error('SMTP configuration not properly set up')
-    }
-
-    const port = Number(smtpConfig.port) || 587
-    const useSecure = port === 465
-    const transporter = nodemailer.createTransport({
-      host: smtpConfig.host,
-      port,
-      secure: useSecure,
-      auth: {
-        user: smtpConfig.user,
-        pass: smtpConfig.pass,
-      },
-    })
+    const smtpConfig = loadAdminSmtpConfig()
+    const transporter = getMailTransporter(smtpConfig)
 
     // Gather all uploaded documents from the file system
     const documentsPath = path.join(
@@ -2270,7 +2144,7 @@ async function sendPMApprovalPackage(
     console.log(`📎 Total attachments: ${attachments.length} (including 3 PDFs and ${documentsList.length} supplier documents)`)
     
     await transporter.sendMail({
-      from: `"${smtpConfig.companyName || 'SS Supplier Onboarding'}" <${smtpConfig.fromEmail}>`,
+      from: getFromAddress(smtpConfig),
       to: pmUser.email,
       subject: `Supplier Approval Package - ${supplier.companyName || supplier.supplierName} (${supplier.supplierCode})`,
       html: emailHtml,
