@@ -1,5 +1,5 @@
 import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelopeFrom } from '@/lib/smtp-admin'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } from '@/lib/smtp-admin'
 
 interface EmailOptions {
   to: string
@@ -286,7 +286,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
       from: getFromAddress(smtpConfig),
       to: to,
       subject: emailSubject,
-      envelope: { from: getEnvelopeFrom(smtpConfig) },
+      envelope: getEnvelope(smtpConfig, to),
       html: htmlContent,
       attachments: [
         {

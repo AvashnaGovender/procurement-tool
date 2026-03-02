@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import fs from 'fs'
 import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelopeFrom } from '@/lib/smtp-admin'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } from '@/lib/smtp-admin'
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
 import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
 import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
@@ -623,7 +623,7 @@ async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string 
     
     await transporter.sendMail({
       from: getFromAddress(smtpConfig),
-      envelope: { from: getEnvelopeFrom(smtpConfig) },
+      envelope: getEnvelope(smtpConfig, supplier.contactEmail),
       to: supplier.contactEmail,
       subject: emailSubject,
       html: emailHtml,
@@ -836,7 +836,7 @@ async function sendRejectionEmail(supplier: any, rejectionReason: string) {
     
     await transporter.sendMail({
       from: getFromAddress(smtpConfig),
-      envelope: { from: getEnvelopeFrom(smtpConfig) },
+      envelope: getEnvelope(smtpConfig, supplier.contactEmail),
       to: supplier.contactEmail,
       subject: emailSubject,
       html: emailHtml,
@@ -1095,7 +1095,7 @@ async function sendInitiatorApprovalEmail(supplier: any, initiator: { name: stri
     
     await transporter.sendMail({
       from: getFromAddress(smtpConfig),
-      envelope: { from: getEnvelopeFrom(smtpConfig) },
+      envelope: getEnvelope(smtpConfig, initiator.email),
       to: initiator.email,
       subject: emailSubject,
       html: emailHtml,
@@ -1330,7 +1330,7 @@ async function sendManagerApprovalEmail(supplier: any, manager: { name: string, 
     
     await transporter.sendMail({
       from: getFromAddress(smtpConfig),
-      envelope: { from: getEnvelopeFrom(smtpConfig) },
+      envelope: getEnvelope(smtpConfig, manager.email),
       to: manager.email,
       subject: emailSubject,
       html: emailHtml,
@@ -1568,7 +1568,7 @@ async function sendInitiatorRejectionEmail(supplier: any, initiator: { name: str
     
     await transporter.sendMail({
       from: getFromAddress(smtpConfig),
-      envelope: { from: getEnvelopeFrom(smtpConfig) },
+      envelope: getEnvelope(smtpConfig, initiator.email),
       to: initiator.email,
       subject: emailSubject,
       html: emailHtml,
@@ -1810,7 +1810,7 @@ async function sendManagerRejectionEmail(supplier: any, manager: { name: string,
     
     await transporter.sendMail({
       from: getFromAddress(smtpConfig),
-      envelope: { from: getEnvelopeFrom(smtpConfig) },
+      envelope: getEnvelope(smtpConfig, manager.email),
       to: manager.email,
       subject: emailSubject,
       html: emailHtml,
@@ -2151,7 +2151,7 @@ async function sendPMApprovalPackage(
     
     await transporter.sendMail({
       from: getFromAddress(smtpConfig),
-      envelope: { from: getEnvelopeFrom(smtpConfig) },
+      envelope: getEnvelope(smtpConfig, pmUser.email),
       to: pmUser.email,
       subject: `Supplier Approval Package - ${supplier.companyName || supplier.supplierName} (${supplier.supplierCode})`,
       html: emailHtml,

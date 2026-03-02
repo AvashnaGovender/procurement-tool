@@ -70,6 +70,14 @@ export function getEnvelopeFrom(config: AdminSmtpConfig): string {
 }
 
 /**
+ * Full envelope for Nodemailer. When using a custom envelope you must include both
+ * from and to, otherwise Nodemailer throws "No recipients defined" (EENVELOPE).
+ */
+export function getEnvelope(config: AdminSmtpConfig, to: string | string[]): { from: string; to: string | string[] } {
+  return { from: getEnvelopeFrom(config), to }
+}
+
+/**
  * Nodemailer transporter using admin config. Port 465 = SSL, else STARTTLS.
  */
 export function getMailTransporter(config: AdminSmtpConfig): Transporter {

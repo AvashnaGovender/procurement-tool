@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelopeFrom } from '@/lib/smtp-admin'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } from '@/lib/smtp-admin'
 import { generateFinalApprovalPackagePDF } from '@/lib/generate-final-approval-package-pdf'
 
 export async function POST(request: NextRequest) {
@@ -455,7 +455,7 @@ async function sendFinalApprovalRequestEmail(supplier: any, requesterName: strin
       
       await transporter.sendMail({
         from: fromAddress,
-        envelope: { from: getEnvelopeFrom(smtpConfig) },
+        envelope: getEnvelope(smtpConfig, pm.email),
         to: pm.email,
         subject: emailSubject,
         html: emailHtml,
