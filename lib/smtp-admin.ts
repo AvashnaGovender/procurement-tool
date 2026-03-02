@@ -92,10 +92,6 @@ export function getMailTransporter(config: AdminSmtpConfig): Transporter {
       user: config.user,
       pass: config.pass,
     },
-    tls: {
-      // Allow self-signed or non-standard certificates on corporate relay servers
-      rejectUnauthorized: false,
-    },
   })
 }
 
