@@ -4,7 +4,7 @@ import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress } from '@/lib/smtp-admin'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelopeFrom } from '@/lib/smtp-admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -342,6 +342,7 @@ export async function POST(request: NextRequest) {
           
           await transporter.sendMail({
             from: fromAddress,
+            envelope: { from: getEnvelopeFrom(smtpConfig) },
             to: pm.email,
             subject: emailSubject,
             html: emailHtml,

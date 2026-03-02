@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress } from '@/lib/smtp-admin'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelopeFrom } from '@/lib/smtp-admin'
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
 import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
 import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
@@ -386,6 +386,7 @@ async function sendPMApprovalPackage(
     
     await transporter.sendMail({
       from: fromAddress,
+      envelope: { from: getEnvelopeFrom(smtpConfig) },
       to: pmUser.email,
       subject: `Supplier Approval Package - ${supplier.companyName || supplier.supplierName} (${supplier.supplierCode})`,
       html: emailHtml,

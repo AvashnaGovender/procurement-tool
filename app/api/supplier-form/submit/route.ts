@@ -5,7 +5,7 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress } from '@/lib/smtp-admin'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelopeFrom } from '@/lib/smtp-admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -494,6 +494,7 @@ async function sendEmailNotifications(
     // 1. Send notification to Procurement Managers (NOT initiator)
     const pmNotification = {
       from: getFromAddress(smtpConfig),
+      envelope: { from: getEnvelopeFrom(smtpConfig) },
       to: recipientEmails.join(', '), // Send to all Procurement Managers
       subject: isRevision 
         ? `Supplier Revision Submitted: ${supplierData.supplierName} (Revision ${onboarding.revisionCount})`

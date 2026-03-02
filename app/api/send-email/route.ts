@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress } from '@/lib/smtp-admin'
+import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelopeFrom } from '@/lib/smtp-admin'
 
 export async function POST(request: NextRequest) {
   console.log('🚀 /api/send-email POST endpoint called!')
@@ -310,6 +310,7 @@ async function sendEmailViaService({
         
         const mailOptions = {
           from: getFromAddress(config),
+          envelope: { from: getEnvelopeFrom(config) },
           to: to,
           subject: subject,
           html: htmlContent,

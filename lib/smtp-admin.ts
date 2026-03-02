@@ -55,10 +55,18 @@ export function loadAdminSmtpConfig(): AdminSmtpConfig {
 }
 
 /**
- * Sender address for all outgoing mail: admin-configured "From" email, or SMTP login user.
+ * Sender address for visible "From" header: admin-configured From email, or SMTP login user.
  */
 export function getFromAddress(config: AdminSmtpConfig): string {
   return config.fromEmail || config.user
+}
+
+/**
+ * Envelope sender (SMTP MAIL FROM). Use the authenticated user so strict relays
+ * (e.g. mtaroutes) accept the message and don't return "451 unable to verify sender".
+ */
+export function getEnvelopeFrom(config: AdminSmtpConfig): string {
+  return config.user
 }
 
 /**
