@@ -1,7 +1,10 @@
 "use client"
 
-import { Suspense, useState, useEffect } from "react"
+import { Suspense, useState, useEffect, useRef } from "react"
 import { useSearchParams } from "next/navigation"
+
+const DRAFT_STORAGE_KEY_PREFIX = "supplier-onboarding-draft-"
+const DRAFT_DEBOUNCE_MS = 800
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -76,39 +79,64 @@ function SupplierOnboardingForm() {
     creditApplication: [],
   })
 
-  // Fetch existing data if token is provided
-  useEffect(() => {
-    const fetchExistingData = async () => {
-      if (!onboardingToken) return
+  const draftKey = `${DRAFT_STORAGE_KEY_PREFIX}${onboardingToken ?? "anonymous"}`
+  const saveDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Restore draft from localStorage, then fetch from server if we have a token (server overwrites draft)
+  useEffect(() => {
+    const key = `${DRAFT_STORAGE_KEY_PREFIX}${onboardingToken ?? "anonymous"}`
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem(key) : null
+      if (raw) {
+        const draft = JSON.parse(raw) as {
+          formData?: typeof formData
+          creditApplication?: boolean
+          paymentMethod?: string | null
+          purchaseType?: string | null
+          revisionNotes?: string | null
+          documentsToRevise?: string[]
+        }
+        if (draft.formData) {
+          setFormData(prev => ({ ...prev, ...draft.formData }))
+          if (draft.creditApplication !== undefined) setCreditApplication(draft.creditApplication)
+          if (draft.paymentMethod !== undefined) setPaymentMethod(draft.paymentMethod)
+          if (draft.purchaseType !== undefined) setPurchaseType(draft.purchaseType)
+          if (draft.revisionNotes !== undefined) setRevisionNotes(draft.revisionNotes)
+          if (Array.isArray(draft.documentsToRevise)) setDocumentsToRevise(draft.documentsToRevise)
+        }
+      }
+    } catch (e) {
+      console.warn("Could not restore draft:", e)
+    }
+
+    if (!onboardingToken) {
+      setLoadingData(false)
+      return
+    }
+
+    const fetchExistingData = async () => {
       setLoadingData(true)
       try {
         const response = await fetch(`/api/suppliers/get-by-token?token=${onboardingToken}`)
         const data = await response.json()
 
         if (data.success) {
-          // Pre-populate form with existing data
           setFormData(data.formData)
           setExistingFiles(data.uploadedFiles || {})
           setCreditApplication(data.creditApplication || false)
           setPaymentMethod(data.paymentMethod || null)
           setPurchaseType(data.purchaseType || null)
-          console.log('📋 Loaded supplier data:', { 
-            purchaseType: data.purchaseType, 
-            paymentMethod: data.paymentMethod,
-            requiredDocuments: data.requiredDocuments 
-          })
-          if (data.revisionNotes) {
-            setRevisionNotes(data.revisionNotes)
-          }
+          if (data.revisionNotes) setRevisionNotes(data.revisionNotes)
           if (data.documentsToRevise && Array.isArray(data.documentsToRevise)) {
             setDocumentsToRevise(data.documentsToRevise)
           }
-        } else {
-          console.error('Failed to load existing data:', data.error)
+          try {
+            localStorage.removeItem(key)
+          } catch (_) {}
+          console.log("📋 Loaded supplier data from server")
         }
       } catch (error) {
-        console.error('Error fetching existing data:', error)
+        console.error("Error fetching existing data:", error)
       } finally {
         setLoadingData(false)
       }
@@ -116,6 +144,32 @@ function SupplierOnboardingForm() {
 
     fetchExistingData()
   }, [onboardingToken])
+
+  // Auto-save draft to localStorage (debounced). File uploads are not saved; user must re-attach after returning.
+  useEffect(() => {
+    if (typeof window === "undefined" || submitted) return
+    if (saveDraftTimerRef.current) clearTimeout(saveDraftTimerRef.current)
+    saveDraftTimerRef.current = setTimeout(() => {
+      try {
+        const payload = {
+          formData,
+          creditApplication,
+          paymentMethod,
+          purchaseType,
+          revisionNotes,
+          documentsToRevise,
+          savedAt: Date.now(),
+        }
+        localStorage.setItem(draftKey, JSON.stringify(payload))
+      } catch (e) {
+        console.warn("Could not save draft:", e)
+      }
+      saveDraftTimerRef.current = null
+    }, DRAFT_DEBOUNCE_MS)
+    return () => {
+      if (saveDraftTimerRef.current) clearTimeout(saveDraftTimerRef.current)
+    }
+  }, [formData, creditApplication, paymentMethod, purchaseType, revisionNotes, documentsToRevise, submitted, draftKey])
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -245,7 +299,10 @@ function SupplierOnboardingForm() {
       }
 
       setSubmitted(true)
-      
+      try {
+        localStorage.removeItem(draftKey)
+      } catch (_) {}
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit form')
     } finally {
