@@ -92,6 +92,9 @@ export function getMailTransporter(config: AdminSmtpConfig): Transporter {
       user: config.user,
       pass: config.pass,
     },
+    tls: {
+      rejectUnauthorized: false,
+    },
   })
 }
 
@@ -113,9 +116,7 @@ export async function sendMailAndCheck(
   logLabel: string
 ): Promise<SendMailResult> {
   const to = Array.isArray(options.to) ? options.to.join(', ') : (options.to as string)
-  console.log(`📧 [${logLabel}] Verifying SMTP connection before send → ${to}`)
-  await transporter.verify()
-  console.log(`✅ [${logLabel}] SMTP connection verified`)
+  console.log(`📧 [${logLabel}] Sending → ${to}`)
   const result = (await transporter.sendMail(options)) as SendMailResult
   const rejected = result.rejected
   if (rejected && rejected.length > 0) {

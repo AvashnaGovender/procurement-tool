@@ -131,11 +131,6 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
       user: smtpConfig.user
     })
 
-    // Verify connection
-    console.log('🔍 Verifying SMTP connection...')
-    await transporter.verify()
-    console.log('✅ SMTP connection verified successfully')
-
     // Create mobile-friendly HTML email with Schauenburg branding
     const htmlContent = `
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
