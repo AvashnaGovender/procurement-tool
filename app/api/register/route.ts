@@ -1,11 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// GET - Check if a manager is registered (for real-time validation on register form)
+export async function GET(request: NextRequest) {
+  const email = request.nextUrl.searchParams.get('email')?.trim()
+  if (!email) {
+    return NextResponse.json({ exists: false }, { status: 200 })
+  }
+  const normalized = email.toLowerCase()
+  const manager = await prisma.user.findFirst({
+    where: { email: { equals: normalized, mode: 'insensitive' } },
+    select: { id: true, name: true, email: true },
+  })
+  if (!manager) {
+    return NextResponse.json({
+      exists: false,
+      message: 'This manager is not registered. Please ask them to register first.',
+    })
+  }
+  return NextResponse.json({
+    exists: true,
+    name: manager.name,
+    email: manager.email,
+  })
+}
+
+const ALLOWED_ROLES = ['USER', 'MANAGER', 'PROCUREMENT_MANAGER'] as const
+type AllowedRole = (typeof ALLOWED_ROLES)[number]
+
 // POST - Public self-registration (no auth required)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, managerName, managerEmail } = body
+    const { email, managerEmail, role } = body
 
     if (!email?.trim()) {
       return NextResponse.json(
@@ -13,15 +40,16 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    if (!managerName?.trim()) {
-      return NextResponse.json(
-        { error: 'Manager name is required' },
-        { status: 400 }
-      )
-    }
     if (!managerEmail?.trim()) {
       return NextResponse.json(
         { error: 'Manager email is required' },
+        { status: 400 }
+      )
+    }
+    const roleVal = (role || 'USER').toUpperCase()
+    if (!ALLOWED_ROLES.includes(roleVal as AllowedRole)) {
+      return NextResponse.json(
+        { error: 'Role must be User, Manager, or Procurement Manager' },
         { status: 400 }
       )
     }
@@ -40,16 +68,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Resolve manager: if a user exists with manager email, link them
+    // Manager must already be registered
     const manager = await prisma.user.findFirst({
       where: { email: { equals: normalizedManagerEmail, mode: 'insensitive' } },
-      select: { id: true },
+      select: { id: true, name: true, email: true },
     })
-    const managerId = manager?.id ?? null
-    // When manager not in system, store "Manager: Name (email)" in department so admin can see it
-    const department = managerId
-      ? null
-      : `Manager: ${managerName.trim()} (${normalizedManagerEmail})`
+
+    if (!manager) {
+      return NextResponse.json(
+        {
+          error:
+            'This manager is not registered in the system. Please ask your manager to register first, or contact your administrator.',
+        },
+        { status: 400 }
+      )
+    }
 
     // Default display name from email local part (e.g. "john" from "john@example.com")
     const nameFromEmail = normalizedEmail.split('@')[0] || 'New User'
@@ -59,10 +92,9 @@ export async function POST(request: NextRequest) {
       data: {
         email: normalizedEmail,
         name: displayName,
-        role: 'USER',
+        role: roleVal as AllowedRole,
         isActive: true,
-        managerId,
-        department,
+        managerId: manager.id,
       },
       select: {
         id: true,

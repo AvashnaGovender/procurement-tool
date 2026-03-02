@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, AlertCircle, UserPlus, X } from "lucide-react"
+import { Mail, AlertCircle, UserPlus, X, CheckCircle } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { signIn } from "next-auth/react"
 
 function LoginForm() {
@@ -19,8 +20,10 @@ function LoginForm() {
   const [error, setError] = useState("")
   const [showRegister, setShowRegister] = useState(false)
   const [registerEmail, setRegisterEmail] = useState("")
-  const [managerName, setManagerName] = useState("")
   const [managerEmail, setManagerEmail] = useState("")
+  const [registerRole, setRegisterRole] = useState<string>("USER")
+  const [managerCheck, setManagerCheck] = useState<{ exists: true; name: string } | { exists: false; message: string } | null>(null)
+  const [checkingManager, setCheckingManager] = useState(false)
   const [registerLoading, setRegisterLoading] = useState(false)
   const [registerError, setRegisterError] = useState("")
   const [registerSuccess, setRegisterSuccess] = useState("")
@@ -78,8 +81,35 @@ function LoginForm() {
     }
   }
 
+  const checkManager = async () => {
+    const email = managerEmail.trim()
+    if (!email) {
+      setManagerCheck(null)
+      return
+    }
+    setCheckingManager(true)
+    setManagerCheck(null)
+    try {
+      const res = await fetch(`/api/register?email=${encodeURIComponent(email)}`)
+      const data = await res.json()
+      if (data.exists) {
+        setManagerCheck({ exists: true, name: data.name || "Registered" })
+      } else {
+        setManagerCheck({ exists: false, message: data.message || "This manager is not registered. Please ask them to register first." })
+      }
+    } catch {
+      setManagerCheck({ exists: false, message: "Could not verify manager." })
+    } finally {
+      setCheckingManager(false)
+    }
+  }
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (managerCheck?.exists === false) {
+      setRegisterError(managerCheck.message)
+      return
+    }
     setRegisterLoading(true)
     setRegisterError("")
     setRegisterSuccess("")
@@ -89,8 +119,8 @@ function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: registerEmail.trim(),
-          managerName: managerName.trim(),
           managerEmail: managerEmail.trim(),
+          role: registerRole,
         }),
       })
       const data = await res.json()
@@ -101,8 +131,9 @@ function LoginForm() {
       }
       setRegisterSuccess(data.message || "Registration successful. You can now sign in.")
       setRegisterEmail("")
-      setManagerName("")
       setManagerEmail("")
+      setRegisterRole("USER")
+      setManagerCheck(null)
       setTimeout(() => {
         setShowRegister(false)
         setRegisterSuccess("")
@@ -235,6 +266,7 @@ function LoginForm() {
                       setShowRegister(false)
                       setRegisterError("")
                       setRegisterSuccess("")
+                      setManagerCheck(null)
                     }}
                     className="p-1.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                     aria-label="Close"
@@ -267,16 +299,17 @@ function LoginForm() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="manager-name" className="text-slate-700 font-medium">Manager name *</Label>
-                    <Input
-                      id="manager-name"
-                      type="text"
-                      placeholder="Your manager's full name"
-                      value={managerName}
-                      onChange={(e) => setManagerName(e.target.value)}
-                      className="h-11 border-slate-300"
-                      required
-                    />
+                    <Label htmlFor="register-role" className="text-slate-700 font-medium">Role *</Label>
+                    <Select value={registerRole} onValueChange={setRegisterRole}>
+                      <SelectTrigger id="register-role" className="h-11 border-slate-300">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USER">User</SelectItem>
+                        <SelectItem value="MANAGER">Manager</SelectItem>
+                        <SelectItem value="PROCUREMENT_MANAGER">Procurement Manager</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="manager-email" className="text-slate-700 font-medium">Manager email *</Label>
@@ -285,10 +318,29 @@ function LoginForm() {
                       type="email"
                       placeholder="manager@company.com"
                       value={managerEmail}
-                      onChange={(e) => setManagerEmail(e.target.value)}
+                      onChange={(e) => {
+                        setManagerEmail(e.target.value)
+                        setManagerCheck(null)
+                      }}
+                      onBlur={checkManager}
                       className="h-11 border-slate-300"
                       required
                     />
+                    {checkingManager && (
+                      <p className="text-sm text-slate-500">Checking if manager is registered...</p>
+                    )}
+                    {managerCheck?.exists === true && (
+                      <p className="text-sm text-green-600 flex items-center gap-1.5">
+                        <CheckCircle className="h-4 w-4 shrink-0" />
+                        Manager found: {managerCheck.name}
+                      </p>
+                    )}
+                    {managerCheck?.exists === false && (
+                      <p className="text-sm text-red-600 flex items-center gap-1.5">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        {managerCheck.message}
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2 pt-2">
                     <Button
@@ -303,7 +355,7 @@ function LoginForm() {
                     <Button
                       type="submit"
                       className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      disabled={registerLoading}
+                      disabled={registerLoading || managerCheck?.exists === false || (managerEmail.trim() && managerCheck === null && !checkingManager)}
                     >
                       {registerLoading ? (
                         <div className="flex items-center justify-center gap-2">
