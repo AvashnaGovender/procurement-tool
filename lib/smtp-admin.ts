@@ -92,6 +92,10 @@ export function getMailTransporter(config: AdminSmtpConfig): Transporter {
       user: config.user,
       pass: config.pass,
     },
+    tls: {
+      // Allow self-signed or non-standard certificates on corporate relay servers
+      rejectUnauthorized: false,
+    },
   })
 }
 
@@ -104,7 +108,8 @@ export interface SendMailResult {
 
 /**
  * Send mail and check for rejected recipients. Throws if any recipient was rejected by the SMTP server.
- * Use this everywhere we send email so "some emails not getting sent" is visible (rejected → throw → logged).
+ * Calls transporter.verify() first (like email-sender.ts does) to ensure a clean STARTTLS handshake —
+ * without this, some relays (e.g. mtaroutes/port 587) accept the message but never deliver it.
  */
 export async function sendMailAndCheck(
   transporter: Transporter,
@@ -112,12 +117,15 @@ export async function sendMailAndCheck(
   logLabel: string
 ): Promise<SendMailResult> {
   const to = Array.isArray(options.to) ? options.to.join(', ') : (options.to as string)
+  console.log(`📧 [${logLabel}] Verifying SMTP connection before send → ${to}`)
+  await transporter.verify()
+  console.log(`✅ [${logLabel}] SMTP connection verified`)
   const result = (await transporter.sendMail(options)) as SendMailResult
   const rejected = result.rejected
   if (rejected && rejected.length > 0) {
     console.error(`❌ [${logLabel}] SMTP server rejected recipient(s):`, rejected, 'To:', to)
     throw new Error(`Recipient(s) rejected: ${rejected.join(', ')}`)
   }
-  console.log(`✅ [${logLabel}] Accepted → ${to} | MessageID: ${result.messageId ?? 'n/a'}`)
+  console.log(`✅ [${logLabel}] Accepted → ${to} | MessageID: ${result.messageId ?? 'n/a'} | Response: ${result.response ?? 'n/a'}`)
   return result
 }
