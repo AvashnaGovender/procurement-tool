@@ -422,11 +422,12 @@ async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string 
       throw new Error('SMTP configuration not properly set up')
     }
 
-    // Create transporter
+    const port = Number(smtpConfig.port) || 587
+    const useSecure = port === 465
     const transporter = nodemailer.createTransport({
       host: smtpConfig.host,
-      port: smtpConfig.port,
-      secure: smtpConfig.secure,
+      port,
+      secure: useSecure,
       auth: {
         user: smtpConfig.user,
         pass: smtpConfig.pass
@@ -670,11 +671,12 @@ async function sendRejectionEmail(supplier: any, rejectionReason: string) {
       throw new Error('SMTP configuration not properly set up')
     }
 
-    // Create transporter
+    const port = Number(smtpConfig.port) || 587
+    const useSecure = port === 465
     const transporter = nodemailer.createTransport({
       host: smtpConfig.host,
-      port: smtpConfig.port,
-      secure: smtpConfig.secure,
+      port,
+      secure: useSecure,
       auth: {
         user: smtpConfig.user,
         pass: smtpConfig.pass
@@ -899,11 +901,12 @@ async function sendInitiatorApprovalEmail(supplier: any, initiator: { name: stri
       throw new Error('SMTP configuration not properly set up')
     }
 
-    // Create transporter
+    const port = Number(smtpConfig.port) || 587
+    const useSecure = port === 465
     const transporter = nodemailer.createTransport({
       host: smtpConfig.host,
-      port: smtpConfig.port,
-      secure: smtpConfig.secure,
+      port,
+      secure: useSecure,
       auth: {
         user: smtpConfig.user,
         pass: smtpConfig.pass
@@ -1174,11 +1177,12 @@ async function sendManagerApprovalEmail(supplier: any, manager: { name: string, 
       throw new Error('SMTP configuration not properly set up')
     }
 
-    // Create transporter
+    const port = Number(smtpConfig.port) || 587
+    const useSecure = port === 465
     const transporter = nodemailer.createTransport({
       host: smtpConfig.host,
-      port: smtpConfig.port,
-      secure: smtpConfig.secure,
+      port,
+      secure: useSecure,
       auth: {
         user: smtpConfig.user,
         pass: smtpConfig.pass
@@ -1425,11 +1429,12 @@ async function sendInitiatorRejectionEmail(supplier: any, initiator: { name: str
       throw new Error('SMTP configuration not properly set up')
     }
 
-    // Create transporter
+    const port = Number(smtpConfig.port) || 587
+    const useSecure = port === 465
     const transporter = nodemailer.createTransport({
       host: smtpConfig.host,
-      port: smtpConfig.port,
-      secure: smtpConfig.secure,
+      port,
+      secure: useSecure,
       auth: {
         user: smtpConfig.user,
         pass: smtpConfig.pass
@@ -1679,11 +1684,12 @@ async function sendManagerRejectionEmail(supplier: any, manager: { name: string,
       throw new Error('SMTP configuration not properly set up')
     }
 
-    // Create transporter
+    const port = Number(smtpConfig.port) || 587
+    const useSecure = port === 465
     const transporter = nodemailer.createTransport({
       host: smtpConfig.host,
-      port: smtpConfig.port,
-      secure: smtpConfig.secure,
+      port,
+      secure: useSecure,
       auth: {
         user: smtpConfig.user,
         pass: smtpConfig.pass
@@ -1944,11 +1950,12 @@ async function sendPMApprovalPackage(
       throw new Error('SMTP configuration not properly set up')
     }
 
-    // Create transporter
+    const port = Number(smtpConfig.port) || 587
+    const useSecure = port === 465
     const transporter = nodemailer.createTransport({
       host: smtpConfig.host,
-      port: smtpConfig.port || 587,
-      secure: smtpConfig.secure || false,
+      port,
+      secure: useSecure,
       auth: {
         user: smtpConfig.user,
         pass: smtpConfig.pass,

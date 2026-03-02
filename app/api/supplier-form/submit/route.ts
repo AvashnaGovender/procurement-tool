@@ -488,11 +488,12 @@ async function sendEmailNotifications(
       return
     }
 
-    // Create transporter
+    const port = Number(smtpConfig.port) || 587
+    const useSecure = port === 465
     const transporter = nodemailer.createTransport({
       host: smtpConfig.host,
-      port: smtpConfig.port,
-      secure: smtpConfig.secure,
+      port,
+      secure: useSecure,
       auth: {
         user: smtpConfig.user || smtpConfig.username,
         pass: smtpConfig.pass || smtpConfig.password,

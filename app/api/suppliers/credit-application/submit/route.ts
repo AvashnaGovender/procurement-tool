@@ -189,11 +189,12 @@ export async function POST(request: NextRequest) {
         throw new Error('SMTP configuration not properly set up')
       }
 
-      // Create transporter
+      const port = Number(smtpConfig.port) || 587
+      const useSecure = port === 465
       const transporter = nodemailer.createTransport({
         host: smtpConfig.host,
-        port: smtpConfig.port,
-        secure: smtpConfig.secure,
+        port,
+        secure: useSecure,
         auth: {
           user: smtpConfig.user,
           pass: smtpConfig.pass
