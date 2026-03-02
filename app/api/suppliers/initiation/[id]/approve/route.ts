@@ -331,6 +331,7 @@ Thank you for your interest in becoming a supplier partner with Schauenburg Syst
 Your onboarding request has been reviewed and approved. We're excited to begin working with you!
 
 <strong>Your Request Details:</strong>
+- Requester: ${initiationDetails.requesterName || initiationDetails.initiatedBy?.name || '—'}
 - Business Unit: ${Array.isArray(initiationDetails.businessUnit) ? initiationDetails.businessUnit.map((unit: string) => unit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200').join(', ') : (initiationDetails.businessUnit === 'SCHAUENBURG_SYSTEMS_200' ? 'Schauenburg Systems (Pty) Ltd 300' : 'Schauenburg (Pty) Ltd 200')}
 - Product/Service Category: ${initiationDetails.productServiceCategory}
 ${(initiationDetails as any).purchaseType ? `- Purchase Type: ${getPurchaseTypeDisplayName((initiationDetails as any).purchaseType)}` : ''}
