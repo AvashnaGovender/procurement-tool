@@ -869,7 +869,7 @@ function SupplierOnboardingForm() {
                       <AlertDescription className="ml-2">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-blue-900 mb-1">Please download our standard NDA template</p>
+                            <p className="text-sm font-medium text-blue-900 mb-1">Please download our standard NDA template *</p>
                             <p className="text-xs text-blue-700">Download → Sign manually → Upload signed version</p>
                           </div>
                           <Button
@@ -880,7 +880,7 @@ function SupplierOnboardingForm() {
                             onClick={() => window.open('/templates/standard-nda.pdf', '_blank')}
                           >
                             <Upload className="h-4 w-4 mr-2" />
-                            Download NDA
+                            Download NDA *
                           </Button>
                         </div>
                       </AlertDescription>
