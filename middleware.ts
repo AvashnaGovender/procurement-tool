@@ -19,7 +19,8 @@ export async function middleware(request: NextRequest) {
     '/api/supplier-form',
     '/api/suppliers/get-by-token',
     '/api/suppliers/credit-application',
-    '/api/custom-options'
+    '/api/custom-options',
+    '/api/register'
   ]
   const isPublicApiPath = publicApiPaths.some(path => request.nextUrl.pathname.startsWith(path))
   // Allow suppliers to download the signed credit application (they access via token link, no session)

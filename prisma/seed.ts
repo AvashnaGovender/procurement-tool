@@ -1,20 +1,17 @@
 import { PrismaClient } from '@prisma/client'
-import * as bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 async function main() {
   console.log('🌱 Starting database seeding...')
 
-  // Create Admin User
-  const adminPassword = await bcrypt.hash('Admin123!', 10)
+  // Create Admin User (login is email-only, no password)
   const admin = await prisma.user.upsert({
     where: { email: 'admin@schauenburg.com' },
     update: {},
     create: {
       email: 'admin@schauenburg.com',
       name: 'System Administrator',
-      password: adminPassword,
       role: 'ADMIN',
       department: 'IT',
       phoneNumber: '+27 11 123 4567',
@@ -24,14 +21,12 @@ async function main() {
   console.log('✅ Created admin user:', admin.email)
 
   // Create Procurement Manager
-  const managerPassword = await bcrypt.hash('Manager123!', 10)
   const manager = await prisma.user.upsert({
     where: { email: 'manager@schauenburg.com' },
     update: {},
     create: {
       email: 'manager@schauenburg.com',
       name: 'Procurement Manager',
-      password: managerPassword,
       role: 'PROCUREMENT_MANAGER',
       department: 'Procurement',
       phoneNumber: '+27 11 123 4568',
@@ -41,14 +36,12 @@ async function main() {
   console.log('✅ Created procurement manager:', manager.email)
 
   // Create Procurement Specialist
-  const specialistPassword = await bcrypt.hash('Specialist123!', 10)
   const specialist = await prisma.user.upsert({
     where: { email: 'specialist@schauenburg.com' },
     update: {},
     create: {
       email: 'specialist@schauenburg.com',
       name: 'Procurement Specialist',
-      password: specialistPassword,
       role: 'PROCUREMENT_SPECIALIST',
       department: 'Procurement',
       phoneNumber: '+27 11 123 4569',
@@ -58,14 +51,12 @@ async function main() {
   console.log('✅ Created procurement specialist:', specialist.email)
 
   // Create Approver
-  const approverPassword = await bcrypt.hash('Approver123!', 10)
   const approver = await prisma.user.upsert({
     where: { email: 'approver@schauenburg.com' },
     update: {},
     create: {
       email: 'approver@schauenburg.com',
       name: 'Department Approver',
-      password: approverPassword,
       role: 'APPROVER',
       department: 'Operations',
       phoneNumber: '+27 11 123 4570',
@@ -135,11 +126,11 @@ async function main() {
   console.log('✅ Created system configurations')
 
   console.log('🎉 Database seeding completed!')
-  console.log('\n📋 Test User Credentials:')
-  console.log('   Admin: admin@schauenburg.com / Admin123!')
-  console.log('   Manager: manager@schauenburg.com / Manager123!')
-  console.log('   Specialist: specialist@schauenburg.com / Specialist123!')
-  console.log('   Approver: approver@schauenburg.com / Approver123!')
+  console.log('\n📋 Test users (login with email only):')
+  console.log('   Admin: admin@schauenburg.com')
+  console.log('   Manager: manager@schauenburg.com')
+  console.log('   Specialist: specialist@schauenburg.com')
+  console.log('   Approver: approver@schauenburg.com')
 }
 
 main()

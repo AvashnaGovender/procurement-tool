@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client'
-import { hash } from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
@@ -17,15 +16,11 @@ async function createAdmin() {
       return
     }
 
-    // Hash the password
-    const hashedPassword = await hash('admin123', 10)
-
-    // Create admin user
+    // Create admin user (login is email-only)
     const admin = await prisma.user.create({
       data: {
         email: 'admin@schauenburg.co.za',
         name: 'System Administrator',
-        password: hashedPassword,
         role: 'ADMIN',
         department: 'IT',
         isActive: true,
@@ -35,10 +30,9 @@ async function createAdmin() {
     console.log('✅ Admin user created successfully!')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('Email:', admin.email)
-    console.log('Password: admin123')
     console.log('Role:', admin.role)
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('⚠️  IMPORTANT: Change this password after first login!')
+    console.log('Login with this email (no password required).')
   } catch (error) {
     console.error('❌ Error creating admin user:', error)
     throw error

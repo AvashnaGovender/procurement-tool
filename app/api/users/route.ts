@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import bcrypt from 'bcryptjs'
 
 // GET - Fetch all users
 export async function GET(request: NextRequest) {
@@ -88,12 +87,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, email, password, role, isActive, managerId } = body
+    const { name, email, role, isActive, managerId } = body
 
     // Validate required fields
-    if (!name || !email || !password) {
+    if (!name || !email) {
       return NextResponse.json(
-        { error: 'Name, email, and password are required' },
+        { error: 'Name and email are required' },
         { status: 400 }
       )
     }
@@ -110,15 +109,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10)
-
-    // Create user
+    // Create user (no password - login is email-only)
     const user = await prisma.user.create({
       data: {
         name,
         email,
-        password: hashedPassword,
         role: role || 'USER',
         isActive: isActive !== undefined ? isActive : true,
         managerId: managerId || null,

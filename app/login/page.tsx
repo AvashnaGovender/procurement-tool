@@ -8,18 +8,22 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Lock, Mail, AlertCircle, X, Eye, EyeOff } from "lucide-react"
+import { Mail, AlertCircle, UserPlus, X } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { signIn } from "next-auth/react"
 
 function LoginForm() {
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [showRegister, setShowRegister] = useState(false)
+  const [registerEmail, setRegisterEmail] = useState("")
+  const [managerName, setManagerName] = useState("")
+  const [managerEmail, setManagerEmail] = useState("")
+  const [registerLoading, setRegisterLoading] = useState(false)
+  const [registerError, setRegisterError] = useState("")
+  const [registerSuccess, setRegisterSuccess] = useState("")
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -31,7 +35,6 @@ function LoginForm() {
     try {
       const result = await signIn("credentials", {
         email,
-        password,
         redirect: false,
       })
 
@@ -72,6 +75,42 @@ function LoginForm() {
     } catch (error) {
       setError("An unexpected error occurred. Please try again.")
       setIsLoading(false)
+    }
+  }
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setRegisterLoading(true)
+    setRegisterError("")
+    setRegisterSuccess("")
+    try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: registerEmail.trim(),
+          managerName: managerName.trim(),
+          managerEmail: managerEmail.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setRegisterError(data.error || "Registration failed")
+        setRegisterLoading(false)
+        return
+      }
+      setRegisterSuccess(data.message || "Registration successful. You can now sign in.")
+      setRegisterEmail("")
+      setManagerName("")
+      setManagerEmail("")
+      setTimeout(() => {
+        setShowRegister(false)
+        setRegisterSuccess("")
+      }, 2000)
+    } catch {
+      setRegisterError("An unexpected error occurred. Please try again.")
+    } finally {
+      setRegisterLoading(false)
     }
   }
 
@@ -154,43 +193,6 @@ function LoginForm() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-700 font-medium">Password</Label>
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-12 pr-12 h-12 bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-              <div className="text-right">
-                <button 
-                  type="button" 
-                  onClick={() => setShowForgotPassword(true)}
-                  className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
-                >
-                  Forgot password?
-                </button>
-              </div>
-            </div>
-
             <Button 
               type="submit" 
               className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium text-base shadow-lg shadow-blue-600/20 transition-all duration-200 hover:shadow-blue-600/30" 
@@ -205,44 +207,120 @@ function LoginForm() {
                 "Sign In"
               )}
             </Button>
+
+            <p className="text-center text-slate-600 text-sm">
+              Don&apos;t have an account?{" "}
+              <button
+                type="button"
+                onClick={() => setShowRegister(true)}
+                className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              >
+                Register
+              </button>
+            </p>
           </form>
 
+          {/* Register modal */}
+          {showRegister && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-slate-200">
+                <div className="flex items-center justify-between p-4 border-b border-slate-200">
+                  <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <UserPlus className="h-5 w-5 text-blue-600" />
+                    Register as new user
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowRegister(false)
+                      setRegisterError("")
+                      setRegisterSuccess("")
+                    }}
+                    className="p-1.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <form onSubmit={handleRegister} className="p-4 space-y-4">
+                  {registerError && (
+                    <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{registerError}</AlertDescription>
+                    </Alert>
+                  )}
+                  {registerSuccess && (
+                    <Alert className="bg-green-50 border-green-200 text-green-800">
+                      <AlertDescription>{registerSuccess}</AlertDescription>
+                    </Alert>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="register-email" className="text-slate-700 font-medium">Your email *</Label>
+                    <Input
+                      id="register-email"
+                      type="email"
+                      placeholder="you@company.com"
+                      value={registerEmail}
+                      onChange={(e) => setRegisterEmail(e.target.value)}
+                      className="h-11 border-slate-300"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="manager-name" className="text-slate-700 font-medium">Manager name *</Label>
+                    <Input
+                      id="manager-name"
+                      type="text"
+                      placeholder="Your manager's full name"
+                      value={managerName}
+                      onChange={(e) => setManagerName(e.target.value)}
+                      className="h-11 border-slate-300"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="manager-email" className="text-slate-700 font-medium">Manager email *</Label>
+                    <Input
+                      id="manager-email"
+                      type="email"
+                      placeholder="manager@company.com"
+                      value={managerEmail}
+                      onChange={(e) => setManagerEmail(e.target.value)}
+                      className="h-11 border-slate-300"
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setShowRegister(false)}
+                      disabled={registerLoading}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      disabled={registerLoading}
+                    >
+                      {registerLoading ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                          Registering...
+                        </div>
+                      ) : (
+                        "Register"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Forgot Password Modal */}
-      {showForgotPassword && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md border border-slate-300">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-slate-800">Reset Password</h3>
-              <button
-                onClick={() => setShowForgotPassword(false)}
-                className="text-slate-500 hover:text-slate-800 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <p className="text-slate-600 text-sm leading-relaxed">
-                To reset your password, please contact your system administrator. They will be able to help you regain access to your account.
-              </p>
-              <div className="bg-slate-100 rounded-md p-4 border border-slate-200">
-                <p className="text-slate-700 text-sm font-medium mb-2">Contact Information:</p>
-                <p className="text-blue-600 text-sm">admin@schauenburg.co.za</p>
-              </div>
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => setShowForgotPassword(false)}
-                  className="bg-slate-200 hover:bg-slate-300 text-slate-800"
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

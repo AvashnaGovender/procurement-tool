@@ -31,16 +31,7 @@ async function checkManagerPasswords() {
       })
     }
     
-    console.log('\n📝 Default Passwords (from seed file):')
-    console.log('─────────────────────────────────────────────')
-    console.log('If using default seed data:')
-    console.log('  Manager: Manager123!')
-    console.log('  Procurement Manager: Manager123!')
-    console.log('\nIf using test approvers script:')
-    console.log('  Manager: password123')
-    console.log('  Procurement Manager: password123')
-    console.log('\n⚠️  Note: Passwords are hashed in the database.')
-    console.log('   If you need to reset a password, use a script to update it.')
+    console.log('\n📝 Login: Use the email addresses above (no password required).')
     
   } catch (error) {
     console.error('Error checking managers:', error)

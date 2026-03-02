@@ -18,7 +18,6 @@ model User {
   id                String   @id @default(cuid())
   email             String   @unique
   name              String
-  password          String   // Hashed password
   role              UserRole @default(USER)
   department        String?
   phoneNumber       String?

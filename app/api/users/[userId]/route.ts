@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import bcrypt from 'bcryptjs'
 
 // PUT - Update user (admin only)
 export async function PUT(
@@ -23,7 +22,7 @@ export async function PUT(
 
     const { userId } = await params
     const body = await request.json()
-    const { name, email, password, role, isActive, managerId } = body
+    const { name, email, role, isActive, managerId } = body
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
@@ -58,11 +57,6 @@ export async function PUT(
     if (role) updateData.role = role
     if (isActive !== undefined) updateData.isActive = isActive
     if (managerId !== undefined) updateData.managerId = managerId || null
-    
-    // Only update password if provided
-    if (password) {
-      updateData.password = await bcrypt.hash(password, 10)
-    }
 
     // Update user
     const user = await prisma.user.update({

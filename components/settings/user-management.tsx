@@ -41,7 +41,6 @@ export function UserManagement() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    password: "",
     role: "USER",
     isActive: true,
     managerId: "" as string | null
@@ -75,7 +74,7 @@ export function UserManagement() {
     setError("")
     setSuccess("")
     
-    if (!formData.name || !formData.email || !formData.password) {
+    if (!formData.name || !formData.email) {
       setError("Please fill in all required fields")
       return
     }
@@ -95,7 +94,6 @@ export function UserManagement() {
         setFormData({
           name: "",
           email: "",
-          password: "",
           role: "USER",
           isActive: true,
           managerId: ""
@@ -129,7 +127,6 @@ export function UserManagement() {
           role: formData.role,
           isActive: formData.isActive,
           managerId: formData.managerId || null,
-          ...(formData.password && { password: formData.password })
         }),
       })
 
@@ -183,7 +180,6 @@ export function UserManagement() {
     setFormData({
       name: user.name,
       email: user.email,
-      password: "",
       role: user.role,
       isActive: user.isActive,
       managerId: user.managerId || ""
@@ -355,17 +351,6 @@ export function UserManagement() {
             </div>
 
             <div>
-              <Label htmlFor="password">Password *</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Enter password"
-              />
-            </div>
-
-            <div>
               <Label htmlFor="role">Role *</Label>
               <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
                 <SelectTrigger>
@@ -450,17 +435,6 @@ export function UserManagement() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="user@example.com"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="edit-password">Password (leave blank to keep current)</Label>
-              <Input
-                id="edit-password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Enter new password"
               />
             </div>
 

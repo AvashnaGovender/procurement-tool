@@ -1,54 +1,34 @@
 import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 async function resetManagerPasswords() {
   try {
-    // Set a new password for both managers
-    const newPassword = 'Manager123!' // Change this to your desired password
-    const hashedPassword = await bcrypt.hash(newPassword, 10)
+    // Passwords are no longer used - login is email-only.
+    // This script now just confirms the manager accounts exist.
+    console.log('📋 Manager accounts (login with email only, no password):\n')
 
-    console.log('🔄 Resetting manager passwords...\n')
-
-    // Reset Manager password
-    const manager = await prisma.user.update({
+    const manager = await prisma.user.findUnique({
       where: { email: 'agovender@theinnoverse.co.za' },
-      data: {
-        password: hashedPassword
-      }
     })
+    if (manager) {
+      console.log('✅ Manager:', manager.email, '-', manager.name)
+    } else {
+      console.log('⚠️  Manager agovender@theinnoverse.co.za not found')
+    }
 
-    console.log('✅ Manager password reset:')
-    console.log(`   Email: ${manager.email}`)
-    console.log(`   New Password: ${newPassword}\n`)
-
-    // Reset Procurement Manager password
-    const procurementManager = await prisma.user.update({
+    const procurementManager = await prisma.user.findUnique({
       where: { email: 'theinnoverse1212@gmail.com' },
-      data: {
-        password: hashedPassword
-      }
     })
+    if (procurementManager) {
+      console.log('✅ Procurement Manager:', procurementManager.email, '-', procurementManager.name)
+    } else {
+      console.log('⚠️  Procurement Manager theinnoverse1212@gmail.com not found')
+    }
 
-    console.log('✅ Procurement Manager password reset:')
-    console.log(`   Email: ${procurementManager.email}`)
-    console.log(`   New Password: ${newPassword}\n`)
-
-    console.log('🎉 Passwords reset successfully!')
-    console.log('\n📝 Login Credentials:')
-    console.log('─────────────────────────────────────')
-    console.log('Manager:')
-    console.log(`  Email: agovender@theinnoverse.co.za`)
-    console.log(`  Password: ${newPassword}`)
-    console.log('')
-    console.log('Procurement Manager:')
-    console.log(`  Email: theinnoverse1212@gmail.com`)
-    console.log(`  Password: ${newPassword}`)
-    console.log('─────────────────────────────────────')
-
+    console.log('\n🎉 Login with the email addresses above (no password required).')
   } catch (error) {
-    console.error('Error resetting passwords:', error)
+    console.error('Error:', error)
     throw error
   } finally {
     await prisma.$disconnect()
