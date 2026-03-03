@@ -150,6 +150,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [activeTab, setActiveTab] = useState("details")
   const [signedCreditApplicationFile, setSignedCreditApplicationFile] = useState<File | null>(null)
   const [uploadingSignedCreditApp, setUploadingSignedCreditApp] = useState(false)
+  const [isApproving, setIsApproving] = useState(false)
   const [creditController, setCreditController] = useState<string>("")
   const [resendingApprovalPack, setResendingApprovalPack] = useState(false)
 
@@ -604,6 +605,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       }
 
       // PM is approving the supplier
+      setIsApproving(true)
       const response = await fetch('/api/suppliers/update-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -673,6 +675,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
         setErrorDialogOpen(true)
       }
     } finally {
+      setIsApproving(false)
       setApproveDialogOpen(false)
     }
   }
@@ -2535,12 +2538,17 @@ Procurement Team`
             </Button>
             <Button 
               onClick={confirmApprove}
-              disabled={uploadingSignedCreditApp}
+              disabled={uploadingSignedCreditApp || isApproving}
             >
               {uploadingSignedCreditApp ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Uploading...
+                </>
+              ) : isApproving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Approving...
                 </>
               ) : (
                 <>
