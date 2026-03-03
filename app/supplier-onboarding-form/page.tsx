@@ -644,7 +644,6 @@ function SupplierOnboardingForm() {
                     required={!revisionNotes || documentsToRevise.length === 0}
                     value={formData.supplierName}
                     onChange={(e) => handleInputChange('supplierName', e.target.value)}
-                    placeholder="e.g., The Innoverse"
                   />
                 </div>
                 <div>
@@ -653,7 +652,6 @@ function SupplierOnboardingForm() {
                     id="tradingName"
                     value={formData.tradingName}
                     onChange={(e) => handleInputChange('tradingName', e.target.value)}
-                    placeholder="Trading as..."
                   />
                 </div>
                 <div>
@@ -664,7 +662,6 @@ function SupplierOnboardingForm() {
                     required={!revisionNotes || documentsToRevise.length === 0}
                     value={formData.contactNumber}
                     onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                    placeholder="e.g., 0784588458"
                   />
                 </div>
                 <div>
@@ -675,7 +672,6 @@ function SupplierOnboardingForm() {
                     required={!revisionNotes || documentsToRevise.length === 0}
                     value={formData.emailAddress}
                     onChange={(e) => handleInputChange('emailAddress', e.target.value)}
-                    placeholder="e.g., info@company.co.za"
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -711,7 +707,6 @@ function SupplierOnboardingForm() {
                       handleInputChange('postalAddress', value)
                     }
                   }}
-                  placeholder="Street address, city, postal code"
                   rows={3}
                 />
               </div>
@@ -737,7 +732,6 @@ function SupplierOnboardingForm() {
                   id="postalAddress"
                   value={formData.postalSameAsPhysical ? formData.physicalAddress : formData.postalAddress}
                   onChange={(e) => handleInputChange('postalAddress', e.target.value)}
-                  placeholder="P.O. Box or same as physical address"
                   rows={3}
                   disabled={formData.postalSameAsPhysical}
                   className={formData.postalSameAsPhysical ? "opacity-70 cursor-not-allowed" : ""}
@@ -761,7 +755,6 @@ function SupplierOnboardingForm() {
                     required={!revisionNotes || documentsToRevise.length === 0}
                     value={formData.contactPerson}
                     onChange={(e) => handleInputChange('contactPerson', e.target.value)}
-                    placeholder="Full name"
                   />
                 </div>
                 <div>
@@ -772,7 +765,6 @@ function SupplierOnboardingForm() {
                     required={!revisionNotes || documentsToRevise.length === 0}
                     value={formData.contactNumber}
                     onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                    placeholder="e.g., 0784588458"
                   />
                 </div>
                 <div>
@@ -783,7 +775,6 @@ function SupplierOnboardingForm() {
                     required={!revisionNotes || documentsToRevise.length === 0}
                     value={formData.emailAddress}
                     onChange={(e) => handleInputChange('emailAddress', e.target.value)}
-                    placeholder="e.g., contact@company.co.za"
                   />
                 </div>
               </div>
