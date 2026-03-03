@@ -2351,33 +2351,43 @@ Procurement Team`
                     )}
                   </div>
                 ) : (
-                  <Alert className={supplier.status === 'APPROVED' ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}>
-                    <AlertDescription className={supplier.status === 'APPROVED' ? 'text-green-800' : 'text-red-800'}>
-                      {supplier.status === 'APPROVED' 
-                        ? '✅ This supplier has been approved. No further actions are available.' 
-                        : '❌ This supplier has been rejected. No further actions are available.'}
-                    </AlertDescription>
-                  </Alert>
+                  <div className="space-y-3">
+                    <Alert className={supplier.status === 'APPROVED' ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}>
+                      <AlertDescription className={supplier.status === 'APPROVED' ? 'text-green-800' : 'text-red-800'}>
+                        {supplier.status === 'APPROVED'
+                          ? '✅ Supplier approved. Notification emails have been sent to the supplier, initiator, and manager.'
+                          : '❌ This supplier has been rejected. No further actions are available.'}
+                      </AlertDescription>
+                    </Alert>
+                    {/* Prompt PM to send the approval pack after approving */}
+                    {supplier.status === 'APPROVED' && session?.user?.role === 'PROCUREMENT_MANAGER' && (
+                      <Alert className="bg-blue-50 border-blue-300">
+                        <Mail className="h-4 w-4 text-blue-600" />
+                        <AlertDescription className="text-blue-800">
+                          Use the <strong>Send Approval Pack</strong> button below to send the full PDF package (approval summary, supplier form, initiator checklist and uploaded documents) to yourself.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
                 )}
                 
-                {/* Resend Approval Pack button - available for PM */}
-                {session?.user?.role === 'PROCUREMENT_MANAGER' && (
+                {/* Send Approval Pack button - available for PM on approved suppliers */}
+                {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status === 'APPROVED' && (
                   <div className="pt-4 border-t">
                     <Button
                       onClick={handleResendApprovalPack}
                       disabled={resendingApprovalPack}
-                      variant="outline"
-                      className="w-full"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       {resendingApprovalPack ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Resending...
+                          Sending...
                         </>
                       ) : (
                         <>
                           <Mail className="h-4 w-4 mr-2" />
-                          Resend Approval Pack
+                          Send Approval Pack
                         </>
                       )}
                     </Button>
@@ -2459,7 +2469,7 @@ Procurement Team`
               Approve Supplier
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to approve this supplier? An approval email will be automatically sent to the supplier.
+              Are you sure you want to approve this supplier? Notification emails will be sent to the supplier, initiator, and manager. You can then send the full approval pack separately using the <strong>Send Approval Pack</strong> button.
             </DialogDescription>
           </DialogHeader>
           

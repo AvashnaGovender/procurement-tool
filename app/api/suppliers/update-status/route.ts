@@ -251,21 +251,9 @@ export async function POST(request: NextRequest) {
             }
           }
           
-          // Send comprehensive approval package to PM who approved
-          try {
-            const pmUser = await prisma.user.findUnique({
-              where: { id: session.user.id },
-              select: { name: true, email: true }
-            })
-            
-            if (pmUser) {
-              await sendPMApprovalPackage(supplier, initiation, pmUser, creditController)
-            }
-          } catch (pmEmailError) {
-            console.error('Failed to send PM approval package:', pmEmailError)
-            // Don't fail if PM email fails, but log it
-          }
-          
+          // NOTE: PM approval package is NOT sent automatically on approval.
+          // The PM uses the "Send Approval Pack" button on the supplier page to send it when ready.
+
           // Update initiation status to SUPPLIER_EMAILED if email was sent successfully
           if (emailSent && onboarding.initiationId) {
             try {
