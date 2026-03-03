@@ -7,7 +7,7 @@ import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, s
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
 import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
 import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
-import { readdir, readFile } from 'fs/promises'
+import { readdir, readFile, stat, access } from 'fs/promises'
 
 export async function POST(request: NextRequest) {
   try {
@@ -241,59 +241,61 @@ async function sendPMApprovalPackage(
     const documentsPath = path.join(process.cwd(), 'data', 'uploads', 'suppliers', supplier.supplierCode)
     
     console.log('🔍 Looking for documents at path:', documentsPath)
-    console.log('🔍 Path exists:', fs.existsSync(documentsPath))
-    
+
     try {
-      if (fs.existsSync(documentsPath)) {
-        console.log('📂 Collecting supplier documents from:', documentsPath)
-        
-        // Get all version directories
-        const versions = await readdir(documentsPath)
-        console.log('📁 Found versions:', versions)
-        
-        for (const version of versions) {
-          const versionPath = path.join(documentsPath, version)
-          const stat = fs.statSync(versionPath)
-          
-          if (stat.isDirectory() && version.startsWith('v')) {
-            // Get all category directories
-            const categories = await readdir(versionPath)
-            
-            for (const category of categories) {
-              const categoryPath = path.join(versionPath, category)
-              const catStat = fs.statSync(categoryPath)
-              
-              if (catStat.isDirectory()) {
-                // Get all files in this category
-                const files = await readdir(categoryPath)
-                
-                for (const file of files) {
-                  const filePath = path.join(categoryPath, file)
-                  const fileBuffer = await readFile(filePath)
-                  
-                  attachments.push({
-                    filename: `${category}_${file}`,
-                    content: fileBuffer
-                  })
-                  
-                  documentsList.push({
-                    category: category,
-                    fileName: file,
-                    version: parseInt(version.replace('v', '')),
-                    uploadedAt: fs.statSync(filePath).mtime
-                  })
-                }
+      await access(documentsPath)
+      console.log('📂 Collecting supplier documents from:', documentsPath)
+
+      // Get all version directories
+      const versions = await readdir(documentsPath)
+      console.log('📁 Found versions:', versions)
+
+      for (const version of versions) {
+        if (!version.startsWith('v')) continue
+        const versionPath = path.join(documentsPath, version)
+        const versionStat = await stat(versionPath)
+
+        if (versionStat.isDirectory()) {
+          // Get all category directories
+          const categories = await readdir(versionPath)
+
+          for (const category of categories) {
+            const categoryPath = path.join(versionPath, category)
+            const catStat = await stat(categoryPath)
+
+            if (catStat.isDirectory()) {
+              // Get all files in this category
+              const files = await readdir(categoryPath)
+
+              for (const file of files) {
+                const filePath = path.join(categoryPath, file)
+                const fileBuffer = await readFile(filePath)
+                const fileStat = await stat(filePath)
+
+                attachments.push({
+                  filename: `${category}_${file}`,
+                  content: fileBuffer
+                })
+
+                documentsList.push({
+                  category,
+                  fileName: file,
+                  version: parseInt(version.replace('v', '')),
+                  uploadedAt: fileStat.mtime
+                })
               }
             }
           }
         }
-        
-        console.log(`📎 Collected ${documentsList.length} supplier documents`)
-      } else {
-        console.log('⚠️ No supplier documents directory found at:', documentsPath)
       }
-    } catch (docError) {
-      console.error('Error collecting documents:', docError)
+
+      console.log(`📎 Collected ${documentsList.length} supplier documents`)
+    } catch (docError: any) {
+      if (docError?.code === 'ENOENT') {
+        console.log('⚠️ No supplier documents directory found at:', documentsPath)
+      } else {
+        console.error('Error collecting documents:', docError)
+      }
       // Continue even if document collection fails
     }
 

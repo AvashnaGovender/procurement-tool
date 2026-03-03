@@ -55,19 +55,21 @@ export function loadAdminSmtpConfig(): AdminSmtpConfig {
 }
 
 /**
- * Sender address for visible "From" and SMTP MAIL FROM.
- * Uses the SMTP login user so strict relays (e.g. mtaroutes) that verify sender
- * accept the message. Normalized to lowercase for relay compatibility.
+ * Visible "From" address shown to email recipients.
+ * Uses fromEmail if configured by the admin, otherwise falls back to the auth user.
  */
 export function getFromAddress(config: AdminSmtpConfig): string {
-  return config.user.trim().toLowerCase()
+  const from = config.fromEmail?.trim() || config.user.trim()
+  return from.toLowerCase()
 }
 
 /**
- * Envelope sender (SMTP MAIL FROM). Same as getFromAddress for strict relays.
+ * Envelope sender (SMTP MAIL FROM) used during the SMTP handshake.
+ * Always uses the authenticated SMTP user so the server accepts the message,
+ * regardless of what the visible From header is set to.
  */
 export function getEnvelopeFrom(config: AdminSmtpConfig): string {
-  return getFromAddress(config)
+  return config.user.trim().toLowerCase()
 }
 
 /**

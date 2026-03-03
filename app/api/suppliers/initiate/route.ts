@@ -132,22 +132,23 @@ export async function POST(request: NextRequest) {
     if (!businessUnits || businessUnits.length === 0 || !processReadUnderstood || !dueDiligenceCompleted || 
         !supplierName || !supplierEmail || !supplierContactPerson || !productServiceCategory || !requesterName || 
         !relationshipDeclaration || !onboardingReason) {
-      console.error('Validation failed - Missing required fields:', {
-        businessUnits: businessUnits.length,
-        processReadUnderstood,
-        dueDiligenceCompleted,
-        supplierName: !!supplierName,
-        supplierEmail: !!supplierEmail,
-        supplierContactPerson: !!supplierContactPerson,
-        productServiceCategory: !!productServiceCategory,
-        requesterName: !!requesterName,
-        relationshipDeclaration: !!relationshipDeclaration,
-        onboardingReason: !!onboardingReason
-      })
+      const missing = [
+        !businessUnits || businessUnits.length === 0 ? 'businessUnit' : null,
+        !processReadUnderstood ? 'processReadUnderstood' : null,
+        !dueDiligenceCompleted ? 'dueDiligenceCompleted' : null,
+        !supplierName ? 'supplierName' : null,
+        !supplierEmail ? 'supplierEmail' : null,
+        !supplierContactPerson ? 'supplierContactPerson' : null,
+        !productServiceCategory ? 'productServiceCategory' : null,
+        !requesterName ? 'requesterName' : null,
+        !relationshipDeclaration ? 'relationshipDeclaration' : null,
+        !onboardingReason ? 'onboardingReason' : null,
+      ].filter(Boolean)
+      console.error('Validation failed - Missing required fields:', missing)
       return NextResponse.json({ 
         success: false,
         error: 'Missing required fields',
-        message: 'Please complete all required fields before submitting'
+        message: `Please complete all required fields before submitting. Missing: ${missing.join(', ')}`
       }, { status: 400 })
     }
 

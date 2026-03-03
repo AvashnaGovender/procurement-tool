@@ -388,14 +388,14 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         } catch {
           errorData = {}
         }
-        // Always log something useful when the API returns an error
-        console.error('Initiation submit failed:', response.status, Object.keys(errorData).length > 0 ? errorData : responseText?.slice(0, 500) || '(empty body)')
+        console.error('Initiation submit failed:', response.status, responseText?.slice(0, 1000) || '(empty body)')
         const errorMsg =
           errorData.message ||
           errorData.error ||
-          (response.status === 500 && 'Server error. Please try again or contact support.') ||
-          (response.status === 400 && 'Invalid request. Please check all required fields and try again.') ||
-          `Request failed (${response.status}). ${responseText?.slice(0, 200) || 'Please try again.'}`
+          (responseText && responseText !== '{}' ? `Server error: ${responseText.slice(0, 300)}` : null) ||
+          (response.status === 500 ? 'Server error. Please try again or contact support.' : null) ||
+          (response.status === 400 ? 'Invalid request. Please check all required fields and try again.' : null) ||
+          `Request failed (${response.status}). Please try again.`
         setErrorMessage(errorMsg)
         setErrorDialogOpen(true)
       }
@@ -728,10 +728,14 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
             <Input
               id="requesterName"
               value={formData.requesterName}
-              disabled
-              className="bg-gray-50 cursor-not-allowed"
+              onChange={(e) => handleInputChange('requesterName', e.target.value)}
+              placeholder="Your name"
+              className={!formData.requesterName ? "border-red-300" : ""}
             />
-            <p className="text-xs text-gray-500">Auto-filled from your account</p>
+            <p className="text-xs text-gray-500">Auto-filled from your account — edit if incorrect</p>
+            {!formData.requesterName && (
+              <p className="text-sm text-red-600">Please enter your name</p>
+            )}
           </div>
 
           <div className="space-y-2">
