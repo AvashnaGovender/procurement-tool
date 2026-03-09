@@ -7,6 +7,8 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 
 const WORKER_API_URL = process.env.WORKER_API_URL || 'http://localhost:8001'
+/** Worker can take several minutes (PDF + LLM). Use a long timeout to avoid HeadersTimeoutError. */
+const WORKER_FETCH_TIMEOUT_MS = 400_000 // 400 seconds
 
 /**
  * POST /api/suppliers/[supplierId]/bank-verification/run
@@ -80,10 +82,26 @@ export async function POST(
     const formData = new FormData()
     formData.append('file', new Blob([buffer], { type: 'application/pdf' }), fileName)
 
-    const verifyRes = await fetch(`${WORKER_API_URL}/verify-bank-statement`, {
-      method: 'POST',
-      body: formData,
+    // Node's default fetch (undici) uses ~300s headers timeout, which can hit before the worker finishes.
+    // Use undici's fetch with a custom Agent so the request can run up to WORKER_FETCH_TIMEOUT_MS.
+    const { fetch: undiciFetch, Agent } = await import('undici')
+    const agent = new Agent({
+      headersTimeout: WORKER_FETCH_TIMEOUT_MS,
+      bodyTimeout: WORKER_FETCH_TIMEOUT_MS,
     })
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), WORKER_FETCH_TIMEOUT_MS)
+    let verifyRes: Response
+    try {
+      verifyRes = await undiciFetch(`${WORKER_API_URL}/verify-bank-statement`, {
+        method: 'POST',
+        body: formData,
+        dispatcher: agent,
+        signal: controller.signal,
+      })
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
     if (!verifyRes.ok) {
       const errText = await verifyRes.text()
