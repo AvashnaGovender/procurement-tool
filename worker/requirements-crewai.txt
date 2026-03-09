@@ -1,0 +1,5 @@
+# CrewAI support (optional). Requires Python 3.10 or 3.11/3.12/3.13.
+# Install after base requirements: pip install -r requirements.txt && pip install -r requirements-crewai.txt
+# Needed for: bank statement extraction agent, document analysis crew.
+crewai>=0.1.0
+crewai-tools>=0.1.6

@@ -1,4 +1,5 @@
-FROM python:3.11-slim
+# Python 3.10 required for CrewAI (crewai-tools). Use this image to run the worker with bank statement agent and document crew.
+FROM python:3.10-slim
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -17,10 +18,11 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
-COPY requirements-compatible-ai.txt requirements.txt
+# Copy and install base requirements then CrewAI (requires Python 3.10+)
+COPY requirements.txt requirements-crewai.txt ./
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -r requirements-crewai.txt
 
 # Copy application code
 COPY . .

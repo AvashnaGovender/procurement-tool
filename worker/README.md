@@ -41,9 +41,12 @@ curl http://localhost:8001/health
 
 **Option 2: Manual Setup**
 
+**Python version:** Base worker runs on Python 3.9+. For **CrewAI** (bank statement agent, document crew), use **Python 3.10 or 3.11/3.12** and after the step below run: `pip install -r requirements-crewai.txt`.
+
 ```bash
 # 1. Install dependencies
 pip install -r requirements.txt
+# Optional (Python 3.10+ only): pip install -r requirements-crewai.txt
 
 # 2. Install system packages (Ubuntu/Debian)
 sudo apt-get install tesseract-ocr poppler-utils
@@ -204,22 +207,62 @@ curl -X POST http://localhost:8001/upload \
 open http://localhost:8001/docs
 ```
 
+### Bank document verification (one step)
+
+**One endpoint:** send your bank statement or bank confirmation letter PDF and get back document info plus pass/fail.
+
+- **Prerequisites:** Worker running, Ollama running with a model (e.g. `ollama pull llama3.1:latest`).
+
+**How to test**
+
+1. Start the stack (Docker or local) and pull the model once:
+   ```bash
+   docker-compose up -d
+   docker-compose exec ollama ollama pull llama3.1
+   ```
+2. Open **http://localhost:8001/docs** → **POST /verify-bank-statement** → Try it out → choose your PDF → Execute.
+
+**Response (one shape)**  
+You get a single JSON with everything:
+
+- `document_id`, `filename`, `file_size` – from the upload
+- `passed` – true/false
+- `reasons` – list of failure reasons (empty if passed)
+- `extracted` – bank name, account number, statement date, account holder, document type, confidence
+
+**PowerShell (no Swagger):**
+
+```powershell
+curl.exe -X POST http://localhost:8001/verify-bank-statement -F "file=@YourFile.pdf"
+```
+
+Bank statements and bank confirmation letters are both accepted.
+
+**Calling from the Next.js app (browser):** Use the proxy so the browser never talks to the worker directly (avoids CORS and "Failed to fetch"):
+
+- **URL:** `POST /api/worker/verify-bank-statement` (same origin as the app, e.g. `http://localhost:3000/api/worker/verify-bank-statement`)
+- **Body:** form-data with field `file` = your PDF file.
+
+Ensure `WORKER_API_URL` is set in the Next.js `.env` (e.g. `http://localhost:8001` or `http://worker:8001` in Docker) so the server can reach the worker.
+
 See **[docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** for comprehensive testing procedures.
 
 ---
 
 ## 🐳 Docker Support
 
+The **Dockerfile** uses **Python 3.10** and installs **CrewAI** (requirements.txt + requirements-crewai.txt), so the worker container is a ready-made environment for the bank statement agent and document crew. No need for a separate host with Python 3.10.
+
 ### Files
-- **Dockerfile** - Container image definition
-- **docker-compose.yml** - Multi-service orchestration
+- **Dockerfile** - Python 3.10 image with CrewAI
+- **docker-compose.yml** - Multi-service orchestration (postgres, redis, ollama, worker, celery-worker)
 
 ### Commands
 ```bash
-# Build image
+# From the worker directory: build the Python 3.10 + CrewAI image
 docker-compose build
 
-# Start services
+# Start all services (worker will have CrewAI available)
 docker-compose up -d
 
 # View logs
@@ -240,6 +283,7 @@ docker-compose restart worker
 - **fastapi** - Web framework
 - **uvicorn** - ASGI server
 - **langchain-ollama** - Ollama integration
+- **crewai** / **crewai-tools** - Optional, in `requirements-crewai.txt` (requires Python 3.10+)
 - **PyPDF2** - PDF text extraction
 - **pytesseract** - OCR engine
 - **pdf2image** - PDF to image conversion

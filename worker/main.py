@@ -261,6 +261,47 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
+@app.post("/verify-bank-statement")
+async def verify_bank_statement_upload(file: UploadFile = File(...)):
+    """
+    Single step: upload a bank statement or bank confirmation letter PDF and get verification.
+    One request with the file returns document info + pass/fail + extracted fields.
+    """
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="A PDF file is required.")
+    file_path = None
+    try:
+        upload_dir = settings.upload_dir
+        os.makedirs(upload_dir, exist_ok=True)
+        document_id = str(uuid.uuid4())
+        file_path = os.path.join(upload_dir, f"{document_id}_{file.filename}")
+        content = await file.read()
+        file_size = len(content)
+        with open(file_path, "wb") as buffer:
+            buffer.write(content)
+        from bank_statement_verifier import verify_bank_statement
+        verification = verify_bank_statement(file_path)
+        return {
+            "document_id": document_id,
+            "filename": file.filename,
+            "file_size": file_size,
+            "passed": verification["passed"],
+            "reasons": verification["reasons"],
+            "extracted": verification["extracted"],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Bank statement verification failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if file_path and os.path.isfile(file_path):
+            try:
+                os.remove(file_path)
+            except OSError as e:
+                logger.warning(f"Could not remove temp file {file_path}: {e}")
+
+
 @app.post("/process-document")
 async def process_document(request: dict):
     """Process a document with full AI analysis using Ollama."""

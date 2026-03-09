@@ -1,4 +1,11 @@
 """AI agents for document processing and compliance checking using Ollama."""
+import os
+
+# CrewAI's native provider checks for OPENAI_API_KEY at import time. We use Ollama only;
+# set a placeholder so the import does not fail when no OpenAI key is configured.
+if not os.environ.get("OPENAI_API_KEY"):
+    os.environ["OPENAI_API_KEY"] = "ollama-placeholder-not-used"
+
 try:
     from langchain_ollama import ChatOllama
     OLLAMA_AVAILABLE = True
