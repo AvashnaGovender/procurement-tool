@@ -43,10 +43,22 @@ def _extract_pdf_text(file_path: str) -> str:
 # CREW AI AGENT & TASK
 # ----------------------------
 def _get_extractor_agent():
-    """Build or return the Bank Statement Extraction agent (requires CrewAI + LLM)."""
-    from crew_agents import Agent, CREWAI_AVAILABLE, llm
+    """Build or return the Bank Statement Extraction agent (requires CrewAI + Ollama)."""
+    from crew_agents import Agent, CREWAI_AVAILABLE
 
-    if not CREWAI_AVAILABLE or llm is None:
+    if not CREWAI_AVAILABLE:
+        return None
+
+    # Use CrewAI's native LLM with Ollama so we don't go through the OpenAI provider (avoids /v1 path 404)
+    try:
+        from crewai import LLM
+        from config import settings
+        llm = LLM(
+            model=f"ollama/{settings.ollama_model}",
+            base_url=settings.ollama_base_url.rstrip("/"),
+        )
+    except Exception as e:
+        logger.warning(f"Could not create CrewAI Ollama LLM: {e}")
         return None
 
     return Agent(
@@ -236,12 +248,12 @@ def verify_bank_statement(file_path: str) -> dict:
             "extracted": None,
         }
 
-    from crew_agents import CREWAI_AVAILABLE, llm
+    from crew_agents import CREWAI_AVAILABLE
 
-    if not CREWAI_AVAILABLE or llm is None:
+    if not CREWAI_AVAILABLE:
         return {
             "passed": False,
-            "reasons": ["CrewAI or LLM not available; extraction skipped."],
+            "reasons": ["CrewAI not available; extraction skipped."],
             "extracted": None,
         }
 

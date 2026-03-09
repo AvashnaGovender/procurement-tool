@@ -1,4 +1,14 @@
 """FastAPI main application for the worker service."""
+import os
+
+# Set CrewAI/Ollama env before any crew_agents import so CrewAI's OpenAI provider hits /v1/chat/completions
+from config import settings
+if not os.environ.get("OPENAI_API_KEY"):
+    os.environ["OPENAI_API_KEY"] = "ollama-placeholder"
+_ob = getattr(settings, "ollama_base_url", "http://localhost:11434").rstrip("/")
+if not os.environ.get("OPENAI_API_BASE") and not os.environ.get("OPENAI_BASE_URL"):
+    os.environ["OPENAI_API_BASE"] = f"{_ob}/v1"
+
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -6,9 +16,6 @@ from typing import List, Dict, Any, Optional
 import logging
 from datetime import datetime
 import uuid
-import os
-
-from config import settings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
