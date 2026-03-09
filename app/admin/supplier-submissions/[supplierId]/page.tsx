@@ -1838,17 +1838,8 @@ Procurement Team`
                                 </div>
                               )}
                             </div>
-                            <div className="flex flex-wrap items-center gap-3 pt-4 mt-4 border-t border-gray-200">
-                              <span className="text-gray-700 font-medium">Older than 3 months:</span>
-                              <Badge className={isOlderThan3Months ? 'bg-amber-500 text-white' : 'bg-green-500 text-white'}>
-                                {isOlderThan3Months ? 'Yes' : 'No'}
-                              </Badge>
-                              <Badge className={
-                                bv.passed ? 'bg-green-600 text-white' :
-                                couldNotProcess ? 'bg-red-600 text-white' : 'bg-amber-600 text-white'
-                              }>
-                                {bv.passed ? 'Verification passed' : couldNotProcess ? 'Could not process document' : 'Validation issues'}
-                              </Badge>
+                            <div className="pt-4 mt-4 border-t border-gray-200 text-sm text-gray-700">
+                              <span className="font-medium">Older than 3 months:</span> {isOlderThan3Months ? 'Yes' : 'No'}
                             </div>
                             {bv.reasons && bv.reasons.length > 0 && !bv.passed && (
                               <ul className={`text-sm list-disc list-inside mt-3 ${couldNotProcess ? 'text-red-800' : 'text-amber-800'}`}>
