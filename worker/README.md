@@ -39,9 +39,10 @@ docker-compose up -d
 curl http://localhost:8001/health
 ```
 
-**Option 2: Manual Setup**
+**Option 2: Manual Setup (no Docker)**
 
-**Python version:** Base worker runs on Python 3.9+. For **CrewAI** (bank statement agent, document crew), use **Python 3.10 or 3.11/3.12** and after the step below run: `pip install -r requirements-crewai.txt`.
+**Python version:** Base worker runs on Python 3.9+. For **CrewAI** (bank statement agent, document crew), use **Python 3.10 or 3.11/3.12** and after the step below run: `pip install -r requirements-crewai.txt`.  
+**No Docker?** See **[RUN_WITHOUT_DOCKER.md](RUN_WITHOUT_DOCKER.md)** for step-by-step setup on Windows with Python 3.10 (e.g. laptop without virtualization).
 
 ```bash
 # 1. Install dependencies

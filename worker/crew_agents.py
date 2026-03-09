@@ -5,6 +5,11 @@ import os
 # set a placeholder so the import does not fail when no OpenAI key is configured.
 if not os.environ.get("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = "ollama-placeholder-not-used"
+# CrewAI's OpenAI provider must hit Ollama at /v1/chat/completions (not /chat/completions).
+# Set base URL so requests go to http://localhost:11434/v1/chat/completions.
+if not os.environ.get("OPENAI_API_BASE") and not os.environ.get("OPENAI_BASE_URL"):
+    _ollama_base = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+    os.environ["OPENAI_API_BASE"] = f"{_ollama_base}/v1"
 
 try:
     from langchain_ollama import ChatOllama
