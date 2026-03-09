@@ -43,6 +43,32 @@ def _extract_pdf_text(file_path: str) -> str:
 
 
 # ----------------------------
+# ACCOUNT NUMBER FROM KEYWORDS (deterministic override)
+# ----------------------------
+# Patterns for "Acc No", "Account number", "Accountnumber" etc. Capture digits after (often 9–11 digits).
+_ACCOUNT_NUMBER_PATTERNS = [
+    re.compile(r"Account\s*number\s*[:\s]*(\d[\d\s]{6,18})", re.IGNORECASE),
+    re.compile(r"Accountnumber\s*(\d[\d\s]{6,18})", re.IGNORECASE),
+    re.compile(r"Acc(?:ount)?\s*No\.?\s*[:\s]*(\d[\d\s]{6,18})", re.IGNORECASE),
+    re.compile(r"Account\s*No\.?\s*[:\s]*(\d[\d\s]{6,18})", re.IGNORECASE),
+]
+
+
+def _extract_account_number_from_text(raw_text: str) -> str | None:
+    """Find account number in raw text using keyword patterns. Returns normalized digits or None."""
+    if not raw_text or not isinstance(raw_text, str):
+        return None
+    text = raw_text.strip()
+    for pat in _ACCOUNT_NUMBER_PATTERNS:
+        m = pat.search(text)
+        if m:
+            num = re.sub(r"\s+", "", m.group(1).strip())
+            if len(num) >= 8 and len(num) <= 18:  # plausible length
+                return num
+    return None
+
+
+# ----------------------------
 # DIRECT OLLAMA (one call, fast – no CrewAI)
 # ----------------------------
 def _extract_via_ollama_direct(raw_text: str) -> dict | None:
@@ -350,6 +376,11 @@ def verify_bank_statement(file_path: str) -> dict:
                 "reasons": ["Extraction failed (Ollama and CrewAI)."],
                 "extracted": None,
             }
+
+    # Override account_number with keyword-based extraction when we find a match (more reliable than LLM)
+    account_from_text = _extract_account_number_from_text(raw_text)
+    if account_from_text:
+        extracted["account_number"] = account_from_text
 
     return validate_statement(extracted)
 
