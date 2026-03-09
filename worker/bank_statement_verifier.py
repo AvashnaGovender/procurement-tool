@@ -74,6 +74,9 @@ def _get_extractor_agent():
     )
 
 
+# Max characters of PDF text to send to the LLM (keeps prompts small and responses faster)
+_MAX_EXTRACTION_TEXT_LENGTH = 8000
+
 def _build_extraction_task(raw_text: str):
     """Build a CrewAI task that extracts bank statement fields from raw text."""
     from crew_agents import Task
@@ -81,6 +84,11 @@ def _build_extraction_task(raw_text: str):
     agent = _get_extractor_agent()
     if agent is None:
         return None, None
+
+    # Truncate to avoid huge prompts and slow timeouts
+    text = raw_text.strip()
+    if len(text) > _MAX_EXTRACTION_TEXT_LENGTH:
+        text = text[:_MAX_EXTRACTION_TEXT_LENGTH] + "\n\n[Text truncated for length.]"
 
     task = Task(
         description=f"""
@@ -101,7 +109,7 @@ Rules:
 - Do not invent values. If a field is missing, use null.
 
 RAW TEXT:
-{raw_text}
+{text}
 """,
         agent=agent,
         expected_output="A single JSON object with keys: bank_name, account_number, statement_date, account_holder, document_type, confidence.",

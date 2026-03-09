@@ -3,3 +3,5 @@
 # Needed for: bank statement extraction agent, document analysis crew.
 crewai>=0.1.0
 crewai-tools>=0.1.6
+# LiteLLM required for CrewAI to use Ollama (ollama/llama3.1:latest etc.)
+litellm>=1.0.0

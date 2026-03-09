@@ -1,4 +1,5 @@
 """FastAPI main application for the worker service."""
+import asyncio
 import os
 
 # Set CrewAI/Ollama env before any crew_agents import so CrewAI's OpenAI provider hits /v1/chat/completions
@@ -268,6 +269,9 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
+# Timeout for bank statement verification (LLM can be slow on CPU)
+VERIFY_BANK_STATEMENT_TIMEOUT = 120  # seconds
+
 @app.post("/verify-bank-statement")
 async def verify_bank_statement_upload(file: UploadFile = File(...)):
     """
@@ -287,7 +291,11 @@ async def verify_bank_statement_upload(file: UploadFile = File(...)):
         with open(file_path, "wb") as buffer:
             buffer.write(content)
         from bank_statement_verifier import verify_bank_statement
-        verification = verify_bank_statement(file_path)
+        loop = asyncio.get_event_loop()
+        verification = await asyncio.wait_for(
+            loop.run_in_executor(None, lambda p=file_path: verify_bank_statement(p)),
+            timeout=VERIFY_BANK_STATEMENT_TIMEOUT,
+        )
         return {
             "document_id": document_id,
             "filename": file.filename,
@@ -296,6 +304,12 @@ async def verify_bank_statement_upload(file: UploadFile = File(...)):
             "reasons": verification["reasons"],
             "extracted": verification["extracted"],
         }
+    except asyncio.TimeoutError:
+        logger.warning("Bank statement verification timed out after %s seconds", VERIFY_BANK_STATEMENT_TIMEOUT)
+        raise HTTPException(
+            status_code=504,
+            detail=f"Verification timed out after {VERIFY_BANK_STATEMENT_TIMEOUT} seconds. The LLM may be slow; try a smaller PDF or a faster model.",
+        )
     except HTTPException:
         raise
     except Exception as e:
