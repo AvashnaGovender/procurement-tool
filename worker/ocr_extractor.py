@@ -1,6 +1,7 @@
 """OCR and document extraction capabilities."""
 import os
 import io
+import contextlib
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 import pytesseract
@@ -51,7 +52,10 @@ class OCRExtractor:
         """When PyPDF2 fails (e.g. EOF marker not found), try to extract text via pdf2image + Tesseract."""
         try:
             from pdf2image import convert_from_path
-            images = convert_from_path(pdf_path, dpi=200)
+            # Suppress Poppler stderr (e.g. "Illegal character in hex string", "Syntax Error") for corrupted PDFs
+            with open(os.devnull, "w") as devnull:
+                with contextlib.redirect_stderr(devnull):
+                    images = convert_from_path(pdf_path, dpi=200)
             page_count = len(images)
             ocr_parts = [pytesseract.image_to_string(img) for img in images]
             text = "\n".join(ocr_parts).strip()
@@ -82,7 +86,9 @@ class OCRExtractor:
         if len(text) < _MIN_TEXT_LENGTH and page_count > 0:
             try:
                 from pdf2image import convert_from_path
-                images = convert_from_path(pdf_path, dpi=200)
+                with open(os.devnull, "w") as devnull:
+                    with contextlib.redirect_stderr(devnull):
+                        images = convert_from_path(pdf_path, dpi=200)
                 ocr_parts = [pytesseract.image_to_string(img) for img in images]
                 ocr_text = "\n".join(ocr_parts).strip()
                 if len(ocr_text) > len(text):

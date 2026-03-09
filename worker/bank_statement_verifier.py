@@ -360,7 +360,10 @@ def verify_bank_statement(file_path: str) -> dict:
     if not raw_text or len(raw_text.strip()) < 10:
         return {
             "passed": False,
-            "reasons": ["PDF produced no or insufficient text for analysis."],
+            "reasons": [
+                "PDF produced no or insufficient text for analysis.",
+                "The file may be corrupted or invalid. Try re-uploading a valid PDF (e.g. re-save or re-export from the original source).",
+            ],
             "extracted": None,
         }
 

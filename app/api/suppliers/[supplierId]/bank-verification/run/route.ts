@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { readFile } from 'fs/promises'
+import { join } from 'path'
+import { existsSync } from 'fs'
 
 const WORKER_API_URL = process.env.WORKER_API_URL || 'http://localhost:8001'
 
@@ -53,24 +56,29 @@ export async function POST(
       )
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
     const fileName = bankFiles[0]
-    const fileUrl = `${baseUrl}/api/suppliers/documents/${supplier.supplierCode}/v${latestVersion.version}/bankConfirmation/${encodeURIComponent(fileName)}`
-
-    const fileResponse = await fetch(fileUrl)
-    if (!fileResponse.ok) {
+    // Read file directly from disk (same path as document API) so we send exact bytes to the worker.
+    // Fetching via HTTP can change encoding or return HTML on auth errors, causing PDF parse errors.
+    const filePath = join(
+      process.cwd(),
+      'data',
+      'uploads',
+      'suppliers',
+      supplier.supplierCode,
+      `v${latestVersion.version}`,
+      'bankConfirmation',
+      fileName
+    )
+    if (!existsSync(filePath)) {
       return NextResponse.json(
-        { success: false, error: `Failed to fetch document: ${fileResponse.statusText}` },
-        { status: 502 }
+        { success: false, error: `Document not found at expected path` },
+        { status: 404 }
       )
     }
-
-    const fileBlob = await fileResponse.blob()
-    const arrayBuffer = await fileBlob.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
+    const buffer = await readFile(filePath)
 
     const formData = new FormData()
-    formData.append('file', new Blob([buffer], { type: fileBlob.type || 'application/pdf' }), fileName)
+    formData.append('file', new Blob([buffer], { type: 'application/pdf' }), fileName)
 
     const verifyRes = await fetch(`${WORKER_API_URL}/verify-bank-statement`, {
       method: 'POST',
