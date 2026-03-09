@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # File Storage
     upload_dir: str = "./uploads"
     max_file_size: int = 10485760  # 10MB
+
+    # Bank statement verification timeout (seconds). CrewAI + Ollama can need 3–5 min on CPU.
+    verify_bank_statement_timeout: int = 300
     
     # Email (optional - notifications disabled)
     smtp_host: str = "mail.theinnoverse.co.za"

@@ -10,6 +10,9 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
+# Max characters of PDF text to send to the LLM (keeps prompts small and responses faster)
+_MAX_EXTRACTION_TEXT_LENGTH = 8000
+
 
 # ----------------------------
 # OUTPUT SCHEMA
@@ -37,6 +40,61 @@ def _extract_pdf_text(file_path: str) -> str:
     extractor = OCRExtractor()
     result = extractor.extract_from_pdf(file_path)
     return result.get("text", "") or ""
+
+
+# ----------------------------
+# DIRECT OLLAMA (one call, fast – no CrewAI)
+# ----------------------------
+def _extract_via_ollama_direct(raw_text: str) -> dict | None:
+    """Call Ollama /api/generate once with an extraction prompt. Returns parsed dict or None."""
+    try:
+        from config import settings
+        import httpx
+    except ImportError:
+        return None
+
+    text = raw_text.strip()
+    if len(text) > _MAX_EXTRACTION_TEXT_LENGTH:
+        text = text[:_MAX_EXTRACTION_TEXT_LENGTH] + "\n\n[Text truncated for length.]"
+
+    prompt = f"""From this bank letter or statement text, extract ONLY a JSON object with these keys: bank_name, account_number, statement_date, account_holder, document_type, confidence.
+Rules: document_type must be "bank_statement" or "bank_confirmation_letter". statement_date as YYYY-MM-DD if possible. No other text, only the JSON object.
+
+TEXT:
+{text}"""
+
+    url = f"{settings.ollama_base_url.rstrip('/')}/api/generate"
+    payload = {"model": settings.ollama_model, "prompt": prompt, "stream": False}
+
+    try:
+        with httpx.Client(timeout=90.0) as client:
+            r = client.post(url, json=payload)
+            r.raise_for_status()
+            data = r.json()
+    except Exception as e:
+        logger.warning("Direct Ollama extraction failed: %s", e)
+        return None
+
+    response_text = (data.get("response") or "").strip()
+    if not response_text:
+        return None
+
+    # Parse JSON from response (may be wrapped in markdown or have extra text)
+    code_block = re.search(r"```(?:json)?\s*([\s\S]*?)```", response_text)
+    if code_block:
+        response_text = code_block.group(1).strip()
+    start = response_text.find("{")
+    end = response_text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        response_text = response_text[start : end + 1]
+    try:
+        return json.loads(response_text)
+    except json.JSONDecodeError:
+        pass
+    try:
+        return json.loads((data.get("response") or "").strip())
+    except json.JSONDecodeError:
+        return None
 
 
 # ----------------------------
@@ -73,9 +131,6 @@ def _get_extractor_agent():
         allow_delegation=False,
     )
 
-
-# Max characters of PDF text to send to the LLM (keeps prompts small and responses faster)
-_MAX_EXTRACTION_TEXT_LENGTH = 8000
 
 def _build_extraction_task(raw_text: str):
     """Build a CrewAI task that extracts bank statement fields from raw text."""
@@ -186,6 +241,9 @@ def parse_date(date_str: str | None) -> datetime | None:
     if not date_str or not isinstance(date_str, str):
         return None
     date_str = date_str.strip()
+    # Handle ISO 8601 (e.g. 2025-04-04T00:00:00.000Z) by using date part only
+    if "T" in date_str:
+        date_str = date_str.split("T")[0]
     formats = [
         "%Y-%m-%d",
         "%d/%m/%Y",
@@ -280,16 +338,19 @@ def verify_bank_statement(file_path: str) -> dict:
             "extracted": None,
         }
 
-    from crew_agents import CREWAI_AVAILABLE
+    # Prefer direct Ollama (one call, ~30–60s). Fall back to CrewAI if that fails.
+    extracted = _extract_via_ollama_direct(raw_text)
+    if extracted is None:
+        from crew_agents import CREWAI_AVAILABLE
+        if CREWAI_AVAILABLE:
+            extracted = _run_extraction_crew(raw_text)
+        if extracted is None:
+            return {
+                "passed": False,
+                "reasons": ["Extraction failed (Ollama and CrewAI)."],
+                "extracted": None,
+            }
 
-    if not CREWAI_AVAILABLE:
-        return {
-            "passed": False,
-            "reasons": ["CrewAI not available; extraction skipped."],
-            "extracted": None,
-        }
-
-    extracted = _run_extraction_crew(raw_text)
     return validate_statement(extracted)
 
 
