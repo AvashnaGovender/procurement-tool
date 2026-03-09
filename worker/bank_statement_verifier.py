@@ -382,6 +382,17 @@ def verify_bank_statement(file_path: str) -> dict:
     if account_from_text:
         extracted["account_number"] = account_from_text
 
+    # Sanitize confidence: must be a number in [0, 1]; LLMs sometimes put wrong values (e.g. "20020")
+    c = extracted.get("confidence")
+    if c is not None:
+        try:
+            val = float(c) if not isinstance(c, (int, float)) else c
+            if not (0 <= val <= 1):
+                val = None
+        except (TypeError, ValueError):
+            val = None
+        extracted["confidence"] = val
+
     return validate_statement(extracted)
 
 
