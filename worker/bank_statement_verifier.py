@@ -86,25 +86,26 @@ def _build_extraction_task(raw_text: str):
         description=f"""
 You are given raw text extracted from a PDF bank statement.
 
-Extract the following fields:
-- bank_name
-- account_number
-- statement_date
-- account_holder
-- document_type
-- confidence
+Extract the following fields into a JSON object:
+- bank_name (string or null)
+- account_number (string or null)
+- statement_date (string, YYYY-MM-DD if possible, or null)
+- account_holder (string or null)
+- document_type: use "bank_statement" or "bank_confirmation_letter" only
+- confidence (number 0-1 or null)
 
 Rules:
-- Return only valid JSON.
-- document_type: use 'bank_statement' for account statements, or 'bank_confirmation_letter' for letters confirming account details.
-- statement_date: use the document date, letter date, or statement closing date; convert to YYYY-MM-DD where possible.
-- Do not invent values. If a field is missing, return null.
+- Return only valid JSON, no other text.
+- document_type: "bank_confirmation_letter" for letters confirming account details; "bank_statement" for account statements.
+- statement_date: document date or letter date; use YYYY-MM-DD.
+- Do not invent values. If a field is missing, use null.
 
 RAW TEXT:
 {raw_text}
 """,
         agent=agent,
-        expected_output="A JSON object with extracted bank statement fields.",
+        expected_output="A single JSON object with keys: bank_name, account_number, statement_date, account_holder, document_type, confidence.",
+        output_pydantic=BankStatementExtraction,
     )
     return agent, task
 
@@ -128,22 +129,45 @@ def _run_extraction_crew(raw_text: str) -> dict | None:
     )
     result = crew.kickoff()
 
+    # Prefer CrewAI's structured output if available
+    if hasattr(result, "pydantic") and result.pydantic is not None:
+        out = result.pydantic
+        return out.model_dump() if hasattr(out, "model_dump") else out.dict()
+    if hasattr(result, "json_dict") and result.json_dict is not None:
+        return result.json_dict if isinstance(result.json_dict, dict) else dict(result.json_dict)
+
+    # Fall back to parsing raw string
     if hasattr(result, "raw"):
-        result_text = result.raw
+        result_text = result.raw if isinstance(result.raw, str) else str(result.raw)
+    elif hasattr(result, "output") and result.output is not None:
+        result_text = result.output if isinstance(result.output, str) else str(result.output)
     else:
         result_text = str(result)
 
-    # Strip markdown code blocks if present
-    result_text = result_text.strip()
+    result_text = (result_text or "").strip()
+    if not result_text:
+        logger.warning("Crew returned empty output")
+        return None
+
     code_block = re.search(r"```(?:json)?\s*([\s\S]*?)```", result_text)
     if code_block:
         result_text = code_block.group(1).strip()
 
     try:
         return json.loads(result_text)
-    except json.JSONDecodeError as e:
-        logger.warning(f"Failed to parse crew output as JSON: {e}")
-        return None
+    except json.JSONDecodeError:
+        pass
+
+    start = result_text.find("{")
+    end = result_text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            return json.loads(result_text[start : end + 1])
+        except json.JSONDecodeError:
+            pass
+
+    logger.warning("Failed to parse crew output as JSON. Raw output (first 500 chars): %s", result_text[:500])
+    return None
 
 
 # ----------------------------
