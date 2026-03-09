@@ -422,6 +422,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Trigger bank verification in background when bank confirmation doc was received (PM sees result when reviewing)
+    if (uploadedFiles.bankConfirmation?.length > 0 && supplier?.id) {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'
+      const secret = process.env.BANK_VERIFICATION_TRIGGER_SECRET
+      if (secret) {
+        fetch(`${baseUrl}/api/suppliers/${supplier.id}/bank-verification/run`, {
+          method: 'POST',
+          headers: { 'x-trigger-secret': secret },
+        }).catch((err) => console.error('Bank verification trigger failed:', err))
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Supplier onboarding form submitted successfully',

@@ -322,6 +322,29 @@ async function processAnalysisJob(
           const arrayBuffer = await fileBlob.arrayBuffer()
           const buffer = Buffer.from(arrayBuffer)
           
+          // Bank confirmation: run dedicated verification (account number, date < 3 months) and store for AI Insights
+          if (category === 'bankConfirmation' && !analysisResults.bankVerification) {
+            try {
+              await addLog(`  🏦 Running bank statement verification...`)
+              const verifyFormData = new FormData()
+              verifyFormData.append('file', new Blob([buffer], { type: fileBlob.type || 'application/pdf' }), fileName)
+              const verifyRes = await fetch(`${WORKER_API_URL}/verify-bank-statement`, {
+                method: 'POST',
+                body: verifyFormData,
+              })
+              if (verifyRes.ok) {
+                const verifyData = await verifyRes.json()
+                analysisResults.bankVerification = verifyData
+                const older = verifyData.reasons?.some((r: string) => r.toLowerCase().includes('older than 3 months')) ?? false
+                await addLog(`  ✅ Bank verification: ${verifyData.passed ? 'Passed' : 'Failed'}${older ? ' (statement older than 3 months)' : ''}`)
+              } else {
+                await addLog(`  ⚠️  Bank verification request failed: ${verifyRes.status}`)
+              }
+            } catch (verifyErr: any) {
+              await addLog(`  ⚠️  Bank verification error: ${verifyErr?.message || verifyErr}`)
+            }
+          }
+          
           // Create a File-like object for the worker client
           // In Node.js, we'll pass the buffer directly to the upload endpoint
           await addLog(`  🤖 Running AI analysis...`)

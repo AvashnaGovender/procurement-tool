@@ -252,6 +252,7 @@ model Supplier {
   invoices              Invoice[]
   reviews               SupplierReview[]
   aiAnalysisJobs        AIAnalysisJob[]
+  bankVerifications     BankVerification[]
 
   @@index([supplierCode])
   @@index([status])
@@ -1525,6 +1526,22 @@ enum AIAnalysisStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+// ============================================================================
+// BANK VERIFICATION - Result of bank confirmation document verification
+// ============================================================================
+
+model BankVerification {
+  id          String   @id @default(cuid())
+  supplierId String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  result      Json     // { passed, reasons, extracted }
+  createdAt   DateTime @default(now())
+
+  @@index([supplierId])
+  @@index([supplierId, createdAt])
+  @@map("bank_verifications")
 }
 
 // ============================================================================

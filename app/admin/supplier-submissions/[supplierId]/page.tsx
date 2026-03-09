@@ -30,7 +30,8 @@ import {
   Brain,
   Play,
   CheckCheck,
-  AlertCircle
+  AlertCircle,
+  Landmark
 } from "lucide-react"
 import { workerClient } from "@/lib/worker-client"
 import { getMandatoryDocuments, getDocumentDisplayName, getPurchaseTypeDisplayName, type PurchaseType } from "@/lib/document-requirements"
@@ -154,14 +155,10 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [creditController, setCreditController] = useState<string>("")
   const [resendingApprovalPack, setResendingApprovalPack] = useState(false)
 
-  // AI Insights state
-  const [aiProcessing, setAiProcessing] = useState(false)
-  const [aiLogs, setAiLogs] = useState<string[]>([])
-  const [aiSummary, setAiSummary] = useState<any>(null)
-  const [aiMode, setAiMode] = useState<string>('unknown')
-  const [aiJobId, setAiJobId] = useState<string | null>(null)
-  const [aiProgress, setAiProgress] = useState(0)
-  const [aiCurrentStep, setAiCurrentStep] = useState<string | null>(null)
+  // AI Insights (bank verification only) state
+  const [bankVerification, setBankVerification] = useState<any>(null)
+  const [bankVerificationLoading, setBankVerificationLoading] = useState(true)
+  const [bankVerificationRunning, setBankVerificationRunning] = useState(false)
 
   // Document verification state
   const [documentVerifications, setDocumentVerifications] = useState<Record<string, boolean>>({})
@@ -175,7 +172,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   useEffect(() => {
     if (supplier?.id) {
       fetchDocumentVerifications()
-      checkExistingAnalysisJob()
+      fetchBankVerification()
     }
   }, [supplier?.id])
 
@@ -192,86 +189,38 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     }
   }, [router])
 
-  // Poll for analysis job status
-  useEffect(() => {
-    if (!aiJobId || !supplier?.id) return
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const response = await fetch(`/api/suppliers/${supplier.id}/ai-analysis/status`)
-        const data = await response.json()
-        
-        if (data.success && data.job) {
-          const job = data.job
-          
-          // Update logs
-          if (job.logs && Array.isArray(job.logs)) {
-            setAiLogs(job.logs)
-          }
-          
-          // Update progress
-          setAiProgress(job.progress || 0)
-          setAiCurrentStep(job.currentStep || null)
-          
-          // Update AI mode
-          if (job.aiMode) {
-            setAiMode(job.aiMode)
-          }
-          
-          // Check if job is complete
-          if (job.status === 'COMPLETED') {
-            setAiProcessing(false)
-            setAiSummary(job.results || job.summary)
-            clearInterval(pollInterval)
-          } else if (job.status === 'FAILED') {
-            setAiProcessing(false)
-            setErrorMessage(job.errorMessage || 'AI analysis failed')
-            setErrorDialogOpen(true)
-            clearInterval(pollInterval)
-          } else if (job.status === 'IN_PROGRESS' || job.status === 'PENDING') {
-            setAiProcessing(true)
-          }
-        }
-      } catch (error) {
-        console.error('Error polling analysis status:', error)
-      }
-    }, 2000) // Poll every 2 seconds
-
-    return () => clearInterval(pollInterval)
-  }, [aiJobId, supplier?.id])
-
-  const checkExistingAnalysisJob = async () => {
+  const fetchBankVerification = async () => {
     if (!supplier?.id) return
-    
+    setBankVerificationLoading(true)
     try {
-      const response = await fetch(`/api/suppliers/${supplier.id}/ai-analysis/status`)
-      const data = await response.json()
-      
-      if (data.success && data.job) {
-        const job = data.job
-        
-        // If there's an in-progress job, resume monitoring
-        if (job.status === 'IN_PROGRESS' || job.status === 'PENDING') {
-          setAiJobId(job.id)
-          setAiProcessing(true)
-          setAiLogs(job.logs || [])
-          setAiProgress(job.progress || 0)
-          setAiCurrentStep(job.currentStep || null)
-          if (job.aiMode) {
-            setAiMode(job.aiMode)
-          }
-        } else if (job.status === 'COMPLETED') {
-          // Load completed results
-          setAiSummary(job.results || job.summary)
-          setAiLogs(job.logs || [])
-          setAiProgress(100)
-          if (job.aiMode) {
-            setAiMode(job.aiMode)
-          }
-        }
+      const res = await fetch(`/api/suppliers/${supplier.id}/bank-verification`)
+      const data = await res.json()
+      if (data.success) setBankVerification(data.data)
+      else setBankVerification(null)
+    } catch {
+      setBankVerification(null)
+    } finally {
+      setBankVerificationLoading(false)
+    }
+  }
+
+  const handleRunBankVerification = async () => {
+    if (!supplier?.id) return
+    setBankVerificationRunning(true)
+    try {
+      const res = await fetch(`/api/suppliers/${supplier.id}/bank-verification/run`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success && data.data) {
+        setBankVerification(data.data)
+      } else {
+        setErrorMessage(data.error || 'Bank verification failed')
+        setErrorDialogOpen(true)
       }
-    } catch (error) {
-      console.error('Error checking existing analysis job:', error)
+    } catch (e) {
+      setErrorMessage(e instanceof Error ? e.message : 'Bank verification failed')
+      setErrorDialogOpen(true)
+    } finally {
+      setBankVerificationRunning(false)
     }
   }
 
@@ -956,39 +905,6 @@ Procurement Team`
     } finally {
       setDeleteDialogOpen(false)
       setCompanyNameConfirm("")
-    }
-  }
-
-  const handleAIAnalysis = async () => {
-    if (!supplier?.airtableData?.allVersions || supplier.airtableData.allVersions.length === 0) {
-      setErrorMessage('No documents available to analyze.')
-      setErrorDialogOpen(true)
-      return
-    }
-
-    try {
-      // Start background analysis job
-      const response = await fetch(`/api/suppliers/${supplier.id}/ai-analysis/start`, {
-        method: 'POST',
-      })
-      
-      const data = await response.json()
-      
-      if (data.success) {
-        setAiJobId(data.jobId)
-        setAiProcessing(true)
-        setAiLogs(['🤖 Starting AI analysis in background...'])
-        setAiSummary(null)
-        setAiProgress(0)
-        setAiCurrentStep('Initializing...')
-      } else {
-        setErrorMessage(data.error || 'Failed to start AI analysis')
-        setErrorDialogOpen(true)
-      }
-    } catch (error) {
-      console.error('Error starting AI analysis:', error)
-      setErrorMessage('Failed to start AI analysis. Please try again.')
-      setErrorDialogOpen(true)
     }
   }
 
@@ -1823,422 +1739,122 @@ Procurement Team`
 
           <TabsContent value="ai-insights">
             <div className="space-y-6">
-              {/* AI Mode Indicator */}
-              {aiMode !== 'unknown' && (
-                <Alert className={aiMode === 'ollama' ? 'bg-green-50 border-green-300' : 'bg-yellow-50 border-yellow-300'}>
-                  <AlertDescription className="flex items-center gap-2">
-                    {aiMode === 'ollama' ? (
-                      <>
-                        <Brain className="h-4 w-4 text-green-600" />
-                        <span className="font-semibold text-green-900">Ollama Active:</span>
-                        <span className="text-green-800">Using local AI model for full analysis</span>
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="h-4 w-4 text-yellow-600" />
-                        <span className="font-semibold text-yellow-900">Fallback Mode:</span>
-                        <span className="text-yellow-800">Ollama unavailable - using basic analysis</span>
-                      </>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
-              
-              {/* AI Analysis Header */}
-              <Card>
+              <Card className="border-blue-500 border-2">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Brain className="h-5 w-5 text-blue-600" />
-                    AI Document Analysis
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Landmark className="h-5 w-5 text-blue-600" />
+                    Bank Confirmation Verification
                   </CardTitle>
                   <CardDescription>
-                    Use AI to automatically analyze supplier documents, verify compliance, and assess risk
+                    Verification runs automatically when the supplier submits documents. Results appear below.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <Button 
-                    onClick={handleAIAnalysis}
-                    disabled={aiProcessing || supplier?.status === 'APPROVED' || supplier?.status === 'REJECTED' || supplier?.onboarding?.revisionRequested}
-                    className="w-full sm:w-auto"
-                  >
-                    {aiProcessing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Processing in Background...
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-4 w-4 mr-2" />
-                        Start AI Analysis
-                      </>
-                    )}
-                  </Button>
-                  
-                  {aiProcessing && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Progress</span>
-                        <span className="font-medium">{aiProgress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${aiProgress}%` }}
-                        />
-                      </div>
-                      {aiCurrentStep && (
-                        <p className="text-sm text-gray-600">{aiCurrentStep}</p>
-                      )}
-                      <p className="text-xs text-gray-500">
-                        💡 You can navigate away - the analysis will continue in the background
-                      </p>
+                <CardContent className="space-y-6">
+                  {bankVerificationLoading ? (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Loading...</span>
                     </div>
-                  )}
+                  ) : bankVerification ? (
+                    (() => {
+                      const bv = bankVerification as {
+                        passed?: boolean
+                        reasons?: string[]
+                        extracted?: {
+                          bank_name?: string
+                          account_number?: string
+                          account_holder?: string
+                          statement_date?: string
+                          document_type?: string
+                          confidence?: number | null
+                        }
+                      }
+                      const extracted = bv.extracted || {}
+                      const isOlderThan3Months = (bv.reasons || []).some((r: string) => r.toLowerCase().includes('older than 3 months'))
+                      return (
+                        <div className="space-y-4">
+                          <div className={`rounded-lg border-2 p-6 ${bv.passed ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                              {extracted.bank_name != null && extracted.bank_name !== '' && (
+                                <div>
+                                  <span className="text-gray-600">Bank name</span>
+                                  <div className="font-medium">{extracted.bank_name}</div>
+                                </div>
+                              )}
+                              {extracted.account_number != null && extracted.account_number !== '' && (
+                                <div>
+                                  <span className="text-gray-600">Account number</span>
+                                  <div className="font-medium font-mono">{extracted.account_number}</div>
+                                </div>
+                              )}
+                              {extracted.account_holder != null && extracted.account_holder !== '' && (
+                                <div>
+                                  <span className="text-gray-600">Account holder</span>
+                                  <div className="font-medium">{extracted.account_holder}</div>
+                                </div>
+                              )}
+                              {extracted.statement_date != null && extracted.statement_date !== '' && (
+                                <div>
+                                  <span className="text-gray-600">Statement / letter date</span>
+                                  <div className="font-medium">{extracted.statement_date}</div>
+                                </div>
+                              )}
+                              {extracted.document_type != null && extracted.document_type !== '' && (
+                                <div>
+                                  <span className="text-gray-600">Document type</span>
+                                  <div className="font-medium capitalize">{String(extracted.document_type).replace(/_/g, ' ')}</div>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3 pt-4 mt-4 border-t border-gray-200">
+                              <span className="text-gray-700 font-medium">Older than 3 months:</span>
+                              <Badge className={isOlderThan3Months ? 'bg-amber-500 text-white' : 'bg-green-500 text-white'}>
+                                {isOlderThan3Months ? 'Yes' : 'No'}
+                              </Badge>
+                              <Badge className={bv.passed ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>
+                                {bv.passed ? 'Verification passed' : 'Verification failed'}
+                              </Badge>
+                            </div>
+                            {bv.reasons && bv.reasons.length > 0 && !bv.passed && (
+                              <ul className="text-sm text-amber-800 list-disc list-inside mt-3">
+                                {bv.reasons.map((r: string, i: number) => (
+                                  <li key={i}>{r}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })()
+                  ) : (() => {
+                    const latestVersion = supplier?.airtableData?.allVersions?.[supplier.airtableData.allVersions.length - 1]
+                    const hasBankDoc = Array.isArray(latestVersion?.uploadedFiles?.bankConfirmation) && latestVersion.uploadedFiles.bankConfirmation.length > 0
+                    return hasBankDoc ? (
+                      <div>
+                        <p className="text-gray-600 mb-4">No verification result yet. Run the check to verify the bank confirmation document.</p>
+                        <Button
+                          onClick={handleRunBankVerification}
+                          disabled={bankVerificationRunning}
+                        >
+                          {bankVerificationRunning ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Running...
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-4 w-4 mr-2" />
+                              Run bank verification
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-600">No bank confirmation document has been received for this supplier yet.</p>
+                    )
+                  })()}
                 </CardContent>
               </Card>
-
-              {/* Processing Logs */}
-              {aiLogs.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <FileText className="h-5 w-5 text-blue-600" />
-                      Processing Logs
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="bg-slate-900 text-green-400 p-4 rounded-lg font-mono text-sm h-96 overflow-y-auto">
-                      {aiLogs.map((log, index) => (
-                        <div key={index} className="mb-1">
-                          {log}
-                        </div>
-                      ))}
-                      {aiProcessing && (
-                        <div className="flex items-center gap-2 animate-pulse">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          <span>Processing...</span>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* AI Summary */}
-              {aiSummary && (
-                <Card className="border-blue-500 border-2">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <CheckCheck className="h-5 w-5 text-green-600" />
-                      Analysis Summary
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Overall Score */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
-                      <div className="text-center">
-                        <div className="text-sm text-gray-600 mb-2">Overall Supplier Score</div>
-                        <div className={`text-5xl font-bold ${
-                          (aiSummary.overallScore ?? 0) >= 80 ? 'text-green-600' : 
-                          (aiSummary.overallScore ?? 0) >= 60 ? 'text-yellow-600' : 'text-red-600'
-                        }`}>
-                          {(aiSummary.overallScore ?? 0).toFixed(1)}
-                        </div>
-                        <div className="text-sm text-gray-500 mt-1">out of 100</div>
-                      </div>
-                    </div>
-
-                    {/* Compliance Check */}
-                    {aiSummary.complianceCheck && (
-                    <div>
-                      <h4 className="font-semibold text-blue-600 mb-3 flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4" />
-                        Compliance Verification
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Card className="bg-blue-50 border-blue-200">
-                          <CardContent className="pt-6 text-center">
-                            <div className="text-2xl font-bold text-blue-900">
-                              {aiSummary.complianceCheck.providedDocuments ?? 0}/{aiSummary.complianceCheck.requiredDocuments ?? 0}
-                            </div>
-                            <div className="text-sm text-blue-700">Required Documents</div>
-                          </CardContent>
-                        </Card>
-                        <Card className="bg-green-50 border-green-200">
-                          <CardContent className="pt-6 text-center">
-                            <div className="text-2xl font-bold text-green-900">
-                              {(aiSummary.complianceCheck.complianceScore ?? 0).toFixed(0)}%
-                            </div>
-                            <div className="text-sm text-green-700">Compliance Score</div>
-                          </CardContent>
-                        </Card>
-                        <Card className={`${
-                          (aiSummary.complianceCheck.missingDocuments?.length ?? 0) === 0 
-                            ? 'bg-green-50 border-green-200' 
-                            : 'bg-orange-50 border-orange-200'
-                        }`}>
-                          <CardContent className="pt-6 text-center">
-                            <div className={`text-2xl font-bold ${
-                              (aiSummary.complianceCheck.missingDocuments?.length ?? 0) === 0 
-                                ? 'text-green-900' 
-                                : 'text-orange-900'
-                            }`}>
-                              {aiSummary.complianceCheck.missingDocuments?.length ?? 0}
-                            </div>
-                            <div className={`text-sm ${
-                              (aiSummary.complianceCheck.missingDocuments?.length ?? 0) === 0 
-                                ? 'text-green-700' 
-                                : 'text-orange-700'
-                            }`}>
-                              Missing Documents
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-                      {aiSummary.complianceCheck.missingDocuments && aiSummary.complianceCheck.missingDocuments.length > 0 && (
-                        <Alert className="mt-4 bg-red-50 border-red-400">
-                          <AlertDescription>
-                            <div className="space-y-3">
-                              <strong className="text-red-900 text-base">Missing MANDATORY Documents ({aiSummary.complianceCheck.missingDocuments.length}/5):</strong>
-                              <div className="space-y-3 mt-3">
-                                {aiSummary.complianceCheck.missingDocuments.map((doc: string) => {
-                                  let docInfo = { title: '', required: '', icon: '📄' }
-                                  const supplier_bbbee = supplier.bbbeeLevel || 'Not specified'
-                                  const supplier_bank = supplier.bankName || 'Not specified'
-                                  const supplier_account = supplier.accountNumber ? `****${supplier.accountNumber.slice(-4)}` : 'Not specified'
-                                  const supplier_branch = supplier.branchName || 'Not specified'
-                                  
-                                  if (doc === 'companyRegistration' || doc === 'cipcCertificate') {
-                                    docInfo = {
-                                      title: 'CIPC Certificate (Company Registration)',
-                                      required: `Must validate: Company name "${supplier.companyName}", Registration # "${supplier.registrationNumber}", Physical address`,
-                                      icon: '🏢'
-                                    }
-                                  } else if (doc === 'bbbeeAccreditation' || doc === 'bbbeeScorecard') {
-                                    docInfo = {
-                                      title: 'BBBEE Scorecard Report or Affidavit',
-                                      required: `Must validate: Status Level "${supplier_bbbee}", Black ownership %, Black female %, Certificate not expired`,
-                                      icon: '⭐'
-                                    }
-                                  } else if (doc === 'taxClearance') {
-                                    docInfo = {
-                                      title: 'Tax Clearance Certificate OR Letter of Good Standing',
-                                      required: `Either document accepted. Must validate: Taxpayer name matches "${supplier.companyName}", Purpose says "Good Standing", Age < 3 months, SARS authenticity`,
-                                      icon: '📋'
-                                    }
-                                  } else if (doc === 'bankConfirmation') {
-                                    docInfo = {
-                                      title: 'Bank Confirmation Letter',
-                                      required: `Must validate: Bank "${supplier_bank}", Account # "${supplier_account}", Branch "${supplier_branch}", Account type, Age < 3 months`,
-                                      icon: '🏦'
-                                    }
-                                  } else if (doc === 'nda') {
-                                    docInfo = {
-                                      title: 'Non-Disclosure Agreement (NDA)',
-                                      required: 'Must be signed and initialed on all pages. Download template from supplier portal.',
-                                      icon: '📄'
-                                    }
-                                  }
-                                  
-                                  return (
-                                    <div key={doc} className="bg-white border border-red-200 rounded p-3">
-                                      <div className="flex items-start gap-2">
-                                        <span className="text-xl">{docInfo.icon}</span>
-                                        <div className="flex-1">
-                                          <div className="font-semibold text-red-900">{docInfo.title}</div>
-                                          <div className="text-xs text-red-700 mt-1">{docInfo.required}</div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                      
-                      {/* Show claimed but missing certifications */}
-                      {aiSummary.complianceCheck.claimedButMissing && aiSummary.complianceCheck.claimedButMissing.length > 0 && (
-                        <Alert className="mt-4 bg-orange-50 border-orange-400">
-                          <AlertDescription>
-                            <div className="space-y-3">
-                              <strong className="text-orange-900 text-base">⚠️ Claimed Certifications Not Uploaded ({aiSummary.complianceCheck.claimedButMissing.length}):</strong>
-                              <div className="text-sm text-orange-800 mb-2">
-                                Supplier indicated they have these certifications in the form but did not upload the certificates.
-                              </div>
-                              <div className="space-y-2 mt-3">
-                                {aiSummary.complianceCheck.claimedButMissing.map((item: { doc: string, certName: string }) => (
-                                  <div key={item.doc} className="bg-white border border-orange-200 rounded p-3">
-                                    <div className="flex items-start gap-2">
-                                      <span className="text-xl">⚠️</span>
-                                      <div className="flex-1">
-                                        <div className="font-semibold text-orange-900">{item.certName}</div>
-                                        <div className="text-xs text-orange-700 mt-1">Please request certificate upload or clarify if supplier no longer has this certification.</div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                      
-                      {/* Show optional documents status */}
-                      {aiSummary.complianceCheck.optionalDocuments && aiSummary.complianceCheck.optionalDocuments.length > 0 && (
-                        <Alert className="mt-4 bg-blue-50 border-blue-300">
-                          <AlertDescription>
-                            <strong>Optional Documents Provided ({aiSummary.complianceCheck.optionalDocsCount}):</strong>
-                            <ul className="list-disc list-inside mt-2">
-                              {aiSummary.complianceCheck.optionalDocuments.map((doc: string) => (
-                                <li key={doc} className="text-sm text-blue-900">
-                                  ԣ� {doc.replace(/([A-Z])/g, ' $1').trim()}
-                                </li>
-                              ))}
-                            </ul>
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </div>
-                    )}
-
-                    {/* Document Type Mismatches */}
-                    {aiSummary.documentAnalysis && (() => {
-                      const mismatches: Array<{category: string, fileName: string, expected: string, actual: string, findings: string}> = []
-                      
-                      Object.entries(aiSummary.documentAnalysis).forEach(([category, categoryResults]: [string, any]) => {
-                        if (Array.isArray(categoryResults)) {
-                          categoryResults.forEach((result: any) => {
-                            if (result.findings && result.findings.includes('DOCUMENT TYPE MISMATCH DETECTED')) {
-                              // Extract mismatch info from findings
-                              const expectedMatch = result.findings.match(/Expected:\s*([^\n]+)/)
-                              const actualMatch = result.findings.match(/Actual:\s*([^\n]+)/)
-                              if (expectedMatch && actualMatch) {
-                                mismatches.push({
-                                  category,
-                                  fileName: result.fileName || 'Unknown',
-                                  expected: expectedMatch[1].trim(),
-                                  actual: actualMatch[1].trim(),
-                                  findings: result.findings
-                                })
-                              }
-                            }
-                          })
-                        }
-                      })
-                      
-                      return mismatches.length > 0 && (
-                        <Alert className="mb-4 bg-red-50 border-red-400 border-2">
-                          <AlertCircle className="h-5 w-5 text-red-600" />
-                          <AlertDescription>
-                            <div className="space-y-3">
-                              <strong className="text-red-900 text-base">⚠️ DOCUMENT TYPE MISMATCHES DETECTED ({mismatches.length}):</strong>
-                              <div className="text-sm text-red-800 mb-2">
-                                The following documents were uploaded to incorrect categories. Please verify the correct documents were uploaded.
-                              </div>
-                              <div className="space-y-3 mt-3">
-                                {mismatches.map((mismatch, idx) => (
-                                  <div key={idx} className="bg-white border border-red-300 rounded p-4">
-                                    <div className="font-semibold text-red-900 mb-2">{mismatch.fileName}</div>
-                                    <div className="text-sm space-y-1">
-                                      <div><strong>Uploaded as:</strong> <span className="text-red-700">{mismatch.expected}</span></div>
-                                      <div><strong>Actually is:</strong> <span className="text-red-700">{mismatch.actual}</span></div>
-                                      <div className="mt-2 text-xs text-red-600 italic">
-                                        Category: {mismatch.category.replace(/([A-Z])/g, ' $1').trim()}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </AlertDescription>
-                        </Alert>
-                      )
-                    })()}
-
-                    {/* Risk Assessment */}
-                    {aiSummary.riskAssessment && (
-                    <div>
-                      <h4 className="font-semibold text-blue-600 mb-3 flex items-center gap-2">
-                        <XCircle className="h-4 w-4" />
-                        Risk Assessment
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {Object.entries(aiSummary.riskAssessment).map(([key, value]: [string, any]) => (
-                          <div key={key} className="flex items-center justify-between p-3 bg-gray-50 rounded border">
-                            <span className="text-sm font-medium text-gray-700">
-                              {key.replace(/([A-Z])/g, ' $1').trim()}:
-                            </span>
-                            <Badge className={`${
-                              value === 'LOW' || value === 'VERIFIED' || value === 'ACCEPTABLE' || value === 'NO_ISSUES'
-                                ? 'bg-green-500' 
-                                : value === 'MEDIUM' || value === 'PENDING'
-                                ? 'bg-yellow-500'
-                                : 'bg-red-500'
-                            } text-white`}>
-                              {value.replace(/_/g, ' ')}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    )}
-
-                    {/* Recommendation */}
-                    <Alert className={`${
-                      (aiSummary.overallScore ?? 0) >= 80 ? 'bg-green-50 border-green-300' : 
-                      (aiSummary.overallScore ?? 0) >= 60 ? 'bg-yellow-50 border-yellow-300' : 
-                      'bg-red-50 border-red-300'
-                    }`}>
-                      <AlertDescription>
-                        <strong>AI Recommendation:</strong>
-                        <p className="mt-2">
-                          {(aiSummary.overallScore ?? 0) >= 80 
-                            ? '✅ This supplier meets all requirements and is recommended for approval.' 
-                            : (aiSummary.overallScore ?? 0) >= 60 
-                            ? '⚠️ This supplier has minor issues. Review and request clarifications before approval.'
-                            : '❌ This supplier has significant compliance gaps. Additional documentation is required.'}
-                        </p>
-                        {(() => {
-                          // Check if NDA is uploaded in any version
-                          const allVersionFiles: Record<string, string[]> = {}
-                          supplier?.airtableData?.allVersions?.forEach((version: any) => {
-                            const versionFiles = version.uploadedFiles || {}
-                            Object.entries(versionFiles).forEach(([category, files]) => {
-                              if (!allVersionFiles[category]) {
-                                allVersionFiles[category] = []
-                              }
-                              const fileArray = files as string[]
-                              fileArray.forEach((file: string) => {
-                                if (!allVersionFiles[category].includes(file)) {
-                                  allVersionFiles[category].push(file)
-                                }
-                              })
-                            })
-                          })
-                          const hasNDA = allVersionFiles?.nda && allVersionFiles.nda.length > 0
-                          
-                          return hasNDA && (
-                            <div className="mt-3 pt-3 border-t border-current/20">
-                              <p className="font-semibold text-sm flex items-center gap-2">
-                                <span className="text-lg">🔍</span>
-                                CRITICAL: Manual NDA Verification Required
-                              </p>
-                              <ul className="mt-2 space-y-1 text-sm list-disc list-inside">
-                                <li>Verify NDA document is signed by authorized signatory</li>
-                                <li>Confirm all pages are initialed</li>
-                                <li>Check signature dates are present and valid</li>
-                                <li>AI cannot validate handwritten signatures - manual review is essential</li>
-                              </ul>
-                            </div>
-                          )
-                        })()}
-                      </AlertDescription>
-                    </Alert>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </TabsContent>
 
