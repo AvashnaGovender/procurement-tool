@@ -48,25 +48,35 @@ class OCRExtractor:
             return ""
     
     def extract_from_pdf(self, pdf_path: str) -> Dict[str, Any]:
-        """Extract text and metadata from PDF."""
+        """Extract text and metadata from PDF. Uses embedded text first; if insufficient (e.g. scanned PDF), falls back to OCR."""
+        _MIN_TEXT_LENGTH = 80  # below this we try OCR (scanned/image-only PDFs)
+
         try:
             with open(pdf_path, 'rb') as file:
                 pdf_reader = PyPDF2.PdfReader(file)
-                text = ""
                 page_count = len(pdf_reader.pages)
-                
+                metadata = pdf_reader.metadata or {}
+                text = ""
                 for page_num in range(page_count):
-                    page = pdf_reader.pages[page_num]
-                    text += page.extract_text() + "\n"
-                
-                return {
-                    "text": text.strip(),
-                    "page_count": page_count,
-                    "metadata": pdf_reader.metadata
-                }
+                    text += (pdf_reader.pages[page_num].extract_text() or "") + "\n"
+                text = text.strip()
         except Exception as e:
             print(f"Error extracting text from PDF {pdf_path}: {e}")
             return {"text": "", "page_count": 0, "metadata": {}}
+
+        # Fallback: if embedded text is missing or too short, run OCR on each page (for scanned PDFs)
+        if len(text) < _MIN_TEXT_LENGTH and page_count > 0:
+            try:
+                from pdf2image import convert_from_path
+                images = convert_from_path(pdf_path, dpi=200)
+                ocr_parts = [pytesseract.image_to_string(img) for img in images]
+                ocr_text = "\n".join(ocr_parts).strip()
+                if len(ocr_text) > len(text):
+                    text = ocr_text
+            except Exception as e:
+                print(f"OCR fallback for PDF failed (poppler may be missing): {e}")
+
+        return {"text": text.strip(), "page_count": page_count, "metadata": metadata}
     
     def extract_from_docx(self, docx_path: str) -> str:
         """Extract text from DOCX file."""
