@@ -1534,7 +1534,7 @@ enum AIAnalysisStatus {
 
 model BankVerification {
   id          String   @id @default(cuid())
-  supplierId String
+  supplierId  String
   supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   result      Json     // { passed, reasons, extracted }
   createdAt   DateTime @default(now())
