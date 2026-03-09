@@ -1770,6 +1770,14 @@ Procurement Team`
                         }
                       }
                       const extracted = bv.extracted || {}
+                      const hasExtractedData = !!(
+                        (extracted.bank_name ?? '') !== '' ||
+                        (extracted.account_number ?? '') !== '' ||
+                        (extracted.statement_date ?? '') !== '' ||
+                        (extracted.account_holder ?? '') !== '' ||
+                        (extracted.document_type ?? '') !== ''
+                      )
+                      const couldNotProcess = !bv.passed && !hasExtractedData
                       const isOlderThan3Months = (bv.reasons || []).some((r: string) => r.toLowerCase().includes('older than 3 months'))
                       return (
                         <div className="space-y-4">
@@ -1794,7 +1802,10 @@ Procurement Team`
                               )}
                             </Button>
                           </div>
-                          <div className={`rounded-lg border-2 p-6 ${bv.passed ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                          <div className={`rounded-lg border-2 p-6 ${
+                            bv.passed ? 'bg-green-50 border-green-200' :
+                            couldNotProcess ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'
+                          }`}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                               {extracted.bank_name != null && extracted.bank_name !== '' && (
                                 <div>
@@ -1832,12 +1843,15 @@ Procurement Team`
                               <Badge className={isOlderThan3Months ? 'bg-amber-500 text-white' : 'bg-green-500 text-white'}>
                                 {isOlderThan3Months ? 'Yes' : 'No'}
                               </Badge>
-                              <Badge className={bv.passed ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>
-                                {bv.passed ? 'Verification passed' : 'Verification failed'}
+                              <Badge className={
+                                bv.passed ? 'bg-green-600 text-white' :
+                                couldNotProcess ? 'bg-red-600 text-white' : 'bg-amber-600 text-white'
+                              }>
+                                {bv.passed ? 'Verification passed' : couldNotProcess ? 'Could not process document' : 'Validation issues'}
                               </Badge>
                             </div>
                             {bv.reasons && bv.reasons.length > 0 && !bv.passed && (
-                              <ul className="text-sm text-amber-800 list-disc list-inside mt-3">
+                              <ul className={`text-sm list-disc list-inside mt-3 ${couldNotProcess ? 'text-red-800' : 'text-amber-800'}`}>
                                 {bv.reasons.map((r: string, i: number) => (
                                   <li key={i}>{r}</li>
                                 ))}
