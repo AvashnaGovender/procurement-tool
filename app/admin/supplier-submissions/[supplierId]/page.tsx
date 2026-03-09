@@ -1773,6 +1773,27 @@ Procurement Team`
                       const isOlderThan3Months = (bv.reasons || []).some((r: string) => r.toLowerCase().includes('older than 3 months'))
                       return (
                         <div className="space-y-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <span className="text-sm text-gray-600">Latest verification result</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleRunBankVerification}
+                              disabled={bankVerificationRunning}
+                            >
+                              {bankVerificationRunning ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Rerunning...
+                                </>
+                              ) : (
+                                <>
+                                  <Play className="h-4 w-4 mr-2" />
+                                  Rerun verification
+                                </>
+                              )}
+                            </Button>
+                          </div>
                           <div className={`rounded-lg border-2 p-6 ${bv.passed ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                               {extracted.bank_name != null && extracted.bank_name !== '' && (
@@ -1823,25 +1844,6 @@ Procurement Team`
                               </ul>
                             )}
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleRunBankVerification}
-                            disabled={bankVerificationRunning}
-                            className="mt-4"
-                          >
-                            {bankVerificationRunning ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Rerunning...
-                              </>
-                            ) : (
-                              <>
-                                <Play className="h-4 w-4 mr-2" />
-                                Rerun verification
-                              </>
-                            )}
-                          </Button>
                         </div>
                       )
                     })()

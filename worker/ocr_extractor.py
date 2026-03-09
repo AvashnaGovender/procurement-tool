@@ -47,6 +47,19 @@ class OCRExtractor:
             print(f"Error extracting text from image {image_path}: {e}")
             return ""
     
+    def _pdf_via_ocr_only(self, pdf_path: str) -> Dict[str, Any]:
+        """When PyPDF2 fails (e.g. EOF marker not found), try to extract text via pdf2image + Tesseract."""
+        try:
+            from pdf2image import convert_from_path
+            images = convert_from_path(pdf_path, dpi=200)
+            page_count = len(images)
+            ocr_parts = [pytesseract.image_to_string(img) for img in images]
+            text = "\n".join(ocr_parts).strip()
+            return {"text": text, "page_count": page_count, "metadata": {}}
+        except Exception as e:
+            print(f"OCR-only fallback for PDF failed: {e}")
+            return {"text": "", "page_count": 0, "metadata": {}}
+
     def extract_from_pdf(self, pdf_path: str) -> Dict[str, Any]:
         """Extract text and metadata from PDF. Uses embedded text first; if insufficient (e.g. scanned PDF), falls back to OCR."""
         _MIN_TEXT_LENGTH = 80  # below this we try OCR (scanned/image-only PDFs)
@@ -62,7 +75,8 @@ class OCRExtractor:
                 text = text.strip()
         except Exception as e:
             print(f"Error extracting text from PDF {pdf_path}: {e}")
-            return {"text": "", "page_count": 0, "metadata": {}}
+            # PyPDF2 can fail on truncated/malformed PDFs (e.g. "EOF marker not found"). Try OCR path.
+            return self._pdf_via_ocr_only(pdf_path)
 
         # Fallback: if embedded text is missing or too short, run OCR on each page (for scanned PDFs)
         if len(text) < _MIN_TEXT_LENGTH and page_count > 0:
