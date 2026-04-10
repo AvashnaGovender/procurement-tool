@@ -19,8 +19,11 @@ export interface TokenValidationError {
   message: string
 }
 
-// Onboarding statuses that allow supplier form access
+// Onboarding statuses that allow supplier form access (magic link + OTP).
+// INITIATED: records from /api/onboarding/initiate before status is bumped to EMAIL_SENT.
+// EMAIL_SENT / AWAITING_RESPONSE / REVISION_NEEDED: normal invite and revision flows.
 const ONBOARDING_ALLOWED_STATUSES = [
+  'INITIATED',
   'EMAIL_SENT',
   'AWAITING_RESPONSE',
   'REVISION_NEEDED',

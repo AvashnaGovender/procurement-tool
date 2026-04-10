@@ -305,6 +305,7 @@ Schauenburg Systems Procurement System
 
           // Create onboarding record
           const onboardingToken = `init_${initiationId}_${Date.now()}`
+          const onboardingTokenExpiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000)
           await prisma.supplierOnboarding.create({
             data: {
               supplierId: supplier.id,
@@ -316,6 +317,8 @@ Schauenburg Systems Procurement System
               currentStep: 'PENDING_SUPPLIER_RESPONSE',
               overallStatus: 'AWAITING_RESPONSE',
               onboardingToken: onboardingToken,
+              onboardingTokenExpiresAt,
+              onboardingTokenRevoked: false,
               initiatedById: initiationDetails.initiatedById
             }
           })

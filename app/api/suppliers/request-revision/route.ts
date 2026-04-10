@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import path from 'path'
 import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
+import { getSupplierPortalBaseUrl } from '@/lib/supplier-portal/public-url'
 
 export async function POST(request: NextRequest) {
   try {
@@ -122,7 +123,7 @@ async function sendRevisionRequestEmail(supplier: any, revisionNotes: string, on
     const transporter = getMailTransporter(smtpConfig)
 
     // Create form URL with token if available
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    const baseUrl = getSupplierPortalBaseUrl()
     const formUrl = onboardingToken 
       ? `${baseUrl}/supplier-onboarding-form?token=${onboardingToken}`
       : `${baseUrl}/supplier-onboarding-form`

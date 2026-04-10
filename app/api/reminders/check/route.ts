@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-sender'
+import { getSupplierPortalBaseUrl } from '@/lib/supplier-portal/public-url'
 import { format, differenceInHours } from 'date-fns'
 
 // Manual trigger or can be called by cron
@@ -103,7 +104,7 @@ async function checkSupplierDocumentSubmission(config: any): Promise<number> {
     const emailBody = config.emailBodyTemplate
       ?.replace(/{supplierName}/g, onboarding.contactName)
       ?.replace(/{hoursAgo}/g, hoursSinceEmailSent.toString())
-      ?.replace(/{onboardingLink}/g, `${process.env.NEXTAUTH_URL}/supplier-onboarding-form?token=${onboarding.onboardingToken}`)
+      ?.replace(/{onboardingLink}/g, `${getSupplierPortalBaseUrl()}/supplier-onboarding-form?token=${onboarding.onboardingToken}`)
 
     try {
       await sendEmail({
@@ -385,7 +386,7 @@ async function checkSupplierRevisions(config: any): Promise<number> {
       ?.replace(/{hoursAgo}/g, hoursSinceRevisionRequest.toString())
       ?.replace(/{revisionDate}/g, format(new Date(onboarding.revisionRequestedAt), 'PP'))
       ?.replace(/{revisionNotes}/g, onboarding.revisionNotes || 'Please review and revise your documents.')
-      ?.replace(/{onboardingLink}/g, `${process.env.NEXTAUTH_URL}/supplier-onboarding-form?token=${onboarding.onboardingToken}`)
+      ?.replace(/{onboardingLink}/g, `${getSupplierPortalBaseUrl()}/supplier-onboarding-form?token=${onboarding.onboardingToken}`)
 
     try {
       await sendEmail({

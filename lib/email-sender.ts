@@ -1,5 +1,6 @@
 import path from 'path'
 import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } from '@/lib/smtp-admin'
+import { getSupplierPortalBaseUrl } from '@/lib/supplier-portal/public-url'
 
 interface EmailOptions {
   to: string
@@ -92,7 +93,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   emailContent = emailContent.replace(/\n/g, '<br />\n')
   
   if (onboardingToken) {
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const baseUrl = getSupplierPortalBaseUrl()
     const formUrl = `${baseUrl}/supplier-onboarding-form?token=${onboardingToken}`
     
     console.log('🔗 Generated onboarding form URL:', formUrl)

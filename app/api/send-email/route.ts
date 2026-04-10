@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
 import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } from '@/lib/smtp-admin'
+import { getSupplierPortalBaseUrl } from '@/lib/supplier-portal/public-url'
 
 export async function POST(request: NextRequest) {
   console.log('🚀 /api/send-email POST endpoint called!')
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     emailContent = emailContent.replace(/\n/g, '<br />\n')
     
     if (onboardingToken) {
-      const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+      const baseUrl = getSupplierPortalBaseUrl()
       const formUrl = `${baseUrl}/supplier-onboarding-form?token=${onboardingToken}`
       
       // Create a clean HTML button with no newlines inside it
