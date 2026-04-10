@@ -1,6 +1,6 @@
 import path from 'path'
 import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } from '@/lib/smtp-admin'
-import { getSupplierPortalBaseUrl } from '@/lib/supplier-portal/public-url'
+import { injectOnboardingFormLinkIntoEmailBody } from '@/lib/email-onboarding-form-link'
 
 interface EmailOptions {
   to: string
@@ -86,17 +86,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   emailContent = emailContent.replace(/\n/g, '<br />\n')
   
   if (onboardingToken) {
-    const baseUrl = getSupplierPortalBaseUrl()
-    const formUrl = `${baseUrl}/supplier-onboarding-form?token=${onboardingToken}`
-    
-    // Create a clean HTML button with no newlines inside it
-    const formLinkHtml = `<div style="text-align: center; margin: 30px 0;"><a href="${formUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">Complete Registration Form</a></div>`
-    
-    // Replace {formLink} placeholder ONLY (remove other replacements that might cause duplicates)
-    emailContent = emailContent
-      .replace(/{formLink}/g, formLinkHtml)
-      .replace(/\{formLink\}/g, formLinkHtml)
-      .replace(/\[Supplier Registration Portal Link\]/g, formLinkHtml)
+    emailContent = injectOnboardingFormLinkIntoEmailBody(emailContent, onboardingToken)
   }
   
   const transporter = getMailTransporter(smtpConfig)
