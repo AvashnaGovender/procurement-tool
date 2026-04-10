@@ -118,13 +118,11 @@ export async function sendMailAndCheck(
   logLabel: string
 ): Promise<SendMailResult> {
   const to = Array.isArray(options.to) ? options.to.join(', ') : (options.to as string)
-  console.log(`📧 [${logLabel}] Sending → ${to}`)
   const result = (await transporter.sendMail(options)) as SendMailResult
   const rejected = result.rejected
   if (rejected && rejected.length > 0) {
     console.error(`❌ [${logLabel}] SMTP server rejected recipient(s):`, rejected, 'To:', to)
     throw new Error(`Recipient(s) rejected: ${rejected.join(', ')}`)
   }
-  console.log(`✅ [${logLabel}] Accepted → ${to} | MessageID: ${result.messageId ?? 'n/a'} | Response: ${result.response ?? 'n/a'}`)
   return result
 }

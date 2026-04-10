@@ -4,10 +4,8 @@ import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } 
 import { getSupplierPortalBaseUrl } from '@/lib/supplier-portal/public-url'
 
 export async function POST(request: NextRequest) {
-  console.log('🚀 /api/send-email POST endpoint called!')
   try {
     const body = await request.json()
-    console.log('📧 Email request received:', { to: body.to, subject: body.subject })
     const { to, subject, content, supplierName, businessType, simulate, onboardingToken } = body
 
     // Determine if this is an approval email (manager/procurement approval)
@@ -26,11 +24,6 @@ export async function POST(request: NextRequest) {
 
     // SIMULATION MODE - bypass SMTP for testing (if enabled)
     if (simulate === true) {
-      console.log('SIMULATION MODE: Email would be sent to:', to)
-      console.log('Subject:', subject || 'Supplier Onboarding')
-      console.log('Supplier Name:', supplierName)
-      console.log('Business Type:', businessType)
-      
       return NextResponse.json({ 
         success: true, 
         message: 'Email simulated successfully (no actual email sent)',
@@ -73,26 +66,6 @@ export async function POST(request: NextRequest) {
         .replace(/\{formLink\}/g, formLinkHtml)
         .replace(/\[Supplier Registration Portal Link\]/g, formLinkHtml)
     }
-    
-    console.log('=== EMAIL SENDING DEBUG ===')
-    console.log('To:', to)
-    console.log('Subject:', emailSubject)
-    console.log('Original content length:', content.length)
-    console.log('Processed content length:', emailContent.length)
-    console.log('Token included:', !!onboardingToken)
-    console.log('Content preview (first 200 chars):', emailContent.substring(0, 200))
-    if (onboardingToken) {
-      console.log('Form link included:', emailContent.includes('supplier-onboarding-form'))
-      console.log('Has {formLink} placeholder before processing:', content.includes('{formLink}'))
-      console.log('Has {formLink} placeholder after processing:', emailContent.includes('{formLink}'))
-      console.log('HTML button content:', emailContent.includes('<table cellpadding="0"'))
-      console.log('Full HTML button preview:', emailContent.match(/<table cellpadding="0".*?<\/table>/s)?.[0]?.substring(0, 200))
-      console.log('FULL EMAIL CONTENT:')
-      console.log('==================')
-      console.log(emailContent)
-      console.log('==================')
-    }
-    console.log('==========================')
     
     // Send email via configured service
     const emailResult = await sendEmailViaService({
@@ -143,26 +116,9 @@ async function sendEmailViaService({
   
   try {
     const transporter = getMailTransporter(config)
-    console.log('Using admin SMTP config:', { host: config.host, port: Number(config.port) || 587, user: config.user })
-    
-    // Verify connection configuration
-    console.log('🔍 Verifying SMTP connection...')
+
     await transporter.verify()
-    console.log('✅ SMTP connection verified successfully')
-    
-        // Debug: Log the content being inserted into the template
-        console.log('=== EMAIL TEMPLATE DEBUG ===')
-        console.log('Content being inserted into template:', content.substring(0, 300))
-        console.log('Content contains HTML table:', content.includes('<table'))
-        console.log('Content contains HTML anchor:', content.includes('<a href'))
-        console.log('Content contains formLink placeholder:', content.includes('{formLink}'))
-        console.log('Content contains formLink HTML:', content.includes('<table cellpadding="0"'))
-        console.log('FULL CONTENT FOR TEMPLATE:')
-        console.log('=========================')
-        console.log(content)
-        console.log('=========================')
-        console.log('================================')
-        
+
         // Create mobile-friendly HTML email (Outlook compatible)
         const htmlContent = `
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -324,25 +280,12 @@ async function sendEmailViaService({
           ]
         }
     
-    console.log('📧 Sending onboarding email...')
-    console.log('Email details:', {
-      from: mailOptions.from,
-      to: mailOptions.to,
-      subject: mailOptions.subject
-    })
-    
     const result = await transporter.sendMail(mailOptions)
     const rejected = result.rejected as string[] | undefined
     if (rejected && rejected.length > 0) {
       console.error('❌ SMTP server rejected recipient(s):', rejected)
       throw new Error(`Recipient(s) rejected by server: ${rejected.join(', ')}`)
     }
-    console.log('✅ SMTP server accepted message (check inbox/spam if not received)')
-    console.log('Email result:', {
-      messageId: result.messageId,
-      accepted: result.accepted,
-      response: result.response
-    })
     return {
       id: result.messageId,
       status: 'sent',

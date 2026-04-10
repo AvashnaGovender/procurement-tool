@@ -22,8 +22,6 @@ interface EmailResult {
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   const { to, subject, content, supplierName, businessType, simulate, onboardingToken } = options
 
-  console.log('📧 sendEmail() called with:', { to, subject, supplierName, businessType, hasToken: !!onboardingToken })
-
   // Validate required fields
   if (!to || !supplierName || !businessType) {
     return {
@@ -34,11 +32,6 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 
   // SIMULATION MODE - bypass SMTP for testing (if enabled)
   if (simulate === true) {
-    console.log('SIMULATION MODE: Email would be sent to:', to)
-    console.log('Subject:', subject || 'Supplier Onboarding')
-    console.log('Supplier Name:', supplierName)
-    console.log('Business Type:', businessType)
-    
     return { 
       success: true, 
       message: 'Email simulated successfully (no actual email sent)',
@@ -96,8 +89,6 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
     const baseUrl = getSupplierPortalBaseUrl()
     const formUrl = `${baseUrl}/supplier-onboarding-form?token=${onboardingToken}`
     
-    console.log('🔗 Generated onboarding form URL:', formUrl)
-    
     // Create a clean HTML button with no newlines inside it
     const formLinkHtml = `<div style="text-align: center; margin: 30px 0;"><a href="${formUrl}" target="_blank" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; padding: 15px 40px; border-radius: 8px; border: none;">Complete Registration Form</a></div>`
     
@@ -108,30 +99,9 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
       .replace(/\[Supplier Registration Portal Link\]/g, formLinkHtml)
   }
   
-  console.log('=== EMAIL SENDING DEBUG ===')
-  console.log('To:', to)
-  console.log('Subject:', emailSubject)
-  console.log('Original content length:', content.length)
-  console.log('Processed content length:', emailContent.length)
-  console.log('Token included:', !!onboardingToken)
-  console.log('Content preview (first 200 chars):', emailContent.substring(0, 200))
-  if (onboardingToken) {
-    console.log('Form link included:', emailContent.includes('supplier-onboarding-form'))
-    console.log('Has {formLink} placeholder before processing:', content.includes('{formLink}'))
-    console.log('Has {formLink} placeholder after processing:', emailContent.includes('{formLink}'))
-  }
-  console.log('========================')
-  
   const transporter = getMailTransporter(smtpConfig)
 
   try {
-    console.log('Attempting to send email via SMTP (admin config)...')
-    console.log('SMTP Config:', {
-      host: smtpConfig.host,
-      port: Number(smtpConfig.port) || 587,
-      user: smtpConfig.user
-    })
-
     // Create mobile-friendly HTML email with Schauenburg branding
     const htmlContent = `
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -293,13 +263,6 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
       ]
     }
 
-    console.log('📧 Sending email...')
-    console.log('Email details:', {
-      from: mailOptions.from,
-      to: mailOptions.to,
-      subject: mailOptions.subject
-    })
-
     const info = await transporter.sendMail(mailOptions)
 
     const rejected = (info as { rejected?: string[] }).rejected
@@ -311,12 +274,6 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
         emailId: undefined
       }
     }
-
-    const accepted = (info as { accepted?: string[] }).accepted
-    console.log('✅ SMTP server accepted message (check inbox/spam if not received)')
-    console.log('   Message ID:', info.messageId)
-    console.log('   Response:', info.response)
-    console.log('   Accepted:', accepted ?? [mailOptions.to])
 
     return {
       success: true,
