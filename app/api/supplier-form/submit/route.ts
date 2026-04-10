@@ -6,6 +6,7 @@ import { existsSync } from 'fs'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
+import { requireSupplierSession } from '@/lib/supplier-portal/auth-guard'
 
 export async function POST(request: NextRequest) {
   try {
@@ -84,6 +85,10 @@ export async function POST(request: NextRequest) {
       
       if (existingOnboarding) {
         existingSupplier = existingOnboarding.supplier
+
+        // Require a valid supplier session scoped to this onboarding record
+        const guard = await requireSupplierSession(request, existingOnboarding.id)
+        if (guard) return guard
       }
     } else {
       // Check if supplier already exists (for non-linked submissions)

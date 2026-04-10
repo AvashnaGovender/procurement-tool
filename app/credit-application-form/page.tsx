@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useState, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,7 @@ import { Loader2, Upload, CheckCircle, AlertCircle, FileIcon, Download } from "l
 
 function CreditApplicationForm() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const token = searchParams.get('token')
   
   const [loading, setLoading] = useState(false)
@@ -38,6 +39,12 @@ function CreditApplicationForm() {
       setLoadingData(true)
       try {
         const response = await fetch(`/api/suppliers/credit-application/get-by-token?token=${token}`)
+
+        if (response.status === 401) {
+          router.replace(`/supplier-portal/verify?token=${token}&type=credit`)
+          return
+        }
+
         const data = await response.json()
 
         if (data.success) {

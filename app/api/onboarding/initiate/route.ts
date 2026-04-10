@@ -52,8 +52,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate unique onboarding token
+    // Generate unique onboarding token (72-hour expiry)
     const onboardingToken = randomBytes(32).toString('hex')
+    const onboardingTokenExpiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000)
 
     // Create supplier and onboarding record in a transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -92,6 +93,8 @@ export async function POST(request: NextRequest) {
           currentStep: 'INITIATE',
           overallStatus: 'INITIATED',
           onboardingToken,
+          onboardingTokenExpiresAt,
+          onboardingTokenRevoked: false,
         }
       })
 

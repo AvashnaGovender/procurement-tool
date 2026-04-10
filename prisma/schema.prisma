@@ -455,8 +455,14 @@ model SupplierOnboarding {
   // Credit Controller Assignment
   creditController          String?                   // Assigned credit controller name
   
+  // Magic link token security
+  onboardingTokenExpiresAt        DateTime?
+  onboardingTokenRevoked          Boolean                   @default(false)
+
   // Credit Application Form
   creditApplicationToken    String?                   @unique // Token for supplier to access credit application form
+  creditApplicationTokenExpiresAt DateTime?
+  creditApplicationTokenRevoked   Boolean                   @default(false)
   creditApplicationFormSubmitted Boolean               @default(false)
   creditApplicationFormSubmittedAt DateTime?
   creditApplicationInfo    String?                   @db.Text // Additional information provided by supplier
@@ -493,6 +499,8 @@ model SupplierOnboarding {
   emailReminders            EmailReminder[]
   verificationChecks        VerificationCheck[]
   timeline                  OnboardingTimeline[]
+  supplierOtps              SupplierOtp[]
+  supplierSessions          SupplierSession[]
 
   @@index([currentStep])
   @@index([overallStatus])
@@ -543,6 +551,41 @@ model OnboardingTimeline {
 
   @@index([onboardingId, timestamp])
   @@map("onboarding_timeline")
+}
+
+// ============================================================================
+// SUPPLIER PORTAL AUTH - OTP and session management for external supplier access
+// ============================================================================
+
+model SupplierOtp {
+  id           String             @id @default(cuid())
+  onboardingId String
+  onboarding   SupplierOnboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  formType     String             // "onboarding" | "credit"
+  email        String
+  otpHash      String             // SHA-256(otp + salt)
+  salt         String             // per-record salt
+  expiresAt    DateTime
+  attempts     Int                @default(0)
+  invalidated  Boolean            @default(false)
+  createdAt    DateTime           @default(now())
+
+  @@index([onboardingId])
+  @@map("supplier_otps")
+}
+
+model SupplierSession {
+  id           String             @id @default(cuid())
+  sessionToken String             @unique
+  onboardingId String             // scope: supplier can only access this record
+  onboarding   SupplierOnboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  formType     String             // "onboarding" | "credit"
+  email        String
+  expiresAt    DateTime
+  createdAt    DateTime           @default(now())
+
+  @@index([onboardingId])
+  @@map("supplier_sessions")
 }
 
 // ============================================================================

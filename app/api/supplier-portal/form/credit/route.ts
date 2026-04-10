@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { join } from 'path'
-import { existsSync } from 'fs'
-import { requireSupplierSession } from '@/lib/supplier-portal/auth-guard'
+import { validateSession, SESSION_COOKIE_NAME } from '@/lib/supplier-portal/session'
+import { validateMagicLinkToken } from '@/lib/supplier-portal/token'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,13 +9,29 @@ export async function GET(request: NextRequest) {
     const token = searchParams.get('token')
 
     if (!token) {
+      return NextResponse.json({ success: false, error: 'token is required' }, { status: 400 })
+    }
+
+    // Validate magic link
+    const tokenResult = await validateMagicLinkToken(token, 'credit')
+    if (!tokenResult.valid) {
       return NextResponse.json(
-        { success: false, error: 'Token is required' },
-        { status: 400 }
+        { success: false, error: tokenResult.message, code: tokenResult.code },
+        { status: 401 }
       )
     }
 
-    // Find onboarding record by credit application token
+    // Validate supplier session
+    const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value
+    if (!sessionToken) {
+      return NextResponse.json({ success: false, error: 'Authentication required', code: 'NO_SESSION' }, { status: 401 })
+    }
+
+    const session = await validateSession(sessionToken, tokenResult.onboarding.id)
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Session expired or invalid', code: 'INVALID_SESSION' }, { status: 401 })
+    }
+
     const onboarding = await prisma.supplierOnboarding.findUnique({
       where: { creditApplicationToken: token },
       include: {
@@ -27,24 +42,16 @@ export async function GET(request: NextRequest) {
             companyName: true,
             contactPerson: true,
             contactEmail: true,
-            airtableData: true
-          }
-        }
-      }
+            airtableData: true,
+          },
+        },
+      },
     })
 
     if (!onboarding) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token or credit application not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ success: false, error: 'Record not found' }, { status: 404 })
     }
 
-    // Require a valid supplier session scoped to this onboarding record
-    const guard = await requireSupplierSession(request, onboarding.id)
-    if (guard) return guard
-
-    // Get signed credit application file URL if available
     let signedCreditAppUrl: string | null = null
     const airtableData = onboarding.supplier?.airtableData as any
     if (airtableData?.signedCreditApplication?.fileName) {
@@ -61,21 +68,14 @@ export async function GET(request: NextRequest) {
         supplierCode: onboarding.supplier?.supplierCode,
         companyName: onboarding.supplier?.companyName,
         contactPerson: onboarding.supplier?.contactPerson,
-        contactEmail: onboarding.supplier?.contactEmail
+        contactEmail: onboarding.supplier?.contactEmail,
       },
       signedCreditAppUrl,
       creditAccountInfo: onboarding.creditApplicationInfo || null,
-      submitted: onboarding.creditApplicationFormSubmitted
+      submitted: onboarding.creditApplicationFormSubmitted,
     })
   } catch (error) {
-    console.error('Error fetching credit application data:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to fetch credit application data'
-      },
-      { status: 500 }
-    )
+    console.error('Supplier portal form/credit error:', error)
+    return NextResponse.json({ success: false, error: 'Failed to fetch form data' }, { status: 500 })
   }
 }
-

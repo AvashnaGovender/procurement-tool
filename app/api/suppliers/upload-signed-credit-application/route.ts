@@ -123,8 +123,9 @@ export async function POST(request: NextRequest) {
 
     await writeFile(filePath, buffer)
 
-    // Generate unique token for credit application form
+    // Generate unique token for credit application form (72-hour expiry)
     const creditApplicationToken = randomBytes(32).toString('hex')
+    const creditApplicationTokenExpiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000)
 
     // Update supplier's airtableData to include signed credit application info
     // Note: airtableData is on the Supplier model, not SupplierOnboarding
@@ -151,7 +152,9 @@ export async function POST(request: NextRequest) {
       await prisma.supplierOnboarding.update({
         where: { id: supplier.onboarding.id },
         data: {
-          creditApplicationToken: creditApplicationToken
+          creditApplicationToken,
+          creditApplicationTokenExpiresAt,
+          creditApplicationTokenRevoked: false,
         }
       })
     }

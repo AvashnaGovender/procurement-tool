@@ -5,6 +5,7 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import path from 'path'
 import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
+import { requireSupplierSession } from '@/lib/supplier-portal/auth-guard'
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,6 +62,10 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
+
+    // Require a valid supplier session scoped to this onboarding record
+    const guard = await requireSupplierSession(request, onboarding.id)
+    if (guard) return guard
 
     if (onboarding.creditApplicationFormSubmitted) {
       return NextResponse.json(

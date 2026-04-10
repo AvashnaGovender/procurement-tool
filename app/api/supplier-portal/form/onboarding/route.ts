@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { validateSession, SESSION_COOKIE_NAME } from '@/lib/supplier-portal/session'
+import { validateMagicLinkToken } from '@/lib/supplier-portal/token'
 import { getRequiredDocuments } from '@/lib/document-requirements'
-import { requireSupplierSession } from '@/lib/supplier-portal/auth-guard'
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,13 +10,29 @@ export async function GET(request: NextRequest) {
     const token = searchParams.get('token')
 
     if (!token) {
+      return NextResponse.json({ success: false, error: 'token is required' }, { status: 400 })
+    }
+
+    // Validate magic link
+    const tokenResult = await validateMagicLinkToken(token, 'onboarding')
+    if (!tokenResult.valid) {
       return NextResponse.json(
-        { success: false, error: 'Token is required' },
-        { status: 400 }
+        { success: false, error: tokenResult.message, code: tokenResult.code },
+        { status: 401 }
       )
     }
 
-    // Find onboarding record by token (needed for session scope check)
+    // Validate supplier session is scoped to this onboarding record
+    const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value
+    if (!sessionToken) {
+      return NextResponse.json({ success: false, error: 'Authentication required', code: 'NO_SESSION' }, { status: 401 })
+    }
+
+    const session = await validateSession(sessionToken, tokenResult.onboarding.id)
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Session expired or invalid', code: 'INVALID_SESSION' }, { status: 401 })
+    }
+
     const onboarding = await prisma.supplierOnboarding.findUnique({
       where: { onboardingToken: token },
       include: {
@@ -26,27 +43,18 @@ export async function GET(request: NextRequest) {
             creditApplication: true,
             supplierContactPerson: true,
             productServiceCategory: true,
-            paymentMethod: true
-          }
-        }
-      }
+            paymentMethod: true,
+          },
+        },
+      },
     })
 
     if (!onboarding) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid or expired token' },
-        { status: 404 }
-      )
+      return NextResponse.json({ success: false, error: 'Record not found' }, { status: 404 })
     }
-
-    // Require a valid supplier session scoped to this onboarding record
-    const guard = await requireSupplierSession(request, onboarding.id)
-    if (guard) return guard
 
     const supplier = onboarding.supplier || {}
 
-    // Map supplier data to form fields
-    // If supplier doesn't exist yet, use initiation data
     const formData = {
       supplierName: supplier.supplierName || '',
       contactPerson: supplier.contactPerson || onboarding.initiation?.supplierContactPerson || '',
@@ -93,25 +101,11 @@ export async function GET(request: NextRequest) {
       postalSameAsPhysical: (supplier.airtableData as { postalSameAsPhysical?: boolean } | null)?.postalSameAsPhysical ?? false,
     }
 
-    // Get uploaded files info from airtableData if available
     const uploadedFiles = supplier.airtableData?.uploadedFiles || {}
-
-    // Get purchase type, credit application status, and payment method from initiation
     const purchaseType = onboarding.initiation?.purchaseType || 'REGULAR'
     const creditApplication = onboarding.initiation?.creditApplication || false
     const paymentMethod = onboarding.initiation?.paymentMethod || null
-    
-    console.log('📋 Document Requirements Calculation:')
-    console.log('   Purchase Type:', purchaseType)
-    console.log('   Credit Application:', creditApplication)
-    console.log('   Payment Method:', paymentMethod)
-    
-    // ALWAYS calculate requiredDocuments fresh based on current purchaseType, creditApplication, and paymentMethod
-    // This ensures we use the latest document requirements logic
     const requiredDocuments = getRequiredDocuments(purchaseType as any, creditApplication, paymentMethod)
-    
-    console.log('   Required Documents:', requiredDocuments)
-    console.log('   Includes NDA?', requiredDocuments.includes('nda'))
 
     return NextResponse.json({
       success: true,
@@ -122,18 +116,11 @@ export async function GET(request: NextRequest) {
       documentsToRevise: onboarding.documentsToRevise || [],
       purchaseType,
       creditApplication,
-      paymentMethod: onboarding.initiation?.paymentMethod || null,
-      requiredDocuments
+      paymentMethod,
+      requiredDocuments,
     })
   } catch (error) {
-    console.error('Error fetching supplier data:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to fetch supplier data'
-      },
-      { status: 500 }
-    )
+    console.error('Supplier portal form/onboarding error:', error)
+    return NextResponse.json({ success: false, error: 'Failed to fetch form data' }, { status: 500 })
   }
 }
-

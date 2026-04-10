@@ -30,12 +30,13 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Generate a fresh onboarding token
+    // Generate a fresh onboarding token (72-hour expiry, resets revocation)
     const onboardingToken = randomBytes(32).toString('hex')
+    const onboardingTokenExpiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000)
 
     await prisma.supplierOnboarding.update({
       where: { id: onboarding.id },
-      data: { onboardingToken, emailSent: false }
+      data: { onboardingToken, onboardingTokenExpiresAt, onboardingTokenRevoked: false, emailSent: false }
     })
 
     // Send email via existing endpoint (reuse templating and SMTP)

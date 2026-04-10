@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useState, useEffect, useRef } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 
 const DRAFT_STORAGE_KEY_PREFIX = "supplier-onboarding-draft-"
 const DRAFT_DEBOUNCE_MS = 300
@@ -18,6 +18,7 @@ import Image from "next/image"
 
 function SupplierOnboardingForm() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const onboardingToken = searchParams.get('token')
   
   const [loading, setLoading] = useState(false)
@@ -126,6 +127,12 @@ function SupplierOnboardingForm() {
       setLoadingData(true)
       try {
         const response = await fetch(`/api/suppliers/get-by-token?token=${onboardingToken}`)
+
+        if (response.status === 401) {
+          router.replace(`/supplier-portal/verify?token=${onboardingToken}&type=onboarding`)
+          return
+        }
+
         const data = await response.json()
 
         if (data.success) {
