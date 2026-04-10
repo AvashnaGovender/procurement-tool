@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-import { readFile } from 'fs/promises'
-import { join } from 'path'
-import { existsSync } from 'fs'
-
-const WORKER_API_URL = process.env.WORKER_API_URL || 'http://localhost:8001'
-/** Worker can take several minutes (PDF + LLM). Use a long timeout to avoid HeadersTimeoutError. */
-const WORKER_FETCH_TIMEOUT_MS = 400_000 // 400 seconds
+import { runBankVerification } from '@/lib/bank-verification-run'
 
 /**
  * POST /api/suppliers/[supplierId]/bank-verification/run
@@ -28,102 +21,14 @@ export async function POST(
     }
 
     const { supplierId } = await params
-    const supplier = await prisma.supplier.findUnique({
-      where: { id: supplierId },
-      select: {
-        id: true,
-        supplierCode: true,
-        airtableData: true,
-      },
-    })
+    const result = await runBankVerification(supplierId)
 
-    if (!supplier) {
-      return NextResponse.json({ success: false, error: 'Supplier not found' }, { status: 404 })
+    if (!result.success) {
+      const status = result.error === 'Supplier not found' ? 404 : result.error.includes('not found') ? 404 : result.error.includes('Worker') ? 502 : 400
+      return NextResponse.json({ success: false, error: result.error }, { status })
     }
 
-    const airtableData = supplier.airtableData as any
-    if (!airtableData?.allVersions?.length) {
-      return NextResponse.json(
-        { success: false, error: 'No document versions available' },
-        { status: 400 }
-      )
-    }
-
-    const latestVersion = airtableData.allVersions[airtableData.allVersions.length - 1]
-    const bankFiles = latestVersion.uploadedFiles?.bankConfirmation
-    if (!Array.isArray(bankFiles) || bankFiles.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'No bank confirmation document to verify' },
-        { status: 400 }
-      )
-    }
-
-    const fileName = bankFiles[0]
-    // Read file directly from disk (same path as document API) so we send exact bytes to the worker.
-    // Fetching via HTTP can change encoding or return HTML on auth errors, causing PDF parse errors.
-    const filePath = join(
-      process.cwd(),
-      'data',
-      'uploads',
-      'suppliers',
-      supplier.supplierCode,
-      `v${latestVersion.version}`,
-      'bankConfirmation',
-      fileName
-    )
-    if (!existsSync(filePath)) {
-      return NextResponse.json(
-        { success: false, error: `Document not found at expected path` },
-        { status: 404 }
-      )
-    }
-    const buffer = await readFile(filePath)
-
-    const formData = new FormData()
-    formData.append('file', new Blob([buffer], { type: 'application/pdf' }), fileName)
-
-    // Node's default fetch (undici) uses ~300s headers timeout, which can hit before the worker finishes.
-    // Use undici's fetch with a custom Agent so the request can run up to WORKER_FETCH_TIMEOUT_MS.
-    const { fetch: undiciFetch, Agent } = await import('undici')
-    const agent = new Agent({
-      headersTimeout: WORKER_FETCH_TIMEOUT_MS,
-      bodyTimeout: WORKER_FETCH_TIMEOUT_MS,
-    })
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), WORKER_FETCH_TIMEOUT_MS)
-    let verifyRes: Response
-    try {
-      verifyRes = await undiciFetch(`${WORKER_API_URL}/verify-bank-statement`, {
-        method: 'POST',
-        body: formData,
-        dispatcher: agent,
-        signal: controller.signal,
-      })
-    } finally {
-      clearTimeout(timeoutId)
-    }
-
-    if (!verifyRes.ok) {
-      const errText = await verifyRes.text()
-      return NextResponse.json(
-        { success: false, error: `Worker verification failed: ${verifyRes.status} - ${errText.slice(0, 200)}` },
-        { status: 502 }
-      )
-    }
-
-    const verifyData = await verifyRes.json()
-
-    await prisma.bankVerification.create({
-      data: {
-        supplierId: supplier.id,
-        result: verifyData as any,
-      },
-    })
-
-    return NextResponse.json({
-      success: true,
-      data: verifyData,
-    })
+    return NextResponse.json({ success: true, data: result.data })
   } catch (error) {
     console.error('POST bank-verification/run error:', error)
     return NextResponse.json(

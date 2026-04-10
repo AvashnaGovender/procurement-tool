@@ -422,15 +422,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Trigger bank verification in background when bank confirmation doc was received (PM sees result when reviewing)
+    // Run AI insight (bank verification) immediately when supplier submits bank confirmation doc (no wait for PM review)
     if (uploadedFiles.bankConfirmation?.length > 0 && supplier?.id) {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'
       const secret = process.env.BANK_VERIFICATION_TRIGGER_SECRET
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
       if (secret) {
+        // Fire-and-forget HTTP trigger (works in serverless; run route runs in a separate invocation)
         fetch(`${baseUrl}/api/suppliers/${supplier.id}/bank-verification/run`, {
           method: 'POST',
           headers: { 'x-trigger-secret': secret },
         }).catch((err) => console.error('Bank verification trigger failed:', err))
+      } else {
+        // No secret: run in-process after sending response so supplier gets quick reply
+        setImmediate(() => {
+          import('@/lib/bank-verification-run').then(({ runBankVerification: run }) => {
+            run(supplier.id).then((r) => {
+              if (!r.success) console.error('Bank verification failed:', r.error)
+            }).catch((err) => console.error('Bank verification error:', err))
+          })
+        })
       }
     }
 
