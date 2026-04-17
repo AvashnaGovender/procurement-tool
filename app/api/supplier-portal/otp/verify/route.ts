@@ -97,12 +97,20 @@ export async function POST(request: NextRequest) {
       email: contactEmail,
     })
 
+    // Use Secure flag only when the request actually arrived over HTTPS.
+    // When behind a proxy (Cloudflare, nginx), the original protocol is in X-Forwarded-Proto.
+    // Falling back to NODE_ENV alone is wrong when the server runs HTTP on port 3000.
+    const proto =
+      request.headers.get('x-forwarded-proto') ??
+      (request.url.startsWith('https') ? 'https' : 'http')
+    const isSecure = proto === 'https'
+
     const response = NextResponse.json({ success: true })
     response.cookies.set({
       name: SESSION_COOKIE_NAME,
       value: sessionToken,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       path: '/',
       expires: session.expiresAt,

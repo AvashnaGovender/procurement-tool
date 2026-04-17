@@ -138,8 +138,17 @@ function SupplierOnboardingForm() {
         if (data.success) {
           // Always take server metadata (files, payment, revision notes, purchase type)
           setExistingFiles(data.uploadedFiles || {})
-          if (!hasDraft) {
-            // No local draft — use everything from server
+
+          // For revisions, server data must win over any stale draft so the
+          // supplier sees the correct prefilled fields and revision instructions.
+          const isRevision = data.isRevision === true
+
+          if (!hasDraft || isRevision) {
+            // No local draft, or this is a revision — use everything from server
+            if (isRevision && hasDraft) {
+              // Discard stale draft so revision fields are not blocked by old data
+              try { localStorage.removeItem(key) } catch { /* ignore */ }
+            }
             setFormData(data.formData)
             setCreditApplication(data.creditApplication || false)
             setPaymentMethod(data.paymentMethod || null)
@@ -148,16 +157,13 @@ function SupplierOnboardingForm() {
             if (data.documentsToRevise && Array.isArray(data.documentsToRevise)) {
               setDocumentsToRevise(data.documentsToRevise)
             }
-            console.log("📋 Loaded supplier data from server (no local draft)")
+            console.log(isRevision ? "📋 Revision: loaded server data (draft discarded)" : "📋 Loaded supplier data from server (no local draft)")
           } else {
-            // Local draft exists — keep typed fields but pull server-only metadata
-            // (creditApplication, paymentMethod, purchaseType, revisionNotes come from server
-            //  only if they weren't saved in the draft; draft values already applied above)
+            // Local draft exists and not a revision — keep typed fields but pull server-only metadata
             if (data.revisionNotes && !revisionNotes) setRevisionNotes(data.revisionNotes)
             if (data.documentsToRevise && Array.isArray(data.documentsToRevise) && documentsToRevise.length === 0) {
               setDocumentsToRevise(data.documentsToRevise)
             }
-            // creditApplication, paymentMethod, purchaseType: prefer draft (already applied)
             console.log("📝 Local draft kept; server metadata merged")
           }
         }
@@ -368,6 +374,12 @@ function SupplierOnboardingForm() {
         method: 'POST',
         body: submitData,
       })
+
+      if (response.status === 401) {
+        // Session expired while filling the form — redirect to re-verify
+        router.replace(`/supplier-portal/verify?token=${onboardingToken}&type=onboarding`)
+        return
+      }
 
       const data = await response.json()
 
