@@ -29,12 +29,15 @@ const ONBOARDING_ALLOWED_STATUSES = [
   'REVISION_NEEDED',
 ]
 
-// Onboarding statuses that allow credit application access
+// Onboarding statuses that allow credit application access.
+// APPROVED is included because the credit application link is sent inside the approval email,
+// so the supplier will click it only after the record has been marked APPROVED.
 const CREDIT_ALLOWED_STATUSES = [
   'UNDER_REVIEW',
   'AWAITING_FINAL_APPROVAL',
   'EMAIL_SENT',
   'AWAITING_RESPONSE',
+  'APPROVED',
 ]
 
 export async function validateMagicLinkToken(
