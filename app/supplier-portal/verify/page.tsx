@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useCallback, Suspense } from 'react'
+import React, { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
@@ -24,6 +24,9 @@ function VerifyPageContent() {
   const [errorMessage, setErrorMessage] = useState('')
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null)
   const [resendCooldown, setResendCooldown] = useState(0)
+
+  // Prevent the initial OTP send from firing more than once (e.g. React Strict Mode double-invoke)
+  const otpSentRef = useRef(false)
 
   const destinationPath =
     type === 'credit' ? `/credit-application-form?token=${token}` : `/supplier-onboarding-form?token=${token}`
@@ -59,6 +62,10 @@ function VerifyPageContent() {
       setStatus('invalid_link')
       return
     }
+
+    // Guard: only run once per mount (React Strict Mode fires effects twice in dev)
+    if (otpSentRef.current) return
+    otpSentRef.current = true
 
     async function validate() {
       try {

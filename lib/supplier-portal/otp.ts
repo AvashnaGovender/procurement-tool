@@ -1,7 +1,7 @@
 import { createHash, randomInt } from 'crypto'
 
 const OTP_LENGTH = 6
-const OTP_EXPIRY_MINUTES = 10
+const OTP_EXPIRY_MINUTES = 24 * 60 // 24 hours
 const OTP_MAX_ATTEMPTS = 5
 
 export function generateOtp(): string {

@@ -35,6 +35,24 @@ export async function POST(request: NextRequest) {
 
     const { id: onboardingId, contactEmail, contactName } = tokenResult.onboarding
 
+    // Rate limit: if a non-invalidated OTP was sent in the last 2 minutes, return success
+    // without sending another email. This prevents duplicate emails from double-renders or
+    // repeated redirects while the session cookie is being established.
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000)
+    const recentOtp = await prisma.supplierOtp.findFirst({
+      where: {
+        onboardingId,
+        formType,
+        invalidated: false,
+        createdAt: { gte: twoMinutesAgo },
+      },
+    })
+
+    if (recentOtp) {
+      const maskedEmail = maskEmail(contactEmail)
+      return NextResponse.json({ success: true, maskedEmail, rateLimited: true })
+    }
+
     // Invalidate any existing active OTPs for this record + formType
     await prisma.supplierOtp.updateMany({
       where: { onboardingId, formType, invalidated: false },
@@ -126,7 +144,7 @@ function buildOtpEmail(contactName: string, otp: string): string {
           <tr>
             <td style="padding:40px 30px;color:#333333;line-height:1.6;font-size:16px;">
               <p>Dear ${contactName},</p>
-              <p>Use the verification code below to access your supplier form. This code expires in <strong>10 minutes</strong>.</p>
+              <p>Use the verification code below to access your supplier form. This code expires in <strong>24 hours</strong>.</p>
               <div style="text-align:center;margin:30px 0;">
                 <div style="display:inline-block;background-color:#f0f4ff;border:2px solid #1e40af;border-radius:8px;padding:20px 40px;">
                   <span style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#1e40af;font-family:monospace;">${otp}</span>

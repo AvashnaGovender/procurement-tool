@@ -139,14 +139,15 @@ function SupplierOnboardingForm() {
           // Always take server metadata (files, payment, revision notes, purchase type)
           setExistingFiles(data.uploadedFiles || {})
 
-          // For revisions, server data must win over any stale draft so the
-          // supplier sees the correct prefilled fields and revision instructions.
           const isRevision = data.isRevision === true
+          // If the server has a saved supplierName it means a previous submission exists —
+          // the server record is the authoritative state and must always win over any local draft.
+          const serverHasSavedData = !!(data.formData?.supplierName?.trim())
 
-          if (!hasDraft || isRevision) {
-            // No local draft, or this is a revision — use everything from server
-            if (isRevision && hasDraft) {
-              // Discard stale draft so revision fields are not blocked by old data
+          if (!hasDraft || isRevision || serverHasSavedData) {
+            // Use server data: no draft, revision request, or a prior submission exists
+            if (hasDraft) {
+              // Discard stale draft so form reflects server state
               try { localStorage.removeItem(key) } catch { /* ignore */ }
             }
             setFormData(data.formData)
@@ -157,14 +158,14 @@ function SupplierOnboardingForm() {
             if (data.documentsToRevise && Array.isArray(data.documentsToRevise)) {
               setDocumentsToRevise(data.documentsToRevise)
             }
-            console.log(isRevision ? "📋 Revision: loaded server data (draft discarded)" : "📋 Loaded supplier data from server (no local draft)")
+            console.log(isRevision ? "📋 Revision: loaded server data (draft discarded)" : "📋 Loaded supplier data from server")
           } else {
-            // Local draft exists and not a revision — keep typed fields but pull server-only metadata
+            // Local draft exists, no prior submission — keep typed fields but pull server-only metadata
             if (data.revisionNotes && !revisionNotes) setRevisionNotes(data.revisionNotes)
             if (data.documentsToRevise && Array.isArray(data.documentsToRevise) && documentsToRevise.length === 0) {
               setDocumentsToRevise(data.documentsToRevise)
             }
-            console.log("📝 Local draft kept; server metadata merged")
+            console.log("📝 Local draft kept (no prior submission on server)")
           }
         }
       } catch (error) {
