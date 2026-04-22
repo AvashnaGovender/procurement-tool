@@ -574,7 +574,8 @@ async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string 
             // Get credit application token from onboarding
             const onboarding = supplier.onboarding
             if (onboarding?.creditApplicationToken) {
-              return `<a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/credit-application-form?token=${onboarding.creditApplicationToken}" style="display: inline-block; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Complete Credit Application Form</a>`
+              const { getSupplierPortalBaseUrl } = require('@/lib/supplier-portal/public-url')
+              return `<a href="${getSupplierPortalBaseUrl()}/credit-application-form?token=${onboarding.creditApplicationToken}" style="display: inline-block; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Complete Credit Application Form</a>`
             }
             return ''
           })()}

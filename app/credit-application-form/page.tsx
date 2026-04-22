@@ -120,6 +120,11 @@ function CreditApplicationForm() {
         body: submitData,
       })
 
+      if (response.status === 401) {
+        router.replace(`/supplier-portal/verify?token=${token}&type=credit`)
+        return
+      }
+
       const data = await response.json()
 
       if (!data.success) {
