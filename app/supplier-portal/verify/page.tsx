@@ -31,14 +31,16 @@ function VerifyPageContent() {
   const destinationPath =
     type === 'credit' ? `/credit-application-form?token=${token}` : `/supplier-onboarding-form?token=${token}`
 
-  const requestOtp = useCallback(async () => {
+  // forceResend=false: only send a new email if no active OTP exists (prevents duplicates).
+  // forceResend=true:  supplier clicked "Resend" — always generate a fresh code.
+  const requestOtp = useCallback(async (forceResend = false) => {
     setStatus('sending')
     setErrorMessage('')
     try {
       const res = await fetch('/api/supplier-portal/otp/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, formType: type }),
+        body: JSON.stringify({ token, formType: type, forceResend }),
       })
       const data = await res.json()
       if (!res.ok || !data.success) {
@@ -49,7 +51,7 @@ function VerifyPageContent() {
       setMaskedEmail(data.maskedEmail ?? '')
       setStatus('ready')
       // Start 60-second resend cooldown
-      setResendCooldown(60)
+      if (forceResend) setResendCooldown(60)
     } catch {
       setErrorMessage('Network error. Please check your connection and try again.')
       setStatus('error')
@@ -210,7 +212,7 @@ function VerifyPageContent() {
                   <span className="text-gray-400">Resend in {resendCooldown}s</span>
                 ) : (
                   <button
-                    onClick={requestOtp}
+                    onClick={() => requestOtp(true)}
                     className="text-blue-700 font-medium hover:underline focus:outline-none"
                   >
                     Resend
@@ -231,7 +233,7 @@ function VerifyPageContent() {
               <p className="text-gray-800 font-medium text-center">{errorMessage || 'Something went wrong.'}</p>
               {status === 'error' && (
                 <button
-                  onClick={requestOtp}
+                  onClick={() => requestOtp(true)}
                   className="mt-2 px-5 py-2 bg-blue-800 text-white rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors"
                 >
                   Request new code

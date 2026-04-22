@@ -8,7 +8,7 @@ import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, s
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { token, formType } = body as { token?: string; formType?: FormType }
+    const { token, formType } = body as { token?: string; formType?: FormType; forceResend?: boolean }
 
     if (!token || !formType) {
       return NextResponse.json(
@@ -35,22 +35,26 @@ export async function POST(request: NextRequest) {
 
     const { id: onboardingId, contactEmail, contactName } = tokenResult.onboarding
 
-    // Rate limit: if a non-invalidated OTP was sent in the last 2 minutes, return success
-    // without sending another email. This prevents duplicate emails from double-renders or
-    // repeated redirects while the session cookie is being established.
-    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000)
-    const recentOtp = await prisma.supplierOtp.findFirst({
-      where: {
-        onboardingId,
-        formType,
-        invalidated: false,
-        createdAt: { gte: twoMinutesAgo },
-      },
-    })
+    // forceResend=false  → only send if there is no currently active OTP (prevents duplicates
+    //   caused by redirect loops, Strict Mode double-mounts, or repeated page visits).
+    // forceResend=true   → supplier clicked "Resend" — always generate a fresh code.
+    const forceResend = body.forceResend === true
 
-    if (recentOtp) {
-      const maskedEmail = maskEmail(contactEmail)
-      return NextResponse.json({ success: true, maskedEmail, rateLimited: true })
+    if (!forceResend) {
+      const activeOtp = await prisma.supplierOtp.findFirst({
+        where: {
+          onboardingId,
+          formType,
+          invalidated: false,
+          expiresAt: { gt: new Date() },
+        },
+      })
+
+      if (activeOtp) {
+        // An active OTP already exists — return success without sending another email
+        const maskedEmail = maskEmail(contactEmail)
+        return NextResponse.json({ success: true, maskedEmail })
+      }
     }
 
     // Invalidate any existing active OTPs for this record + formType
