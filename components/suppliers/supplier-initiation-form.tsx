@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -25,6 +25,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const isSavingDraftRef = useRef(false)
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(draftId || null)
   const [loadingDraft, setLoadingDraft] = useState(!!draftId)
   const [errorDialogOpen, setErrorDialogOpen] = useState(false)
@@ -257,6 +258,8 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
 
   const handleSaveDraft = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSavingDraftRef.current) return
+    isSavingDraftRef.current = true
     setIsSavingDraft(true)
 
     try {
@@ -328,6 +331,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
       setErrorMessage(error instanceof Error ? error.message : 'Failed to save draft: Network error')
       setErrorDialogOpen(true)
     } finally {
+      isSavingDraftRef.current = false
       setIsSavingDraft(false)
     }
   }
@@ -534,9 +538,19 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
               checked={formData.processReadUnderstood}
               onCheckedChange={(checked) => handleInputChange('processReadUnderstood', checked)}
             />
-            <Label htmlFor="processReadUnderstood" className={!formData.processReadUnderstood ? "text-red-600" : ""}>
-              Supplier Onboarding Process – Read & Understood *
-            </Label>
+            <div className="flex flex-col">
+              <Label htmlFor="processReadUnderstood" className={!formData.processReadUnderstood ? "text-red-600" : ""}>
+                Supplier Onboarding Process - Read & Understood *
+              </Label>
+              <a
+                href="/api/documents/supplier-onboarding-procedure"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Read Procedure for Supplier Onboarding
+              </a>
+            </div>
           </div>
           
           <div className="flex items-center space-x-2">
@@ -961,10 +975,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                 type="button"
                 variant="outline"
                 onClick={handleSaveDraft}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isSavingDraft}
                 className="min-w-[120px]"
               >
-                Save Draft
+                {isSavingDraft ? "Saving..." : "Save Draft"}
               </Button>
               <Button 
                 type="submit" 

@@ -22,7 +22,8 @@ function SupplierOnboardingForm() {
   const onboardingToken = searchParams.get('token')
   
   const [loading, setLoading] = useState(false)
-  const [loadingData, setLoadingData] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
+  const [isPortalAuthorized, setIsPortalAuthorized] = useState<boolean>(false)
   const [submitted, setSubmitted] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [error, setError] = useState("")
@@ -117,6 +118,7 @@ function SupplierOnboardingForm() {
     }
 
     if (!onboardingToken) {
+      setIsPortalAuthorized(false)
       setLoadingData(false)
       return
     }
@@ -129,6 +131,7 @@ function SupplierOnboardingForm() {
         const response = await fetch(`/api/suppliers/get-by-token?token=${onboardingToken}`)
 
         if (response.status === 401) {
+          setIsPortalAuthorized(false)
           router.replace(`/supplier-portal/verify?token=${onboardingToken}&type=onboarding`)
           return
         }
@@ -136,6 +139,7 @@ function SupplierOnboardingForm() {
         const data = await response.json()
 
         if (data.success) {
+          setIsPortalAuthorized(true)
           // Always take server metadata (files, payment, revision notes, purchase type)
           setExistingFiles(data.uploadedFiles || {})
 
@@ -167,9 +171,12 @@ function SupplierOnboardingForm() {
             }
             console.log("📝 Local draft kept (no prior submission on server)")
           }
+        } else {
+          setIsPortalAuthorized(false)
         }
       } catch (error) {
         console.error("Error fetching existing data:", error)
+        setIsPortalAuthorized(false)
       } finally {
         setLoadingData(false)
       }
@@ -581,14 +588,15 @@ function SupplierOnboardingForm() {
     )
   }
 
-  // Show loading state while fetching data
-  if (loadingData) {
+  // Gate access strictly behind verified portal session.
+  // Until OTP verification grants access, never render form content.
+  if (loadingData || !isPortalAuthorized) {
     return (
       <div className="bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-            <p className="text-lg text-gray-600">Loading your application data...</p>
+            <p className="text-lg text-gray-600">Verifying secure access...</p>
           </CardContent>
         </Card>
       </div>
@@ -1015,7 +1023,7 @@ function SupplierOnboardingForm() {
                             variant="outline"
                             size="sm"
                             className="ml-4 shrink-0"
-                            onClick={() => window.open('/templates/standard-nda.pdf', '_blank')}
+                            onClick={() => window.open(`${window.location.protocol}//${window.location.hostname}:3000/templates/standard-nda.pdf`, '_blank')}
                           >
                             <Upload className="h-4 w-4 mr-2" />
                             Download NDA *

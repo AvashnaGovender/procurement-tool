@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { sendEmail } from '@/lib/email-sender'
 
 export async function GET(
   request: NextRequest,
@@ -134,7 +135,19 @@ export async function DELETE(
 
     // Get the initiation to check its status and ownership
     const initiation = await prisma.supplierInitiation.findUnique({
-      where: { id: initiationId }
+      where: { id: initiationId },
+      include: {
+        managerApproval: {
+          include: {
+            approver: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          }
+        }
+      }
     })
 
     if (!initiation) {
@@ -166,19 +179,26 @@ export async function DELETE(
     
     // Users can delete their own drafts and rejected requests
     // Admins can delete more statuses
-    const canDelete = isAdmin || (isOwner && (initiation.status === 'DRAFT' || initiation.status === 'REJECTED'))
+    const canDelete = isAdmin || (
+      isOwner && (
+        initiation.status === 'DRAFT' ||
+        initiation.status === 'REJECTED' ||
+        initiation.status === 'SUBMITTED' ||
+        initiation.status === 'MANAGER_APPROVED'
+      )
+    )
     
     if (!canDelete) {
       console.log('❌ Permission denied')
       return NextResponse.json({ 
         success: false,
         error: 'Forbidden',
-        message: 'You can only delete your own drafts and rejected requests, or you need admin privileges.'
+        message: 'You can only delete/withdraw your own eligible initiation requests, or you need admin privileges.'
       }, { status: 403 })
     }
 
-    // Only allow deletion of certain statuses (not approved or completed ones)
-    const allowedStatuses = ['DRAFT', 'SUBMITTED', 'MANAGER_APPROVED', 'PROCUREMENT_APPROVED', 'REJECTED']
+    // Withdraw is only allowed before procurement has approved and before supplier email/onboarding starts.
+    const allowedStatuses = ['DRAFT', 'SUBMITTED', 'MANAGER_APPROVED', 'REJECTED']
     const protectedStatuses = ['APPROVED', 'EMAIL_SENT', 'SUPPLIER_EMAILED']
     
     if (!allowedStatuses.includes(initiation.status)) {
@@ -188,7 +208,7 @@ export async function DELETE(
       if (protectedStatuses.includes(initiation.status)) {
         errorMessage += `This initiation has been approved and supplier has been notified. Deletion is not allowed to maintain data integrity.`
       } else {
-        errorMessage += `Only initiations with DRAFT, SUBMITTED, MANAGER_APPROVED, PROCUREMENT_APPROVED, or REJECTED status can be deleted.`
+        errorMessage += `Only initiations with DRAFT, SUBMITTED, MANAGER_APPROVED, or REJECTED status can be deleted/withdrawn.`
       }
       
       return NextResponse.json({ 
@@ -199,6 +219,43 @@ export async function DELETE(
     }
 
     console.log('✅ Permission granted, proceeding with deletion...')
+
+    const isWithdraw = isOwner && (initiation.status === 'SUBMITTED' || initiation.status === 'MANAGER_APPROVED')
+
+    // If initiator withdraws after manager approval (PM still pending), notify manager.
+    if (isWithdraw && initiation.status === 'MANAGER_APPROVED' && initiation.managerApproval?.status === 'APPROVED' && initiation.managerApproval.approver?.email) {
+      try {
+        const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
+        const managerEmailContent = `
+Dear ${initiation.managerApproval.approver.name},
+
+The supplier initiation request below has been withdrawn by the initiator after your approval:
+
+- Supplier Name: ${initiation.supplierName}
+- Supplier Email: ${initiation.supplierEmail}
+- Initiation ID: ${initiation.id}
+
+No further procurement approval is required for this request.
+
+You can view your initiations here:
+${initiationsUrl}
+
+Best regards,
+Schauenburg Systems Procurement System
+        `.trim()
+
+        await sendEmail({
+          to: initiation.managerApproval.approver.email,
+          subject: 'Supplier Initiation Withdrawn by Initiator',
+          content: managerEmailContent,
+          supplierName: initiation.supplierName,
+          businessType: initiation.productServiceCategory
+        })
+      } catch (emailError) {
+        console.error('⚠️ Failed to send manager withdrawal notification:', emailError)
+        // Do not block withdrawal if notification fails
+      }
+    }
 
     // Delete the initiation and all related records in a transaction
     console.log('Attempting to delete initiation:', initiationId)
@@ -264,10 +321,10 @@ export async function DELETE(
       console.log(`✅ Deleted supplier initiation: ${initiationId}`)
     })
 
-    console.log('Initiation deleted successfully')
+    console.log(isWithdraw ? 'Initiation withdrawn successfully' : 'Initiation deleted successfully')
     return NextResponse.json({ 
       success: true, 
-      message: 'Supplier initiation deleted successfully' 
+      message: isWithdraw ? 'Supplier initiation withdrawn successfully' : 'Supplier initiation deleted successfully'
     })
 
   } catch (error) {

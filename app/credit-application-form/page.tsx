@@ -16,9 +16,10 @@ function CreditApplicationForm() {
   const token = searchParams.get('token')
   
   const [loading, setLoading] = useState(false)
-  const [loadingData, setLoadingData] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState("")
+  const [isPortalAuthorized, setIsPortalAuthorized] = useState<boolean>(false)
   
   // Form state
   const [signedCreditApplicationFile, setSignedCreditApplicationFile] = useState<File | null>(null)
@@ -32,7 +33,9 @@ function CreditApplicationForm() {
   useEffect(() => {
     const fetchData = async () => {
       if (!token) {
+        setIsPortalAuthorized(false)
         setError("Invalid access token. Please use the link provided in your email.")
+        setLoadingData(false)
         return
       }
 
@@ -41,6 +44,7 @@ function CreditApplicationForm() {
         const response = await fetch(`/api/suppliers/credit-application/get-by-token?token=${token}`)
 
         if (response.status === 401) {
+          setIsPortalAuthorized(false)
           router.replace(`/supplier-portal/verify?token=${token}&type=credit`)
           return
         }
@@ -48,6 +52,7 @@ function CreditApplicationForm() {
         const data = await response.json()
 
         if (data.success) {
+          setIsPortalAuthorized(true)
           setSupplierData(data.supplier)
           setCreditAccountInfo(data.creditAccountInfo || "")
           if (data.signedCreditAppUrl) {
@@ -57,10 +62,12 @@ function CreditApplicationForm() {
             setSubmitted(true)
           }
         } else {
+          setIsPortalAuthorized(false)
           setError(data.error || 'Failed to load form data')
         }
       } catch (error) {
         console.error('Error fetching data:', error)
+        setIsPortalAuthorized(false)
         setError('Failed to load form data. Please try again.')
       } finally {
         setLoadingData(false)
@@ -140,14 +147,14 @@ function CreditApplicationForm() {
     }
   }
 
-  if (loadingData) {
+  if (loadingData || !isPortalAuthorized) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-4" />
-              <p className="text-gray-600">Loading form...</p>
+              <p className="text-gray-600">Verifying secure access...</p>
             </div>
           </CardContent>
         </Card>

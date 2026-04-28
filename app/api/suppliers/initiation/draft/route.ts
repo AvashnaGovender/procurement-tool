@@ -184,6 +184,77 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Backend safety: de-duplicate rapid repeated "save draft" clicks.
+    // If no ID is provided and an equivalent draft was just created, update it instead of creating a new record.
+    const normalizedSupplierName = (supplierName || '').trim()
+    const normalizedSupplierEmail = (supplierEmail || '').trim().toLowerCase()
+    const dedupeWindowStart = new Date(Date.now() - 60 * 1000)
+
+    const recentMatchingDraft = await prisma.supplierInitiation.findFirst({
+      where: {
+        initiatedById: session.user.id,
+        status: InitiationStatus.DRAFT,
+        supplierName: normalizedSupplierName,
+        supplierEmail: normalizedSupplierEmail,
+        createdAt: {
+          gte: dedupeWindowStart
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    if (recentMatchingDraft) {
+      const updated = await prisma.supplierInitiation.update({
+        where: { id: recentMatchingDraft.id },
+        data: {
+          businessUnit: businessUnits.length > 0 ? businessUnits : recentMatchingDraft.businessUnit,
+          processReadUnderstood: processReadUnderstood ?? recentMatchingDraft.processReadUnderstood,
+          dueDiligenceCompleted: dueDiligenceCompleted ?? recentMatchingDraft.dueDiligenceCompleted,
+          supplierName: supplierName || recentMatchingDraft.supplierName,
+          supplierEmail: supplierEmail ?? recentMatchingDraft.supplierEmail,
+          supplierContactPerson: supplierContactPerson ?? recentMatchingDraft.supplierContactPerson,
+          productServiceCategory: productServiceCategory || recentMatchingDraft.productServiceCategory,
+          requesterName: requesterName || recentMatchingDraft.requesterName,
+          relationshipDeclaration: relationshipDeclarationValue || recentMatchingDraft.relationshipDeclaration,
+          purchaseType: purchaseType ?? recentMatchingDraft.purchaseType,
+          paymentMethod: (() => {
+            if (paymentMethod) return paymentMethod
+            const pt = purchaseType ?? recentMatchingDraft.purchaseType
+            if (pt === 'COD' || pt === 'COD_IP_SHARED') return 'COD'
+            if (pt === 'CREDIT_TERMS' || pt === 'CREDIT_TERMS_IP_SHARED') return 'AC'
+            return recentMatchingDraft.paymentMethod
+          })(),
+          codReason: (() => {
+            const pt = purchaseType ?? recentMatchingDraft.purchaseType
+            return (pt === 'COD' || pt === 'COD_IP_SHARED') ? (codReason ?? recentMatchingDraft.codReason) : null
+          })(),
+          annualPurchaseValue: annualPurchaseValueNumber ?? recentMatchingDraft.annualPurchaseValue,
+          creditApplication: creditApplication ?? recentMatchingDraft.creditApplication,
+          creditApplicationReason: creditApplication ? null : (creditApplicationReason ?? recentMatchingDraft.creditApplicationReason),
+          regularPurchase: regularPurchase ?? (() => {
+            const pt = purchaseType ?? recentMatchingDraft.purchaseType
+            if (pt === 'COD' || pt === 'CREDIT_TERMS') return true
+            if (pt === 'REGULAR') return true
+            return recentMatchingDraft.regularPurchase
+          })(),
+          onceOffPurchase: onceOffPurchase ?? (purchaseType === 'ONCE_OFF' ? true : recentMatchingDraft.onceOffPurchase),
+          onboardingReason: onboardingReason || recentMatchingDraft.onboardingReason,
+          supplierLocation: supplierLocation ?? recentMatchingDraft.supplierLocation,
+          currency: currency ?? recentMatchingDraft.currency,
+          customCurrency: customCurrency ?? recentMatchingDraft.customCurrency,
+          status: 'DRAFT'
+        }
+      })
+
+      return NextResponse.json({
+        success: true,
+        initiationId: updated.id,
+        message: 'Draft saved successfully'
+      })
+    }
+
     // Create new draft
     const initiation = await prisma.supplierInitiation.create({
       data: {

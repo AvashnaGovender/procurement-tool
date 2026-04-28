@@ -412,8 +412,8 @@ export default function SupplierInitiationsPage() {
                                 </Button>
                               </>
                             )}
-                            {/* Show delete button for drafts that haven't been submitted */}
-                            {(initiation.status === 'DRAFT' || initiation.status === 'REJECTED') && initiation.initiatedById === session?.user?.id && (
+                            {/* Show delete/withdraw button for initiator-owned eligible requests */}
+                            {(initiation.status === 'DRAFT' || initiation.status === 'REJECTED' || initiation.status === 'SUBMITTED' || initiation.status === 'MANAGER_APPROVED') && initiation.initiatedById === session?.user?.id && (
                               <Button
                                 size="sm"
                                 variant="destructive"
@@ -423,7 +423,7 @@ export default function SupplierInitiationsPage() {
                                 }}
                               >
                                 <Trash2 className="h-4 w-4 mr-1" />
-                                Delete
+                                {(initiation.status === 'SUBMITTED' || initiation.status === 'MANAGER_APPROVED') ? 'Withdraw' : 'Delete'}
                               </Button>
                             )}
                           </div>
@@ -559,9 +559,15 @@ export default function SupplierInitiationsPage() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Supplier Initiation</DialogTitle>
+            <DialogTitle>
+              {(initiationToDelete?.status === 'SUBMITTED' || initiationToDelete?.status === 'MANAGER_APPROVED')
+                ? 'Withdraw Supplier Initiation'
+                : 'Delete Supplier Initiation'}
+            </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this supplier initiation request? This action cannot be undone.
+              {(initiationToDelete?.status === 'SUBMITTED' || initiationToDelete?.status === 'MANAGER_APPROVED')
+                ? 'Are you sure you want to withdraw this supplier initiation request? It will be removed from approval queues.'
+                : 'Are you sure you want to delete this supplier initiation request? This action cannot be undone.'}
             </DialogDescription>
           </DialogHeader>
           
@@ -594,7 +600,9 @@ export default function SupplierInitiationsPage() {
                 onClick={handleDelete}
                 disabled={deleting}
               >
-                {deleting ? 'Deleting...' : 'Delete'}
+                {deleting
+                  ? ((initiationToDelete?.status === 'SUBMITTED' || initiationToDelete?.status === 'MANAGER_APPROVED') ? 'Withdrawing...' : 'Deleting...')
+                  : ((initiationToDelete?.status === 'SUBMITTED' || initiationToDelete?.status === 'MANAGER_APPROVED') ? 'Withdraw' : 'Delete')}
               </Button>
             </div>
           </div>
