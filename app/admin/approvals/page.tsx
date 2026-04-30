@@ -336,13 +336,34 @@ export default function ApprovalsPage() {
   }
 
   const canApproveAsProcurement = (initiation: SupplierInitiation) => {
-    // Procurement approval step has been removed from the workflow
-    // This function is kept for backward compatibility but always returns false
-    return false
+    const userId = session?.user?.id
+
+    // CRITICAL: Initiator cannot approve their own request
+    if (initiation.initiatedById === userId) {
+      return false
+    }
+
+    const managerStatus = initiation.managerApproval?.status
+    const procurementStatus = initiation.procurementApproval?.status
+    const procurementApproverId = initiation.procurementApproval?.approverId
+
+    // Sequential workflow: PM can only approve after manager approval
+    if (managerStatus !== 'APPROVED') return false
+    if (procurementStatus !== 'PENDING') return false
+
+    // Check if user is directly assigned as procurement approver
+    const isDirectlyAssigned = procurementApproverId === userId
+
+    // Check if user has delegated procurement authority
+    const hasDelegatedAuthority = initiation.isDelegated &&
+                                  (initiation.delegationType === 'PROCUREMENT' ||
+                                   initiation.delegationType === 'BOTH')
+
+    return isDirectlyAssigned || hasDelegatedAuthority
   }
 
   const getApprovalStatus = (initiation: SupplierInitiation) => {
-    const { managerApproval } = initiation
+    const { managerApproval, procurementApproval } = initiation
     
     if (managerApproval?.status === 'APPROVED') {
       return 'Approved'
@@ -355,6 +376,18 @@ export default function ApprovalsPage() {
     // Manager approval is pending
     if (managerApproval?.status === 'PENDING') {
       return 'Awaiting Manager Approval'
+    }
+
+    if (managerApproval?.status === 'APPROVED' && procurementApproval?.status === 'PENDING') {
+      return 'Awaiting Procurement Manager Approval'
+    }
+
+    if (procurementApproval?.status === 'REJECTED') {
+      return 'Rejected by Procurement Manager'
+    }
+
+    if (procurementApproval?.status === 'APPROVED') {
+      return 'Approved'
     }
     
     return 'Pending'
@@ -801,7 +834,30 @@ export default function ApprovalsPage() {
                                       </div>
                                     )}
                                   </div>
-                                  {/* Procurement approval removed from workflow */}
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-600">Procurement Manager Approval</p>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      {getStatusIcon(initiation.procurementApproval?.status || 'PENDING')}
+                                      <span className="text-sm">
+                                        {initiation.procurementApproval?.status || 'PENDING'}
+                                      </span>
+                                    </div>
+                                    {initiation.procurementApproval?.approver && (
+                                      <p className="text-xs text-slate-500">by {initiation.procurementApproval.approver}</p>
+                                    )}
+                                    {initiation.procurementApproval?.status === 'REJECTED' && initiation.procurementApproval?.comments && (
+                                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                                        <p className="text-xs font-medium text-red-900 mb-1">Rejection Reason:</p>
+                                        <p className="text-xs text-red-800">{initiation.procurementApproval.comments}</p>
+                                      </div>
+                                    )}
+                                    {initiation.procurementApproval?.status === 'APPROVED' && initiation.procurementApproval?.comments && (
+                                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                                        <p className="text-xs font-medium text-green-900 mb-1">Comments:</p>
+                                        <p className="text-xs text-green-800">{initiation.procurementApproval.comments}</p>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="pt-4 border-t">
                                   <p className="text-sm font-medium text-slate-600 mb-2">Reason for Onboarding Supplier:</p>
