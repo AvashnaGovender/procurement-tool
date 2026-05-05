@@ -6,6 +6,7 @@ import { SMTPConfiguration } from "@/components/settings/smtp-configuration"
 import { DelegationManagement } from "@/components/settings/delegation-management"
 import { ReminderConfiguration } from "@/components/settings/reminder-configuration"
 import { UserManagement } from "@/components/settings/user-management"
+import { ChangePassword } from "@/components/settings/change-password"
 
 export default function SettingsPage() {
   const { data: session } = useSession()
@@ -16,6 +17,10 @@ export default function SettingsPage() {
       <SettingsHeader />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
+          <div className="bg-card border border-border rounded-lg p-6">
+            <ChangePassword />
+          </div>
+
           {/* User Management - Admin Only */}
           {isAdmin && (
             <div className="bg-card border border-border rounded-lg p-6">
