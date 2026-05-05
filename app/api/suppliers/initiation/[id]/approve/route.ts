@@ -50,7 +50,13 @@ export async function POST(
 
     const { id: initiationId } = await params
     const body = await request.json()
-    const { action, comments, approverRole } = body // action: 'approve' | 'reject', approverRole: 'MANAGER' | 'PROCUREMENT_MANAGER'
+    const { action: rawAction, comments, approverRole } = body
+    const action =
+      rawAction === 'request_revision'
+        ? 'request_revision'
+        : rawAction === 'reject'
+          ? 'reject'
+          : 'approve'
 
     // Get the initiation with approvals
     const initiation = await prisma.supplierInitiation.findUnique({
@@ -157,7 +163,10 @@ export async function POST(
             error: 'Manager must approve first before procurement approval can be processed.' 
           }, { status: 400 })
         }
-        if (canApproveAsProcurementManager && initiation.procurementApproval?.status === 'PENDING') {
+        if (
+          canApproveAsProcurementManager &&
+          initiation.procurementApproval?.status === 'PENDING'
+        ) {
           shouldUpdateProcurementApproval = true
         }
       } else {
@@ -168,6 +177,33 @@ export async function POST(
         } else if (initiation.managerApproval?.status === 'APPROVED' && canApproveAsProcurementManager && initiation.procurementApproval?.status === 'PENDING') {
           shouldUpdateProcurementApproval = true
         }
+      }
+    }
+
+    // Procurement Manager revision request: manager must not touch this branch; procurement only while PENDING
+    if (action === 'request_revision') {
+      shouldUpdateManagerApproval = false
+      shouldUpdateProcurementApproval =
+        initiation.managerApproval?.status === 'APPROVED' &&
+        initiation.procurementApproval?.status === 'PENDING' &&
+        canApproveAsProcurementManager
+    }
+
+    if (action === 'request_revision') {
+      if (!comments?.trim()) {
+        return NextResponse.json(
+          { error: 'Please provide revision feedback for the initiator.' },
+          { status: 400 }
+        )
+      }
+      if (!shouldUpdateProcurementApproval) {
+        return NextResponse.json(
+          {
+            error:
+              'Only the assigned Procurement Manager can request revisions while the request is awaiting procurement review.',
+          },
+          { status: 403 }
+        )
       }
     }
     
@@ -413,6 +449,100 @@ Schauenburg Systems Procurement Team
     }
 
     if (shouldUpdateProcurementApproval && initiation.procurementApproval) {
+      if (action === 'request_revision') {
+        await prisma.procurementApproval.update({
+          where: { initiationId },
+          data: {
+            status: 'REVISION_REQUESTED',
+            comments,
+            approvedAt: null,
+          },
+        })
+
+        await prisma.supplierInitiation.update({
+          where: { id: initiationId },
+          data: { status: 'MANAGER_APPROVED' },
+        })
+
+        const revisionDetails = await prisma.supplierInitiation.findUnique({
+          where: { id: initiationId },
+          include: {
+            initiatedBy: { select: { id: true, name: true, email: true } },
+            managerApproval: {
+              include: {
+                approver: { select: { id: true, name: true, email: true } },
+              },
+            },
+            procurementApproval: {
+              include: {
+                approver: { select: { name: true, email: true } },
+              },
+            },
+          },
+        })
+
+        const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
+        const approvalsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/approvals`
+        try {
+          if (revisionDetails?.initiatedBy) {
+            const initiatorRevisionEmail = `
+Dear ${revisionDetails.initiatedBy.name},
+
+The Procurement Manager has requested changes to your supplier initiation (your manager's approval still stands).
+
+<strong>Supplier Details:</strong>
+- <strong>Supplier Name:</strong> ${revisionDetails.supplierName}
+- <strong>Requested by:</strong> ${revisionDetails.requesterName}
+- <strong>Product/Service Category:</strong> ${revisionDetails.productServiceCategory}
+
+<strong>Feedback from Procurement:</strong>
+${comments}
+
+<strong>Next steps:</strong>
+Please update your initiation and resubmit. After you resubmit, it will return to the Procurement Manager for review (your manager does not need to approve again).
+
+<p style="margin-top: 25px;"><a href="${initiationsUrl}" style="display: inline-block; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Open your initiations</a></p>
+            `.trim()
+            await sendEmail({
+              to: revisionDetails.initiatedBy.email,
+              subject: 'Procurement Manager Requested Changes - Supplier Initiation',
+              content: initiatorRevisionEmail,
+              supplierName: revisionDetails.supplierName,
+              businessType: revisionDetails.productServiceCategory,
+            })
+          }
+
+          if (revisionDetails?.managerApproval?.approver?.email) {
+            const mgr = revisionDetails.managerApproval.approver
+            const pmName =
+              revisionDetails.procurementApproval?.approver?.name || 'Procurement Manager'
+            const managerFyiEmail = `
+Dear ${mgr.name},
+
+This is for your information: the Procurement Manager (${pmName}) has requested revisions from ${revisionDetails.requesterName} on supplier initiation "${revisionDetails.supplierName}" after your approval.
+
+The initiator will resubmit revised details; approval will route back to Procurement (not requiring your approval again unless Procurement fully rejects).
+
+<a href="${approvalsUrl}" style="display: inline-block; margin-top: 20px; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">View approvals</a>
+            `.trim()
+            await sendEmail({
+              to: mgr.email,
+              subject: 'FYI: Procurement requested changes on initiation you approved',
+              content: managerFyiEmail,
+              supplierName: revisionDetails.supplierName,
+              businessType: revisionDetails.productServiceCategory,
+            })
+          }
+        } catch (e) {
+          console.error('❌ Error sending revision-request emails:', e)
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: 'Revision requested; initiator notified.',
+        })
+      }
+
       await prisma.procurementApproval.update({
         where: { initiationId },
         data: {
@@ -478,7 +608,7 @@ Your supplier initiation request has been rejected by the Procurement Manager.
 ${comments || 'No reason provided'}
 
 <strong>Next Steps:</strong>
-You can revise your initiation and resubmit it for approval. Please log in to the system, open the rejected initiation, and update it according to the Procurement Manager comments.
+You can revise your initiation and resubmit it. Because this was rejected by Procurement, your request must go through <strong>your manager again</strong> for approval before it returns to the Procurement Manager. Please update the initiation using the Procurement Manager's feedback.
 
 <p style="margin-top: 25px;"><a href="${initiationsUrl}" style="display: inline-block; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">View Your Initiations</a></p>
 

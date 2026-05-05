@@ -324,7 +324,9 @@ export function UserManagement() {
           <DialogHeader>
             <DialogTitle>Add New User</DialogTitle>
             <DialogDescription>
-              Create a new user account and assign a role
+              Create a new user account and assign a role. New users receive the default login password{" "}
+              <code className="text-xs bg-muted px-1 rounded">password123</code> unless your server sets{" "}
+              <code className="text-xs bg-muted px-1 rounded">ADMIN_CREATED_USER_DEFAULT_PASSWORD</code>.
             </DialogDescription>
           </DialogHeader>
 

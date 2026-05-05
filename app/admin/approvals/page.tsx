@@ -17,7 +17,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table"
-import { CheckCircle, XCircle, Clock, User, Building2, DollarSign, AlertCircle, Eye, ChevronDown, ChevronRight, FileCheck, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Home, Loader2 } from "lucide-react"
+import { CheckCircle, XCircle, Clock, User, Building2, DollarSign, AlertCircle, Eye, ChevronDown, ChevronRight, FileCheck, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Home, Loader2, FileEdit } from "lucide-react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -139,7 +139,7 @@ export default function ApprovalsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedInitiation, setSelectedInitiation] = useState<SupplierInitiation | null>(null)
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false)
-  const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve')
+  const [approvalAction, setApprovalAction] = useState<'approve' | 'reject' | 'request_revision'>('approve')
   const [approvalRole, setApprovalRole] = useState<'MANAGER' | 'PROCUREMENT_MANAGER'>('MANAGER')
   const [approvalComments, setApprovalComments] = useState('')
   const [submittingApproval, setSubmittingApproval] = useState(false)
@@ -286,6 +286,8 @@ export default function ApprovalsPage() {
       case 'APPROVED':
       case 'SUPPLIER_EMAILED':
         return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'REVISION_REQUESTED':
+        return <FileEdit className="h-4 w-4 text-amber-600" />
       case 'PENDING':
       case 'SUBMITTED':
         return <Clock className="h-4 w-4 text-yellow-500" />
@@ -364,32 +366,28 @@ export default function ApprovalsPage() {
 
   const getApprovalStatus = (initiation: SupplierInitiation) => {
     const { managerApproval, procurementApproval } = initiation
-    
-    if (managerApproval?.status === 'APPROVED') {
-      return 'Approved'
-    }
-    
+
     if (managerApproval?.status === 'REJECTED') {
-      return 'Rejected'
+      return 'Rejected by Manager'
     }
-    
-    // Manager approval is pending
     if (managerApproval?.status === 'PENDING') {
       return 'Awaiting Manager Approval'
     }
-
-    if (managerApproval?.status === 'APPROVED' && procurementApproval?.status === 'PENDING') {
-      return 'Awaiting Procurement Manager Approval'
+    if (managerApproval?.status === 'APPROVED') {
+      if (procurementApproval?.status === 'REVISION_REQUESTED') {
+        return 'Awaiting initiator (Procurement requested changes)'
+      }
+      if (procurementApproval?.status === 'PENDING') {
+        return 'Awaiting Procurement Manager Approval'
+      }
+      if (procurementApproval?.status === 'REJECTED') {
+        return 'Rejected by Procurement Manager'
+      }
+      if (procurementApproval?.status === 'APPROVED') {
+        return 'Approved'
+      }
     }
 
-    if (procurementApproval?.status === 'REJECTED') {
-      return 'Rejected by Procurement Manager'
-    }
-
-    if (procurementApproval?.status === 'APPROVED') {
-      return 'Approved'
-    }
-    
     return 'Pending'
   }
 
@@ -691,7 +689,7 @@ export default function ApprovalsPage() {
                           </TableCell>
                           <TableCell>{new Date(initiation.submittedAt).toLocaleDateString()}</TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-end flex-wrap gap-2">
                               {(canApproveAsManager(initiation) || canApproveAsProcurement(initiation)) && (
                                 <>
                                   <Button
@@ -707,6 +705,22 @@ export default function ApprovalsPage() {
                                     <XCircle className="h-4 w-4 mr-1" />
                                     Reject
                                   </Button>
+                                  {canApproveAsProcurement(initiation) && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="border-amber-300 text-amber-900 hover:bg-amber-50"
+                                      onClick={() => {
+                                        setSelectedInitiation(initiation)
+                                        setApprovalAction('request_revision')
+                                        setApprovalRole('PROCUREMENT_MANAGER')
+                                        setApprovalDialogOpen(true)
+                                      }}
+                                    >
+                                      <FileEdit className="h-4 w-4 mr-1" />
+                                      Request revisions
+                                    </Button>
+                                  )}
                                   <Button
                                     size="sm"
                                     onClick={() => {
@@ -851,6 +865,12 @@ export default function ApprovalsPage() {
                                         <p className="text-xs text-red-800">{initiation.procurementApproval.comments}</p>
                                       </div>
                                     )}
+                                    {initiation.procurementApproval?.status === 'REVISION_REQUESTED' && initiation.procurementApproval?.comments && (
+                                      <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
+                                        <p className="text-xs font-medium text-amber-900 mb-1">Revision requested:</p>
+                                        <p className="text-xs text-amber-900">{initiation.procurementApproval.comments}</p>
+                                      </div>
+                                    )}
                                     {initiation.procurementApproval?.status === 'APPROVED' && initiation.procurementApproval?.comments && (
                                       <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
                                         <p className="text-xs font-medium text-green-900 mb-1">Comments:</p>
@@ -885,13 +905,20 @@ export default function ApprovalsPage() {
           <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>
-                {approvalAction === 'approve' ? 'Approve' : 'Reject'} Supplier Initiation
+                {approvalAction === 'approve'
+                  ? 'Approve'
+                  : approvalAction === 'request_revision'
+                    ? 'Request revisions'
+                    : 'Reject'}{' '}
+                Supplier Initiation
                 {approvalRole === 'MANAGER' ? ' (Manager Approval)' : ' (Procurement Manager Approval)'}
               </DialogTitle>
               <DialogDescription>
-                {approvalAction === 'approve' 
+                {approvalAction === 'approve'
                   ? `Please confirm your ${approvalRole === 'MANAGER' ? 'Manager' : 'Procurement Manager'} approval of this supplier initiation request.`
-                  : `Please provide a reason for rejecting this supplier initiation request as ${approvalRole === 'MANAGER' ? 'Manager' : 'Procurement Manager'}.`
+                  : approvalAction === 'request_revision'
+                    ? 'Describe the changes the initiator must make. Their manager will be notified for information only; after resubmission the request returns to you without a new manager approval.'
+                    : `Please provide a reason for rejecting this supplier initiation request as ${approvalRole === 'MANAGER' ? 'Manager' : 'Procurement Manager'}.`
                 }
               </DialogDescription>
             </DialogHeader>
@@ -1007,7 +1034,11 @@ export default function ApprovalsPage() {
                 
                 <div className="space-y-2">
                   <Label htmlFor="comments">
-                    {approvalAction === 'approve' ? 'Comments (Optional)' : 'Reason for Rejection *'}
+                    {approvalAction === 'approve'
+                      ? 'Comments (Optional)'
+                      : approvalAction === 'request_revision'
+                        ? 'Revision feedback for initiator *'
+                        : 'Reason for Rejection *'}
                   </Label>
                   <Textarea
                     id="comments"
@@ -1016,10 +1047,12 @@ export default function ApprovalsPage() {
                     placeholder={
                       approvalAction === 'approve' 
                         ? 'Add any comments about your approval...'
+                        : approvalAction === 'request_revision'
+                          ? 'Describe what needs to change before you can approve...'
                         : 'Please explain why you are rejecting this request...'
                     }
                     className="min-h-[100px]"
-                    required={approvalAction === 'reject'}
+                    required={approvalAction === 'reject' || approvalAction === 'request_revision'}
                   />
                 </div>
                 </div>
@@ -1034,10 +1067,26 @@ export default function ApprovalsPage() {
                   </Button>
                   <Button
                     onClick={handleApproval}
-                    disabled={submittingApproval || (approvalAction === 'reject' && !approvalComments.trim())}
-                    variant={approvalAction === 'reject' ? 'destructive' : 'default'}
+                    disabled={
+                      submittingApproval ||
+                      ((approvalAction === 'reject' || approvalAction === 'request_revision') &&
+                        !approvalComments.trim())
+                    }
+                    variant={
+                      approvalAction === 'reject'
+                        ? 'destructive'
+                        : approvalAction === 'request_revision'
+                          ? 'secondary'
+                          : 'default'
+                    }
                   >
-                    {submittingApproval ? 'Processing...' : `${approvalAction === 'approve' ? 'Approve' : 'Reject'}`}
+                    {submittingApproval
+                      ? 'Processing...'
+                      : approvalAction === 'approve'
+                        ? 'Approve'
+                        : approvalAction === 'request_revision'
+                          ? 'Send revision request'
+                          : 'Reject'}
                   </Button>
                 </div>
               </div>

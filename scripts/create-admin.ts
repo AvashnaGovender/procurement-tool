@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { hashPassword } from '../lib/password'
 
 const prisma = new PrismaClient()
 
@@ -16,7 +17,7 @@ async function createAdmin() {
       return
     }
 
-    // Create admin user (login is email-only)
+    const passwordHash = await hashPassword('password123')
     const admin = await prisma.user.create({
       data: {
         email: 'admin@schauenburg.co.za',
@@ -24,6 +25,7 @@ async function createAdmin() {
         role: 'ADMIN',
         department: 'IT',
         isActive: true,
+        password: passwordHash,
       },
     })
 
@@ -32,7 +34,7 @@ async function createAdmin() {
     console.log('Email:', admin.email)
     console.log('Role:', admin.role)
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('Login with this email (no password required).')
+    console.log('Default login password: password123 (change after first sign-in).')
   } catch (error) {
     console.error('❌ Error creating admin user:', error)
     throw error

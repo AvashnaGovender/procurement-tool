@@ -16,7 +16,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table"
-import { CheckCircle, XCircle, Clock, User, Building2, DollarSign, AlertCircle, Trash2, Eye, Home, ChevronDown, ChevronRight } from "lucide-react"
+import { CheckCircle, XCircle, Clock, User, Building2, DollarSign, AlertCircle, Trash2, Eye, Home, ChevronDown, ChevronRight, FileEdit } from "lucide-react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { SupplierInitiationStatus } from "@/components/suppliers/supplier-initiation-status"
@@ -200,6 +200,12 @@ export default function SupplierInitiationsPage() {
   }
 
   const getDisplayStatus = (initiation: SupplierInitiation) => {
+    if (
+      initiation.status === 'MANAGER_APPROVED' &&
+      initiation.procurementApproval?.status === 'REVISION_REQUESTED'
+    ) {
+      return 'PM REVISIONS REQUESTED'
+    }
     // Check if supplier has submitted and waiting for PM review
     if (initiation.status === 'SUPPLIER_EMAILED' && (initiation as any).onboarding?.supplierFormSubmitted && (initiation as any).onboarding?.approvalStatus === 'PENDING') {
       return 'WITH PM FOR REVIEW'
@@ -220,6 +226,8 @@ export default function SupplierInitiationsPage() {
         return <CheckCircle className="h-4 w-4 text-green-500" />
       case 'WITH PM FOR REVIEW':
         return <Clock className="h-4 w-4 text-blue-500" />
+      case 'PM REVISIONS REQUESTED':
+        return <FileEdit className="h-4 w-4 text-amber-600" />
       case 'PENDING':
       case 'AWAITING SUPPLIER':
         return <Clock className="h-4 w-4 text-yellow-500" />
@@ -237,6 +245,8 @@ export default function SupplierInitiationsPage() {
         return 'bg-green-100 text-green-800'
       case 'WITH PM FOR REVIEW':
         return 'bg-blue-100 text-blue-800'
+      case 'PM REVISIONS REQUESTED':
+        return 'bg-amber-100 text-amber-900'
       case 'PENDING':
       case 'AWAITING SUPPLIER':
         return 'bg-yellow-100 text-yellow-800'
@@ -371,8 +381,13 @@ export default function SupplierInitiationsPage() {
                               </Button>
                             )}
                             
-                            {/* Show Edit button for drafts and rejected initiations created by current user */}
-                            {(initiation.status === 'DRAFT' || initiation.status === 'REJECTED') && initiation.initiatedById === session?.user?.id && (
+                            {/* Show Edit for drafts, rejections, or PM revision-requested flows */}
+                            {(
+                              initiation.status === 'DRAFT' ||
+                              initiation.status === 'REJECTED' ||
+                              (initiation.status === 'MANAGER_APPROVED' &&
+                                initiation.procurementApproval?.status === 'REVISION_REQUESTED')
+                            ) && initiation.initiatedById === session?.user?.id && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -380,7 +395,11 @@ export default function SupplierInitiationsPage() {
                               >
                                 <Link href={`/suppliers/onboard?draftId=${initiation.id}`}>
                                   <AlertCircle className="h-4 w-4 mr-1" />
-                                  {initiation.status === 'DRAFT' ? 'Continue Editing' : 'Revise & Resubmit'}
+                                  {initiation.status === 'DRAFT'
+                                    ? 'Continue Editing'
+                                    : initiation.procurementApproval?.status === 'REVISION_REQUESTED'
+                                      ? 'Apply PM revisions'
+                                      : 'Revise & Resubmit'}
                                 </Link>
                               </Button>
                             )}

@@ -106,7 +106,8 @@ export async function POST(request: NextRequest) {
     // If ID is provided, update existing draft (only if it's a DRAFT or REJECTED status)
     if (id) {
       const existingInitiation = await prisma.supplierInitiation.findUnique({
-        where: { id }
+        where: { id },
+        include: { procurementApproval: true },
       })
 
       if (!existingInitiation) {
@@ -116,12 +117,20 @@ export async function POST(request: NextRequest) {
         }, { status: 404 })
       }
 
-      // Only allow editing if it's a draft or rejected
-      if (existingInitiation.status !== 'DRAFT' && existingInitiation.status !== 'REJECTED') {
+      const isPmRevisionEdit =
+        existingInitiation.status === 'MANAGER_APPROVED' &&
+        existingInitiation.procurementApproval?.status === 'REVISION_REQUESTED'
+
+      if (
+        existingInitiation.status !== 'DRAFT' &&
+        existingInitiation.status !== 'REJECTED' &&
+        !isPmRevisionEdit
+      ) {
         return NextResponse.json({ 
           success: false,
           error: 'Cannot edit',
-          message: 'This initiation has been submitted and can only be edited if it was rejected.'
+          message:
+            'This initiation can only be edited as a draft, after rejection, or after Procurement requests revisions.'
         }, { status: 403 })
       }
 
@@ -173,7 +182,7 @@ export async function POST(request: NextRequest) {
           supplierLocation: supplierLocation ?? existingInitiation.supplierLocation,
           currency: currency ?? existingInitiation.currency,
           customCurrency: customCurrency ?? existingInitiation.customCurrency,
-          status: 'DRAFT' // Keep as draft
+          status: isPmRevisionEdit ? 'MANAGER_APPROVED' : 'DRAFT',
         }
       })
 
@@ -341,6 +350,18 @@ export async function GET(request: NextRequest) {
                 }
               }
             }
+          },
+          procurementApproval: {
+            select: {
+              status: true,
+              comments: true,
+              approver: {
+                select: {
+                  name: true,
+                  email: true
+                }
+              }
+            }
           }
         }
       })
@@ -405,7 +426,8 @@ export async function GET(request: NextRequest) {
           relationshipDeclaration,
           relationshipDeclarationOther,
           status: initiation.status,
-          managerApproval: initiation.managerApproval
+          managerApproval: initiation.managerApproval,
+          procurementApproval: initiation.procurementApproval,
         }
       })
     }

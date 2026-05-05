@@ -4,9 +4,7 @@ const prisma = new PrismaClient()
 
 async function resetManagerPasswords() {
   try {
-    // Passwords are no longer used - login is email-only.
-    // This script now just confirms the manager accounts exist.
-    console.log('📋 Manager accounts (login with email only, no password):\n')
+    console.log('📋 Manager accounts (credential login uses email + password):\n')
 
     const manager = await prisma.user.findUnique({
       where: { email: 'agovender@theinnoverse.co.za' },
@@ -26,7 +24,7 @@ async function resetManagerPasswords() {
       console.log('⚠️  Procurement Manager theinnoverse1212@gmail.com not found')
     }
 
-    console.log('\n🎉 Login with the email addresses above (no password required).')
+    console.log('\n🎉 Use the emails above; default password is password123 if reset via npm run users:set-default-password.')
   } catch (error) {
     console.error('Error:', error)
     throw error

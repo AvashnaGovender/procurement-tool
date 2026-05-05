@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "./prisma"
+import { verifyPassword } from "./password"
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-development",
@@ -29,14 +30,19 @@ export const authOptions: NextAuthOptions = {
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email) {
           throw new Error("Email is required")
         }
+        if (!credentials?.password?.trim()) {
+          throw new Error("Password is required")
+        }
 
         // Normalize email to lowercase for case-insensitive lookup
         const normalizedEmail = credentials.email.toLowerCase().trim()
+        const password = credentials.password
 
         const user = await prisma.user.findFirst({
           where: { email: { equals: normalizedEmail, mode: "insensitive" } },
@@ -47,6 +53,7 @@ export const authOptions: NextAuthOptions = {
             role: true,
             department: true,
             isActive: true,
+            password: true,
           },
         })
 
@@ -56,6 +63,12 @@ export const authOptions: NextAuthOptions = {
 
         if (!user.isActive) {
           throw new Error("Account is inactive. Please contact administrator.")
+        }
+
+        const passwordOk =
+          !!user.password && (await verifyPassword(password, user.password))
+        if (!passwordOk) {
+          throw new Error("Invalid email or password")
         }
 
         // Update last login time

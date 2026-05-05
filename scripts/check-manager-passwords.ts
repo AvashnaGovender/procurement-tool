@@ -31,7 +31,7 @@ async function checkManagerPasswords() {
       })
     }
     
-    console.log('\n📝 Login: Use the email addresses above (no password required).')
+    console.log('\n📝 Login: email + password (use default password123 if not yet changed).')
     
   } catch (error) {
     console.error('Error checking managers:', error)

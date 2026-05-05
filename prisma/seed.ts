@@ -1,11 +1,13 @@
 import { PrismaClient } from '@prisma/client'
+import { hashPassword } from '../lib/password'
 
 const prisma = new PrismaClient()
 
 async function main() {
   console.log('🌱 Starting database seeding...')
 
-  // Create Admin User (login is email-only, no password)
+  const seedPassword = await hashPassword('password123')
+
   const admin = await prisma.user.upsert({
     where: { email: 'admin@schauenburg.com' },
     update: {},
@@ -16,6 +18,7 @@ async function main() {
       department: 'IT',
       phoneNumber: '+27 11 123 4567',
       isActive: true,
+      password: seedPassword,
     },
   })
   console.log('✅ Created admin user:', admin.email)
@@ -31,6 +34,7 @@ async function main() {
       department: 'Procurement',
       phoneNumber: '+27 11 123 4568',
       isActive: true,
+      password: seedPassword,
     },
   })
   console.log('✅ Created procurement manager:', manager.email)
@@ -46,6 +50,7 @@ async function main() {
       department: 'Procurement',
       phoneNumber: '+27 11 123 4569',
       isActive: true,
+      password: seedPassword,
     },
   })
   console.log('✅ Created procurement specialist:', specialist.email)
@@ -61,6 +66,7 @@ async function main() {
       department: 'Operations',
       phoneNumber: '+27 11 123 4570',
       isActive: true,
+      password: seedPassword,
     },
   })
   console.log('✅ Created approver:', approver.email)
@@ -126,7 +132,7 @@ async function main() {
   console.log('✅ Created system configurations')
 
   console.log('🎉 Database seeding completed!')
-  console.log('\n📋 Test users (login with email only):')
+  console.log('\n📋 Test users (email + password; default password password123):')
   console.log('   Admin: admin@schauenburg.com')
   console.log('   Manager: manager@schauenburg.com')
   console.log('   Specialist: specialist@schauenburg.com')

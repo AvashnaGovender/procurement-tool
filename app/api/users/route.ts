@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { hashPassword } from '@/lib/password'
+
+const ADMIN_CREATED_DEFAULT_PASSWORD =
+  process.env.ADMIN_CREATED_USER_DEFAULT_PASSWORD || 'password123'
 
 // GET - Fetch all users
 export async function GET(request: NextRequest) {
@@ -109,7 +113,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create user (no password - login is email-only)
+    const passwordHash = await hashPassword(ADMIN_CREATED_DEFAULT_PASSWORD)
+
     const user = await prisma.user.create({
       data: {
         name,
@@ -117,6 +122,7 @@ export async function POST(request: NextRequest) {
         role: role || 'USER',
         isActive: isActive !== undefined ? isActive : true,
         managerId: managerId || null,
+        password: passwordHash,
       },
       select: {
         id: true,

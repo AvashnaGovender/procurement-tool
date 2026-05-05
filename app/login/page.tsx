@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, AlertCircle, UserPlus, X, CheckCircle } from "lucide-react"
+import { Mail, Lock, AlertCircle, UserPlus, X, CheckCircle } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -16,12 +16,15 @@ import { signIn } from "next-auth/react"
 
 function LoginForm() {
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [showRegister, setShowRegister] = useState(false)
   const [registerEmail, setRegisterEmail] = useState("")
   const [managerEmail, setManagerEmail] = useState("")
   const [registerRole, setRegisterRole] = useState<string>("USER")
+  const [registerPassword, setRegisterPassword] = useState("")
+  const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState("")
   const [managerCheck, setManagerCheck] = useState<{ exists: true; name: string } | { exists: false; message: string } | null>(null)
   const [checkingManager, setCheckingManager] = useState(false)
   const [registerLoading, setRegisterLoading] = useState(false)
@@ -38,6 +41,7 @@ function LoginForm() {
     try {
       const result = await signIn("credentials", {
         email,
+        password,
         redirect: false,
       })
 
@@ -75,7 +79,7 @@ function LoginForm() {
         }
         router.refresh()
       }
-    } catch (error) {
+    } catch {
       setError("An unexpected error occurred. Please try again.")
       setIsLoading(false)
     }
@@ -110,6 +114,14 @@ function LoginForm() {
       setRegisterError(managerCheck.message)
       return
     }
+    if (!registerPassword || registerPassword.length < 8) {
+      setRegisterError("Password must be at least 8 characters.")
+      return
+    }
+    if (registerPassword !== registerPasswordConfirm) {
+      setRegisterError("Passwords do not match.")
+      return
+    }
     setRegisterLoading(true)
     setRegisterError("")
     setRegisterSuccess("")
@@ -121,6 +133,7 @@ function LoginForm() {
           email: registerEmail.trim(),
           managerEmail: managerEmail.trim(),
           role: registerRole,
+          password: registerPassword,
         }),
       })
       const data = await res.json()
@@ -133,6 +146,8 @@ function LoginForm() {
       setRegisterEmail("")
       setManagerEmail("")
       setRegisterRole("USER")
+      setRegisterPassword("")
+      setRegisterPasswordConfirm("")
       setManagerCheck(null)
       setTimeout(() => {
         setShowRegister(false)
@@ -224,6 +239,23 @@ function LoginForm() {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-slate-700 font-medium">Password</Label>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-12 h-12 bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  required
+                />
+              </div>
+            </div>
+
             <Button 
               type="submit" 
               className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium text-base shadow-lg shadow-blue-600/20 transition-all duration-200 hover:shadow-blue-600/30" 
@@ -266,6 +298,8 @@ function LoginForm() {
                       setShowRegister(false)
                       setRegisterError("")
                       setRegisterSuccess("")
+                      setRegisterPassword("")
+                      setRegisterPasswordConfirm("")
                       setManagerCheck(null)
                     }}
                     className="p-1.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
@@ -296,6 +330,34 @@ function LoginForm() {
                       onChange={(e) => setRegisterEmail(e.target.value)}
                       className="h-11 border-slate-300"
                       required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-password" className="text-slate-700 font-medium">Password *</Label>
+                    <Input
+                      id="register-password"
+                      type="password"
+                      placeholder="Choose a password (min. 8 characters)"
+                      autoComplete="new-password"
+                      value={registerPassword}
+                      onChange={(e) => setRegisterPassword(e.target.value)}
+                      className="h-11 border-slate-300"
+                      required
+                      minLength={8}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-password-confirm" className="text-slate-700 font-medium">Confirm password *</Label>
+                    <Input
+                      id="register-password-confirm"
+                      type="password"
+                      placeholder="Re-enter your password"
+                      autoComplete="new-password"
+                      value={registerPasswordConfirm}
+                      onChange={(e) => setRegisterPasswordConfirm(e.target.value)}
+                      className="h-11 border-slate-300"
+                      required
+                      minLength={8}
                     />
                   </div>
                   <div className="space-y-2">

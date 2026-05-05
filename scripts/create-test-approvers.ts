@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { hashPassword } from '../lib/password'
 
 const prisma = new PrismaClient()
 
@@ -6,12 +7,14 @@ async function createTestApprovers() {
   try {
     console.log('Creating test approver users...\n')
 
-    // Create Manager user (login is email-only)
+    const passwordHash = await hashPassword('password123')
+
     const manager = await prisma.user.upsert({
       where: { email: 'manager@test.com' },
       update: {
         role: 'MANAGER',
-        isActive: true
+        isActive: true,
+        password: passwordHash,
       },
       create: {
         email: 'manager@test.com',
@@ -19,7 +22,8 @@ async function createTestApprovers() {
         role: 'MANAGER',
         department: 'Operations',
         phoneNumber: '+27123456789',
-        isActive: true
+        isActive: true,
+        password: passwordHash,
       }
     })
 
@@ -34,7 +38,8 @@ async function createTestApprovers() {
       where: { email: 'procurement@test.com' },
       update: {
         role: 'PROCUREMENT_MANAGER',
-        isActive: true
+        isActive: true,
+        password: passwordHash,
       },
       create: {
         email: 'procurement@test.com',
@@ -42,7 +47,8 @@ async function createTestApprovers() {
         role: 'PROCUREMENT_MANAGER',
         department: 'Procurement',
         phoneNumber: '+27123456790',
-        isActive: true
+        isActive: true,
+        password: passwordHash,
       }
     })
 
@@ -53,7 +59,7 @@ async function createTestApprovers() {
     console.log('')
 
     console.log('🎉 Test approver accounts ready!')
-    console.log('\n📝 Login with email only (no password):')
+    console.log('\n📝 Login: email + password (default password123):')
     console.log('─────────────────────────────────────')
     console.log('Manager: manager@test.com')
     console.log('Procurement Manager: procurement@test.com')

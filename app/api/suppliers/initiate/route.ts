@@ -345,7 +345,8 @@ export async function POST(request: NextRequest) {
     let initiation
     if (id) {
       const existingInitiation = await prisma.supplierInitiation.findUnique({
-        where: { id }
+        where: { id },
+        include: { procurementApproval: true },
       })
 
       if (!existingInitiation) {
@@ -356,12 +357,21 @@ export async function POST(request: NextRequest) {
         }, { status: 404 })
       }
 
-      // Only allow submitting if it's a draft or rejected
-      if (existingInitiation.status !== 'DRAFT' && existingInitiation.status !== 'REJECTED') {
+      const isPmRevisionResubmit =
+        existingInitiation.status === 'MANAGER_APPROVED' &&
+        existingInitiation.procurementApproval?.status === 'REVISION_REQUESTED'
+
+      // Allow draft / rejected full resubmit, or PM revision cycle (stay with manager-approved chain)
+      if (
+        existingInitiation.status !== 'DRAFT' &&
+        existingInitiation.status !== 'REJECTED' &&
+        !isPmRevisionResubmit
+      ) {
         return NextResponse.json({ 
           success: false,
           error: 'Cannot submit',
-          message: 'This initiation has already been submitted and can only be resubmitted if it was rejected.'
+          message:
+            'This initiation cannot be submitted in its current status. You can resubmit if it was rejected, or if Procurement requested revisions.'
         }, { status: 403 })
       }
 
@@ -374,10 +384,126 @@ export async function POST(request: NextRequest) {
         }, { status: 403 })
       }
 
-      // Update existing initiation to SUBMITTED
+      const sharedUpdatePayload = {
+        businessUnit: businessUnits,
+        processReadUnderstood,
+        dueDiligenceCompleted,
+        supplierName,
+        supplierEmail,
+        supplierContactPerson,
+        productServiceCategory,
+        requesterName,
+        relationshipDeclaration,
+        purchaseType: purchaseType as string,
+        paymentMethod: isNewPurchaseType ? (effectivePaymentMethod as string) : (paymentMethod || null),
+        codReason:
+          purchaseType === 'COD' ||
+          purchaseType === 'COD_IP_SHARED' ||
+          effectivePaymentMethod === 'COD'
+            ? codReason
+            : null,
+        annualPurchaseValue: annualPurchaseValueNumber,
+        creditApplication,
+        creditApplicationReason: creditApplication ? null : creditApplicationReason,
+        regularPurchase: isNewPurchaseType
+          ? purchaseType === 'COD' || purchaseType === 'CREDIT_TERMS'
+          : purchaseType === 'REGULAR',
+        onceOffPurchase: isNewPurchaseType ? false : purchaseType === 'ONCE_OFF',
+        onboardingReason,
+        supplierLocation: supplierLocation || null,
+        currency: currency || null,
+        customCurrency: customCurrency || null,
+        submittedAt: new Date(),
+      }
+
+      if (isPmRevisionResubmit) {
+        console.log('Updating initiation after Procurement revision request (straight back to PM)...')
+        initiation = await prisma.supplierInitiation.update({
+          where: { id },
+          data: {
+            ...sharedUpdatePayload,
+            status: 'MANAGER_APPROVED',
+          },
+        })
+        await prisma.procurementApproval.update({
+          where: { initiationId: id },
+          data: {
+            status: 'PENDING',
+            comments: null,
+            approvedAt: null,
+          },
+        })
+        console.log('Initiation updated for PM revision resubmit:', initiation.id)
+
+        try {
+          const approvalsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/approvals`
+          const refreshed = await prisma.supplierInitiation.findUnique({
+            where: { id },
+            include: {
+              procurementApproval: {
+                include: {
+                  approver: { select: { name: true, email: true } },
+                },
+              },
+            },
+          })
+          const pmApprover = refreshed?.procurementApproval?.approver
+          if (pmApprover?.email) {
+            const pmEmailBody = `
+Dear ${pmApprover.name},
+
+An initiation you requested changes for has been updated and resubmitted for your procurement review.
+
+<strong>Supplier:</strong> ${supplierName}
+<strong>Requester:</strong> ${requesterName}
+<strong>Category:</strong> ${productServiceCategory}
+
+<a href="${approvalsUrl}" style="display: inline-block; margin-top: 20px; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Review initiation</a>
+            `.trim()
+            await sendEmail({
+              to: pmApprover.email,
+              subject: 'Initiation resubmitted after your revision request',
+              content: pmEmailBody,
+              supplierName,
+              businessType: productServiceCategory,
+            })
+          }
+
+          const managerRecord = await prisma.managerApproval.findUnique({
+            where: { initiationId: id },
+            include: { approver: { select: { name: true, email: true } } },
+          })
+          if (managerRecord?.approver?.email && pmApprover) {
+            const mgrFyi = `
+Dear ${managerRecord.approver.name},
+
+For your information: ${requesterName} has applied the changes requested by Procurement on supplier initiation "${supplierName}". The package has been routed back to ${pmApprover.name} for procurement review only (your prior approval stands).
+
+<a href="${approvalsUrl}" style="display: inline-block; margin-top: 20px; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Approvals dashboard</a>
+            `.trim()
+            await sendEmail({
+              to: managerRecord.approver.email,
+              subject: 'FYI: Initiation resubmitted to Procurement after PM revisions',
+              content: mgrFyi,
+              supplierName,
+              businessType: productServiceCategory,
+            })
+          }
+        } catch (e) {
+          console.error('❌ Error sending revision-resubmit emails:', e)
+        }
+
+        return NextResponse.json({
+          success: true,
+          initiationId: initiation.id,
+          message:
+            'Your updates were submitted and sent back to Procurement. Your manager has been notified for information only.',
+        })
+      }
+
+      // Full resubmit: manager rejected or PM rejection — reset approvals and restart at manager.
       console.log('Updating existing initiation to SUBMITTED...')
       
-      // Delete old approval records before creating new ones
       console.log('Deleting old approval records...')
       await prisma.managerApproval.deleteMany({
         where: { initiationId: id }
@@ -390,29 +516,8 @@ export async function POST(request: NextRequest) {
       initiation = await prisma.supplierInitiation.update({
         where: { id },
         data: {
-          businessUnit: businessUnits,
-          processReadUnderstood,
-          dueDiligenceCompleted,
-          supplierName,
-          supplierEmail,
-          supplierContactPerson,
-          productServiceCategory,
-          requesterName,
-          relationshipDeclaration,
-          purchaseType: purchaseType as string,
-          paymentMethod: isNewPurchaseType ? (effectivePaymentMethod as string) : (paymentMethod || null),
-          codReason: (purchaseType === 'COD' || purchaseType === 'COD_IP_SHARED' || effectivePaymentMethod === 'COD') ? codReason : null,
-          annualPurchaseValue: annualPurchaseValueNumber,
-          creditApplication,
-          creditApplicationReason: creditApplication ? null : creditApplicationReason,
-          regularPurchase: isNewPurchaseType ? (purchaseType === 'COD' || purchaseType === 'CREDIT_TERMS') : (purchaseType === 'REGULAR'),
-          onceOffPurchase: isNewPurchaseType ? false : (purchaseType === 'ONCE_OFF'),
-          onboardingReason,
-          supplierLocation: supplierLocation || null,
-          currency: currency || null,
-          customCurrency: customCurrency || null,
+          ...sharedUpdatePayload,
           status: 'SUBMITTED',
-          submittedAt: new Date()
         }
       })
       console.log('Initiation updated and submitted:', initiation.id)

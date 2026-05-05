@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { hashPassword } from '@/lib/password'
 
 // GET - Check if a manager is registered (for real-time validation on register form)
 export async function GET(request: NextRequest) {
@@ -32,7 +33,7 @@ type AllowedRole = (typeof ALLOWED_ROLES)[number]
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, managerEmail, role } = body
+    const { email, managerEmail, role, password } = body
 
     if (!email?.trim()) {
       return NextResponse.json(
@@ -43,6 +44,19 @@ export async function POST(request: NextRequest) {
     if (!managerEmail?.trim()) {
       return NextResponse.json(
         { error: 'Manager email is required' },
+        { status: 400 }
+      )
+    }
+    if (!password?.trim()) {
+      return NextResponse.json(
+        { error: 'Password is required' },
+        { status: 400 }
+      )
+    }
+    const passwordTrimmed = password.trim()
+    if (passwordTrimmed.length < 8) {
+      return NextResponse.json(
+        { error: 'Password must be at least 8 characters long' },
         { status: 400 }
       )
     }
@@ -88,6 +102,8 @@ export async function POST(request: NextRequest) {
     const nameFromEmail = normalizedEmail.split('@')[0] || 'New User'
     const displayName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1).replace(/[._]/g, ' ')
 
+    const hashedPassword = await hashPassword(passwordTrimmed)
+
     const user = await prisma.user.create({
       data: {
         email: normalizedEmail,
@@ -95,6 +111,7 @@ export async function POST(request: NextRequest) {
         role: roleVal as AllowedRole,
         isActive: true,
         managerId: manager.id,
+        password: hashedPassword,
       },
       select: {
         id: true,

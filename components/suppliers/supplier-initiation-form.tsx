@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Building2, CheckCircle, AlertCircle, Users, DollarSign, Plus, XCircle } from "lucide-react"
+import { Building2, CheckCircle, AlertCircle, Users, DollarSign, Plus, XCircle, FileEdit } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 
@@ -42,7 +42,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     return []
   })
   const [rejectionInfo, setRejectionInfo] = useState<{
-    status: string
+    kind: 'manager_reject' | 'pm_reject' | 'pm_revision'
     comments?: string
     rejectedBy?: string
     rejectedByName?: string
@@ -99,18 +99,34 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           console.log('📋 Full draft object:', JSON.stringify(draft, null, 2))
           setCurrentDraftId(draft.id)
           
-          // Check if this is a rejected initiation and store rejection info
-          if (draft.status === 'REJECTED' && draft.managerApproval) {
+          if (draft.procurementApproval?.status === 'REVISION_REQUESTED') {
+            const approver = draft.procurementApproval.approver
             setRejectionInfo({
-              status: draft.status,
-              comments: draft.managerApproval.comments,
-              rejectedBy: typeof draft.managerApproval.approver === 'string' 
-                ? draft.managerApproval.approver 
-                : draft.managerApproval.approver?.name,
-              rejectedByName: typeof draft.managerApproval.approver === 'object'
-                ? draft.managerApproval.approver?.name
-                : draft.managerApproval.approver
+              kind: 'pm_revision',
+              comments: draft.procurementApproval.comments ?? undefined,
+              rejectedByName: typeof approver === 'object' ? approver?.name : approver,
             })
+          } else if (draft.status === 'REJECTED' && draft.procurementApproval?.status === 'REJECTED') {
+            const approver = draft.procurementApproval.approver
+            setRejectionInfo({
+              kind: 'pm_reject',
+              comments: draft.procurementApproval.comments ?? undefined,
+              rejectedByName: typeof approver === 'object' ? approver?.name : approver,
+            })
+          } else if (draft.status === 'REJECTED' && draft.managerApproval?.status === 'REJECTED') {
+            setRejectionInfo({
+              kind: 'manager_reject',
+              comments: draft.managerApproval.comments ?? undefined,
+              rejectedBy: typeof draft.managerApproval.approver === 'string'
+                ? draft.managerApproval.approver
+                : draft.managerApproval.approver?.name,
+              rejectedByName:
+                typeof draft.managerApproval.approver === 'object'
+                  ? draft.managerApproval.approver?.name
+                  : draft.managerApproval.approver,
+            })
+          } else {
+            setRejectionInfo(null)
           }
           
           // Convert businessUnit to array (handle both array and single value)
@@ -448,20 +464,63 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
   return (
     <div className="space-y-6">
       {rejectionInfo ? (
-        <div className="bg-red-50 border-2 border-red-300 p-6 rounded-lg shadow-sm">
+        <div
+          className={
+            rejectionInfo.kind === 'pm_revision'
+              ? 'bg-amber-50 border-2 border-amber-300 p-6 rounded-lg shadow-sm'
+              : 'bg-red-50 border-2 border-red-300 p-6 rounded-lg shadow-sm'
+          }
+        >
           <div className="flex items-start gap-3">
-            <XCircle className="h-6 w-6 text-red-600 mt-0.5 flex-shrink-0" />
+            {rejectionInfo.kind === 'pm_revision' ? (
+              <FileEdit className="h-6 w-6 text-amber-700 mt-0.5 flex-shrink-0" />
+            ) : (
+              <XCircle className="h-6 w-6 text-red-600 mt-0.5 flex-shrink-0" />
+            )}
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-red-900 mb-2">
-                Initiation Rejected - Revision Required
+              <h3
+                className={
+                  rejectionInfo.kind === 'pm_revision'
+                    ? 'text-lg font-semibold text-amber-900 mb-2'
+                    : 'text-lg font-semibold text-red-900 mb-2'
+                }
+              >
+                {rejectionInfo.kind === 'pm_revision'
+                  ? 'Procurement requested changes'
+                  : rejectionInfo.kind === 'pm_reject'
+                    ? 'Rejected by Procurement Manager'
+                    : 'Initiation rejected — revision required'}
               </h3>
-              <p className="text-sm text-red-800 mb-3">
-                Your supplier initiation was rejected by {rejectionInfo.rejectedByName || rejectionInfo.rejectedBy || 'the manager'}. 
-                Please review the rejection reason below, make the necessary changes, and resubmit.
+              <p
+                className={
+                  rejectionInfo.kind === 'pm_revision'
+                    ? 'text-sm text-amber-900 mb-3'
+                    : 'text-sm text-red-800 mb-3'
+                }
+              >
+                {rejectionInfo.kind === 'pm_revision'
+                  ? `The Procurement Manager (${rejectionInfo.rejectedByName || 'assigned approver'}) has requested updates. Your manager's approval still stands — after you resubmit, the request goes straight back to Procurement. The manager will be notified for information only.`
+                  : rejectionInfo.kind === 'pm_reject'
+                    ? `Your initiation was rejected by the Procurement Manager (${rejectionInfo.rejectedByName || 'assigned approver'}). After you revise and resubmit, it must be approved again by your manager before it returns to Procurement.`
+                    : `Your supplier initiation was rejected by ${rejectionInfo.rejectedByName || rejectionInfo.rejectedBy || 'the manager'}. Please review the reason below, make changes, and resubmit.`}
               </p>
               {rejectionInfo.comments && (
-                <div className="bg-white p-4 rounded border border-red-200">
-                  <p className="text-xs font-medium text-red-900 mb-2">Rejection Reason:</p>
+                <div
+                  className={
+                    rejectionInfo.kind === 'pm_revision'
+                      ? 'bg-white p-4 rounded border border-amber-200'
+                      : 'bg-white p-4 rounded border border-red-200'
+                  }
+                >
+                  <p
+                    className={
+                      rejectionInfo.kind === 'pm_revision'
+                        ? 'text-xs font-medium text-amber-900 mb-2'
+                        : 'text-xs font-medium text-red-900 mb-2'
+                    }
+                  >
+                    {rejectionInfo.kind === 'pm_revision' ? 'Feedback:' : 'Rejection reason:'}
+                  </p>
                   <p className="text-sm text-gray-800 whitespace-pre-wrap">{rejectionInfo.comments}</p>
                 </div>
               )}

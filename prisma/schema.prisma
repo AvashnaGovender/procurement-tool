@@ -23,6 +23,8 @@ model User {
   phoneNumber       String?
   isActive          Boolean  @default(true)
   lastLoginAt       DateTime?
+  /// Bcrypt hash; required for credential login except legacy rows migrated to default password
+  password          String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
