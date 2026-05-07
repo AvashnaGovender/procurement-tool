@@ -200,6 +200,7 @@ export default function SupplierInitiationsPage() {
   }
 
   const getDisplayStatus = (initiation: SupplierInitiation) => {
+    const procurementApprover = initiation.procurementApproval?.approver
     if (
       initiation.status === 'MANAGER_APPROVED' &&
       initiation.procurementApproval?.status === 'REVISION_REQUESTED'
@@ -214,6 +215,15 @@ export default function SupplierInitiationsPage() {
     // Check if waiting for supplier to submit
     if (initiation.status === 'SUPPLIER_EMAILED' && !(initiation as any).onboarding?.supplierFormSubmitted) {
       return 'AWAITING SUPPLIER'
+    }
+
+    if (
+      initiation.status === 'MANAGER_APPROVED' &&
+      initiation.procurementApproval?.status === 'PENDING'
+    ) {
+      return procurementApprover
+        ? `PROCUREMENT MANAGER PENDING APPROVAL (${procurementApprover})`
+        : 'PROCUREMENT MANAGER PENDING APPROVAL'
     }
     
     return initiation.status.replace(/_/g, ' ')

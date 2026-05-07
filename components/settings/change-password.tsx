@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { KeyRound, Loader2 } from "lucide-react"
+import { Eye, EyeOff, KeyRound, Loader2 } from "lucide-react"
 
 export function ChangePassword() {
   const { toast } = useToast()
@@ -14,6 +14,7 @@ export function ChangePassword() {
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [showPasswords, setShowPasswords] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -97,12 +98,33 @@ export function ChangePassword() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPasswords((value) => !value)}
+                className="h-8 px-2 text-xs"
+              >
+                {showPasswords ? (
+                  <>
+                    <EyeOff className="h-3.5 w-3.5 mr-1" />
+                    Hide passwords
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-3.5 w-3.5 mr-1" />
+                    Show passwords
+                  </>
+                )}
+              </Button>
+            </div>
             {hasPassword && (
               <div className="space-y-2">
                 <Label htmlFor="current-password">Current password</Label>
                 <Input
                   id="current-password"
-                  type="password"
+                  type={showPasswords ? "text" : "password"}
                   autoComplete="current-password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
@@ -114,7 +136,7 @@ export function ChangePassword() {
               <Label htmlFor="new-password">New password</Label>
               <Input
                 id="new-password"
-                type="password"
+                type={showPasswords ? "text" : "password"}
                 autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -126,7 +148,7 @@ export function ChangePassword() {
               <Label htmlFor="confirm-password">Confirm new password</Label>
               <Input
                 id="confirm-password"
-                type="password"
+                type={showPasswords ? "text" : "password"}
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}

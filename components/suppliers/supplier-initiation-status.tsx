@@ -93,6 +93,8 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
     }
   }
 
+  const procurementApproverName = initiationData?.procurementApproval?.approver || null
+
   if (loading) {
     return (
       <Card>
@@ -207,7 +209,12 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 {getStatusIcon(initiationData.procurementApproval?.status || 'PENDING')}
-                <span className="font-medium">Procurement Manager Approval</span>
+                <span className="font-medium">
+                  Procurement Manager Approval
+                  {(initiationData.procurementApproval?.status || 'PENDING') === 'PENDING' && procurementApproverName
+                    ? ` (${procurementApproverName})`
+                    : ''}
+                </span>
               </div>
               <Badge className={getStatusColor(initiationData.procurementApproval?.status || 'PENDING')}>
                 {initiationData.procurementApproval?.status || 'PENDING'}
@@ -259,7 +266,11 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
             ) : (
               <div className="flex items-center gap-2 text-yellow-600">
                 <Clock className="h-4 w-4" />
-                <span>Waiting for procurement manager approval to send email to supplier</span>
+                <span>
+                  Waiting for procurement manager approval
+                  {procurementApproverName ? ` (${procurementApproverName})` : ''}
+                  {' '}to send email to supplier
+                </span>
               </div>
             )}
           </CardContent>

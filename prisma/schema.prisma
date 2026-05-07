@@ -99,6 +99,20 @@ model UserDelegation {
   @@map("user_delegations")
 }
 
+model PasswordResetOtp {
+  id          String   @id @default(cuid())
+  email       String
+  otpHash     String
+  salt        String
+  expiresAt   DateTime
+  attempts    Int      @default(0)
+  invalidated Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@map("password_reset_otps")
+}
+
 enum DelegationType {
   ALL_APPROVALS           // All approval types
   MANAGER_APPROVALS       // Only manager approvals for supplier initiations

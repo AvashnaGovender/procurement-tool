@@ -27,7 +27,6 @@ import {
   Edit,
   UserCheck,
   Trash2,
-  Brain,
   Play,
   CheckCheck,
   AlertCircle,
@@ -472,6 +471,41 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     setApproveDialogOpen(true)
   }
 
+  const markReadyForFinalApproval = async (overrideMissingMandatory = false) => {
+    if (!supplier) return
+
+    try {
+      const response = await fetch('/api/suppliers/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierId: supplier.id,
+          status: 'AWAITING_FINAL_APPROVAL',
+          overrideMissingMandatory,
+        })
+      })
+
+      if (response.ok) {
+        setSuccessMessage(
+          overrideMissingMandatory
+            ? '✅ Override applied. Status updated to AWAITING_FINAL_APPROVAL. You can now proceed to the Actions tab to approve the supplier.'
+            : '✅ Status updated to AWAITING_FINAL_APPROVAL. You can now proceed to the Actions tab to approve the supplier.'
+        )
+        setSuccessDialogOpen(true)
+        await fetchSupplier()
+        setActiveTab('actions')
+      } else {
+        const data = await response.json().catch(() => ({}))
+        setErrorMessage(`Failed to update status: ${data.error || 'Unknown error'}`)
+        setErrorDialogOpen(true)
+      }
+    } catch (error) {
+      console.error('Error updating status:', error)
+      setErrorMessage('Failed to update status')
+      setErrorDialogOpen(true)
+    }
+  }
+
 
   const handleRejectClick = () => {
     setRejectDialogOpen(true)
@@ -596,9 +630,12 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
           // Approval succeeded but email failed - show warning
           setSuccessMessage(`Supplier approved successfully!\n\n⚠️ Warning: Failed to send approval email: ${data.emailError}\n\nPlease contact the supplier directly to inform them of the approval.`)
           setSuccessDialogOpen(true)
+        } else if (data.packEmailError) {
+          setSuccessMessage(`Supplier approved successfully!\n\n⚠️ Warning: Failed to send approval pack to your email automatically: ${data.packEmailError}\n\nUse the Resend button on this page to send it again.`)
+          setSuccessDialogOpen(true)
         } else {
           // Everything succeeded
-          setSuccessMessage(`Supplier approved successfully!\n\nAn approval email has been sent to ${supplier?.contactEmail}`)
+          setSuccessMessage(`Supplier approved successfully!\n\nAn approval email has been sent to ${supplier?.contactEmail} and the full approval pack has been emailed to you.`)
           setSuccessDialogOpen(true)
         }
       } else {
@@ -1018,13 +1055,9 @@ Procurement Team`
       {/* Content */}
       <div className="max-w-7xl mx-auto p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="ai-insights">
-              <Brain className="h-4 w-4 mr-2" />
-              AI Insights
-            </TabsTrigger>
             <TabsTrigger value="actions">Actions</TabsTrigger>
           </TabsList>
 
@@ -1300,56 +1333,205 @@ Procurement Team`
                     </AlertDescription>
                   </Alert>
                 )}
+
+                <Card className="border-blue-500 border-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Landmark className="h-5 w-5 text-blue-600" />
+                      Bank Confirmation Verification (AI Insight)
+                    </CardTitle>
+                    <CardDescription>
+                      Verification runs automatically when the supplier submits documents. Use this result while previewing and verifying bank documents below.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {bankVerificationLoading ? (
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Loading...</span>
+                      </div>
+                    ) : bankVerification ? (
+                      (() => {
+                        const bv = bankVerification as {
+                          passed?: boolean
+                          reasons?: string[]
+                          extracted?: {
+                            bank_name?: string
+                            account_number?: string
+                            account_holder?: string
+                            statement_date?: string
+                            document_type?: string
+                            confidence?: number | null
+                          }
+                        }
+                        const extracted = bv.extracted || {}
+                        const hasExtractedData = !!(
+                          (extracted.bank_name ?? '') !== '' ||
+                          (extracted.account_number ?? '') !== '' ||
+                          (extracted.statement_date ?? '') !== '' ||
+                          (extracted.account_holder ?? '') !== '' ||
+                          (extracted.document_type ?? '') !== ''
+                        )
+                        const couldNotProcess = !bv.passed && !hasExtractedData
+                        const isOlderThan3Months = (bv.reasons || []).some((r: string) => r.toLowerCase().includes('older than 3 months'))
+                        return (
+                          <div className="space-y-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <span className="text-sm text-gray-600">Latest verification result</span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleRunBankVerification}
+                                disabled={bankVerificationRunning}
+                              >
+                                {bankVerificationRunning ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Rerunning...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="h-4 w-4 mr-2" />
+                                    Rerun verification
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                            <div className={`rounded-lg border-2 p-6 ${
+                              bv.passed ? 'bg-green-50 border-green-200' :
+                              couldNotProcess ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'
+                            }`}>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                {extracted.bank_name != null && extracted.bank_name !== '' && (
+                                  <div>
+                                    <span className="text-gray-600">Bank name</span>
+                                    <div className="font-medium">{extracted.bank_name}</div>
+                                  </div>
+                                )}
+                                {extracted.account_number != null && extracted.account_number !== '' && (
+                                  <div>
+                                    <span className="text-gray-600">Account number</span>
+                                    <div className="font-medium font-mono">{extracted.account_number}</div>
+                                  </div>
+                                )}
+                                {extracted.account_holder != null && extracted.account_holder !== '' && (
+                                  <div>
+                                    <span className="text-gray-600">Account holder</span>
+                                    <div className="font-medium">{extracted.account_holder}</div>
+                                  </div>
+                                )}
+                                {extracted.statement_date != null && extracted.statement_date !== '' && (
+                                  <div>
+                                    <span className="text-gray-600">Statement / letter date</span>
+                                    <div className="font-medium">{extracted.statement_date}</div>
+                                  </div>
+                                )}
+                                {extracted.document_type != null && extracted.document_type !== '' && (
+                                  <div>
+                                    <span className="text-gray-600">Document type</span>
+                                    <div className="font-medium capitalize">{String(extracted.document_type).replace(/_/g, ' ')}</div>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="pt-4 mt-4 border-t border-gray-200 text-sm text-gray-700">
+                                <span className="font-medium">Older than 3 months:</span> {isOlderThan3Months ? 'Yes' : 'No'}
+                              </div>
+                              {bv.reasons && bv.reasons.length > 0 && !bv.passed && (
+                                <ul className={`text-sm list-disc list-inside mt-3 ${couldNotProcess ? 'text-red-800' : 'text-amber-800'}`}>
+                                  {bv.reasons.map((r: string, i: number) => (
+                                    <li key={i}>{r}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()
+                    ) : (() => {
+                      const latestVersion = supplier?.airtableData?.allVersions?.[supplier.airtableData.allVersions.length - 1]
+                      const hasBankDoc = Array.isArray(latestVersion?.uploadedFiles?.bankConfirmation) && latestVersion.uploadedFiles.bankConfirmation.length > 0
+                      return hasBankDoc ? (
+                        <div>
+                          <p className="text-gray-600 mb-4">No verification result yet. Run the check to verify the bank confirmation document.</p>
+                          <Button
+                            onClick={handleRunBankVerification}
+                            disabled={bankVerificationRunning}
+                          >
+                            {bankVerificationRunning ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Running...
+                              </>
+                            ) : (
+                              <>
+                                <Play className="h-4 w-4 mr-2" />
+                                Run bank verification
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-gray-600">No bank confirmation document has been received for this supplier yet.</p>
+                      )
+                    })()}
+                  </CardContent>
+                </Card>
                 
                 {/* All Docs Verified button for PM */}
                 {supplier.status === 'UNDER_REVIEW' && !supplier.onboarding?.revisionRequested && (session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && (
                   <Card className="border-green-200 bg-green-50">
                     <CardContent className="pt-6">
+                      {(() => {
+                        const missingMandatoryDocs = getUnverifiedMandatoryDocuments()
+                        const hasMissingMandatoryDocs = missingMandatoryDocs.length > 0
+                        const missingDocNames = missingMandatoryDocs.map((doc) => doc.name)
+                        return (
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h3 className="font-semibold text-green-900 mb-1">Ready for Final Approval?</h3>
                           <p className="text-sm text-green-800">
-                            Once you've verified all mandatory documents, click this button to mark the supplier as ready for final approval.
+                            {hasMissingMandatoryDocs
+                              ? 'Some mandatory documents are still unverified. You can verify them first, or use override for approved edge cases.'
+                              : "Once you've verified all mandatory documents, click this button to mark the supplier as ready for final approval."}
                           </p>
                         </div>
-                        <Button
-                          onClick={async () => {
-                            if (areAllMandatoryDocumentsVerified()) {
-                              try {
-                                const response = await fetch('/api/suppliers/update-status', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({
-                                    supplierId: supplier.id,
-                                    status: 'AWAITING_FINAL_APPROVAL'
-                                  })
-                                })
-                                
-                                if (response.ok) {
-                                  setSuccessMessage('✅ Status updated to AWAITING_FINAL_APPROVAL. You can now proceed to the Actions tab to approve the supplier.')
-                                  setSuccessDialogOpen(true)
-                                  await fetchSupplier()
-                                } else {
-                                  const data = await response.json()
-                                  setErrorMessage(`Failed to update status: ${data.error || 'Unknown error'}`)
-                                  setErrorDialogOpen(true)
-                                }
-                              } catch (error) {
-                                console.error('Error updating status:', error)
-                                setErrorMessage('Failed to update status')
+                        <div className="ml-4 flex items-center gap-2">
+                          <Button
+                            onClick={async () => {
+                              if (hasMissingMandatoryDocs) {
+                                setErrorMessage('❌ Cannot update status: Not all mandatory documents are verified. Please verify all required documents first, or use Override.')
                                 setErrorDialogOpen(true)
+                                return
                               }
-                            } else {
-                              setErrorMessage('❌ Cannot update status: Not all mandatory documents are verified. Please verify all required documents first.')
-                              setErrorDialogOpen(true)
-                            }
-                          }}
-                          className="ml-4 bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          <CheckCheck className="h-4 w-4 mr-2" />
-                          All Docs Verified
-                        </Button>
+                              await markReadyForFinalApproval(false)
+                            }}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <CheckCheck className="h-4 w-4 mr-2" />
+                            All Docs Verified
+                          </Button>
+                          {hasMissingMandatoryDocs && (
+                            <Button
+                              variant="outline"
+                              className="border-amber-500 text-amber-700 hover:bg-amber-100"
+                              onClick={async () => {
+                                const preview = missingDocNames.slice(0, 5).join(', ')
+                                const remaining = missingDocNames.length > 5 ? ` +${missingDocNames.length - 5} more` : ''
+                                const confirmed = window.confirm(
+                                  `Override missing mandatory documents and continue to final approval?\n\nMissing: ${preview}${remaining}\n\nUse this only when the missing documents are intentionally not required.`
+                                )
+                                if (!confirmed) return
+                                await markReadyForFinalApproval(true)
+                              }}
+                            >
+                              <AlertCircle className="h-4 w-4 mr-2" />
+                              Override Missing Docs
+                            </Button>
+                          )}
+                        </div>
                       </div>
+                        )
+                      })()}
                     </CardContent>
                   </Card>
                 )}
@@ -1737,153 +1919,6 @@ Procurement Team`
             )}
           </TabsContent>
 
-          <TabsContent value="ai-insights">
-            <div className="space-y-6">
-              <Card className="border-blue-500 border-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Landmark className="h-5 w-5 text-blue-600" />
-                    Bank Confirmation Verification
-                  </CardTitle>
-                  <CardDescription>
-                    Verification runs automatically when the supplier submits documents. Results appear below.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {bankVerificationLoading ? (
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Loading...</span>
-                    </div>
-                  ) : bankVerification ? (
-                    (() => {
-                      const bv = bankVerification as {
-                        passed?: boolean
-                        reasons?: string[]
-                        extracted?: {
-                          bank_name?: string
-                          account_number?: string
-                          account_holder?: string
-                          statement_date?: string
-                          document_type?: string
-                          confidence?: number | null
-                        }
-                      }
-                      const extracted = bv.extracted || {}
-                      const hasExtractedData = !!(
-                        (extracted.bank_name ?? '') !== '' ||
-                        (extracted.account_number ?? '') !== '' ||
-                        (extracted.statement_date ?? '') !== '' ||
-                        (extracted.account_holder ?? '') !== '' ||
-                        (extracted.document_type ?? '') !== ''
-                      )
-                      const couldNotProcess = !bv.passed && !hasExtractedData
-                      const isOlderThan3Months = (bv.reasons || []).some((r: string) => r.toLowerCase().includes('older than 3 months'))
-                      return (
-                        <div className="space-y-4">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <span className="text-sm text-gray-600">Latest verification result</span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleRunBankVerification}
-                              disabled={bankVerificationRunning}
-                            >
-                              {bankVerificationRunning ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  Rerunning...
-                                </>
-                              ) : (
-                                <>
-                                  <Play className="h-4 w-4 mr-2" />
-                                  Rerun verification
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                          <div className={`rounded-lg border-2 p-6 ${
-                            bv.passed ? 'bg-green-50 border-green-200' :
-                            couldNotProcess ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'
-                          }`}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                              {extracted.bank_name != null && extracted.bank_name !== '' && (
-                                <div>
-                                  <span className="text-gray-600">Bank name</span>
-                                  <div className="font-medium">{extracted.bank_name}</div>
-                                </div>
-                              )}
-                              {extracted.account_number != null && extracted.account_number !== '' && (
-                                <div>
-                                  <span className="text-gray-600">Account number</span>
-                                  <div className="font-medium font-mono">{extracted.account_number}</div>
-                                </div>
-                              )}
-                              {extracted.account_holder != null && extracted.account_holder !== '' && (
-                                <div>
-                                  <span className="text-gray-600">Account holder</span>
-                                  <div className="font-medium">{extracted.account_holder}</div>
-                                </div>
-                              )}
-                              {extracted.statement_date != null && extracted.statement_date !== '' && (
-                                <div>
-                                  <span className="text-gray-600">Statement / letter date</span>
-                                  <div className="font-medium">{extracted.statement_date}</div>
-                                </div>
-                              )}
-                              {extracted.document_type != null && extracted.document_type !== '' && (
-                                <div>
-                                  <span className="text-gray-600">Document type</span>
-                                  <div className="font-medium capitalize">{String(extracted.document_type).replace(/_/g, ' ')}</div>
-                                </div>
-                              )}
-                            </div>
-                            <div className="pt-4 mt-4 border-t border-gray-200 text-sm text-gray-700">
-                              <span className="font-medium">Older than 3 months:</span> {isOlderThan3Months ? 'Yes' : 'No'}
-                            </div>
-                            {bv.reasons && bv.reasons.length > 0 && !bv.passed && (
-                              <ul className={`text-sm list-disc list-inside mt-3 ${couldNotProcess ? 'text-red-800' : 'text-amber-800'}`}>
-                                {bv.reasons.map((r: string, i: number) => (
-                                  <li key={i}>{r}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })()
-                  ) : (() => {
-                    const latestVersion = supplier?.airtableData?.allVersions?.[supplier.airtableData.allVersions.length - 1]
-                    const hasBankDoc = Array.isArray(latestVersion?.uploadedFiles?.bankConfirmation) && latestVersion.uploadedFiles.bankConfirmation.length > 0
-                    return hasBankDoc ? (
-                      <div>
-                        <p className="text-gray-600 mb-4">No verification result yet. Run the check to verify the bank confirmation document.</p>
-                        <Button
-                          onClick={handleRunBankVerification}
-                          disabled={bankVerificationRunning}
-                        >
-                          {bankVerificationRunning ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Running...
-                            </>
-                          ) : (
-                            <>
-                              <Play className="h-4 w-4 mr-2" />
-                              Run bank verification
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    ) : (
-                      <p className="text-gray-600">No bank confirmation document has been received for this supplier yet.</p>
-                    )
-                  })()}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
           <TabsContent value="actions">
             <Card>
               <CardHeader>
@@ -2004,19 +2039,19 @@ Procurement Team`
                           : '❌ This supplier has been rejected. No further actions are available.'}
                       </AlertDescription>
                     </Alert>
-                    {/* Prompt PM to send the approval pack after approving */}
+                    {/* Prompt PM about resending the approval pack if needed */}
                     {supplier.status === 'APPROVED' && session?.user?.role === 'PROCUREMENT_MANAGER' && (
                       <Alert className="bg-blue-50 border-blue-300">
                         <Mail className="h-4 w-4 text-blue-600" />
                         <AlertDescription className="text-blue-800">
-                          Use the <strong>Send Approval Pack</strong> button below to send the full PDF package (approval summary, supplier form, initiator checklist and uploaded documents) to yourself.
+                          The full approval pack is sent to you automatically when you approve. Use <strong>Resend Approval Pack</strong> only if delivery failed or you need another copy later.
                         </AlertDescription>
                       </Alert>
                     )}
                   </div>
                 )}
                 
-                {/* Send Approval Pack button - available for PM on approved suppliers */}
+                {/* Resend Approval Pack button - available for PM on approved suppliers */}
                 {session?.user?.role === 'PROCUREMENT_MANAGER' && supplier.status === 'APPROVED' && (
                   <div className="pt-4 border-t">
                     <Button
@@ -2027,12 +2062,12 @@ Procurement Team`
                       {resendingApprovalPack ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Sending...
+                          Resending...
                         </>
                       ) : (
                         <>
                           <Mail className="h-4 w-4 mr-2" />
-                          Send Approval Pack
+                          Resend Approval Pack
                         </>
                       )}
                     </Button>
@@ -2114,7 +2149,7 @@ Procurement Team`
               Approve Supplier
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to approve this supplier? Notification emails will be sent to the supplier, initiator, and manager. You can then send the full approval pack separately using the <strong>Send Approval Pack</strong> button.
+              Are you sure you want to approve this supplier? Notification emails will be sent to the supplier, initiator, and manager, and the full approval pack will be sent to your email automatically.
             </DialogDescription>
           </DialogHeader>
           

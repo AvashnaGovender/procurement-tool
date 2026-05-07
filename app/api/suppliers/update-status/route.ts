@@ -181,6 +181,7 @@ export async function POST(request: NextRequest) {
 
     // Send approval email if status is APPROVED
     let emailError: Error | null = null
+    let packEmailError: Error | null = null
     let emailSent = false
     if (status === 'APPROVED') {
       try {
@@ -251,8 +252,25 @@ export async function POST(request: NextRequest) {
             }
           }
           
-          // NOTE: PM approval package is NOT sent automatically on approval.
-          // The PM uses the "Send Approval Pack" button on the supplier page to send it when ready.
+          // Send PM approval package automatically on approval
+          if (session?.user?.email) {
+            try {
+              const pmUser = {
+                name: session.user.name || 'Procurement Manager',
+                email: session.user.email
+              }
+              await sendPMApprovalPackage(
+                supplier,
+                initiation,
+                pmUser,
+                creditController || null
+              )
+            } catch (pmPackErr) {
+              packEmailError = pmPackErr instanceof Error ? pmPackErr : new Error('Unknown PM approval pack email error')
+              console.error('Failed to send PM approval package automatically:', packEmailError)
+              // Do not fail approval if PM package email fails
+            }
+          }
 
           // Update initiation status to SUPPLIER_EMAILED if email was sent successfully
           if (emailSent && onboarding.initiationId) {
@@ -341,7 +359,8 @@ export async function POST(request: NextRequest) {
       success: true,
       supplier,
       emailSent: emailSent,
-      emailError: emailError ? emailError.message : null
+      emailError: emailError ? emailError.message : null,
+      packEmailError: packEmailError ? packEmailError.message : null
     })
   } catch (error: any) {
     console.error('❌ Error updating supplier status:', error)

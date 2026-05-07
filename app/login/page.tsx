@@ -30,6 +30,15 @@ function LoginForm() {
   const [registerLoading, setRegisterLoading] = useState(false)
   const [registerError, setRegisterError] = useState("")
   const [registerSuccess, setRegisterSuccess] = useState("")
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [resetEmail, setResetEmail] = useState("")
+  const [resetOtp, setResetOtp] = useState("")
+  const [resetNewPassword, setResetNewPassword] = useState("")
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("")
+  const [resetLoading, setResetLoading] = useState(false)
+  const [requestingOtp, setRequestingOtp] = useState(false)
+  const [resetMessage, setResetMessage] = useState("")
+  const [resetError, setResetError] = useState("")
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -160,6 +169,69 @@ function LoginForm() {
     }
   }
 
+  const handleRequestResetOtp = async () => {
+    if (!resetEmail.trim()) {
+      setResetError("Please enter your email.")
+      return
+    }
+    setRequestingOtp(true)
+    setResetError("")
+    setResetMessage("")
+    try {
+      const res = await fetch("/api/auth/forgot-password/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail.trim() }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setResetError(data.error || "Failed to send reset code.")
+        return
+      }
+      setResetMessage(data.message || "If this email exists, a reset code has been sent.")
+    } catch {
+      setResetError("Failed to send reset code.")
+    } finally {
+      setRequestingOtp(false)
+    }
+  }
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setResetLoading(true)
+    setResetError("")
+    setResetMessage("")
+    try {
+      const res = await fetch("/api/auth/forgot-password/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: resetEmail.trim(),
+          otp: resetOtp.trim(),
+          newPassword: resetNewPassword,
+          confirmPassword: resetConfirmPassword,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setResetError(data.error || "Failed to reset password.")
+        return
+      }
+      setResetMessage("Password reset successful. You can sign in with your new password.")
+      setPassword("")
+      setTimeout(() => {
+        setShowForgotPassword(false)
+        setResetOtp("")
+        setResetNewPassword("")
+        setResetConfirmPassword("")
+      }, 1200)
+    } catch {
+      setResetError("Failed to reset password.")
+    } finally {
+      setResetLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 flex">
       {/* Left Side - Branding */}
@@ -253,6 +325,20 @@ function LoginForm() {
                   className="pl-12 h-12 bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   required
                 />
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPassword(true)
+                    setResetEmail(email)
+                    setResetError("")
+                    setResetMessage("")
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                >
+                  Forgot password?
+                </button>
               </div>
             </div>
 
@@ -427,6 +513,122 @@ function LoginForm() {
                       ) : (
                         "Register"
                       )}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Forgot password modal */}
+          {showForgotPassword && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-slate-200">
+                <div className="flex items-center justify-between p-4 border-b border-slate-200">
+                  <h3 className="text-lg font-semibold text-slate-800">Reset your password</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(false)}
+                    className="p-1.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <form onSubmit={handleResetPassword} className="p-4 space-y-4">
+                  {resetError && (
+                    <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{resetError}</AlertDescription>
+                    </Alert>
+                  )}
+                  {resetMessage && (
+                    <Alert className="bg-green-50 border-green-200 text-green-800">
+                      <CheckCircle className="h-4 w-4" />
+                      <AlertDescription>{resetMessage}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-email" className="text-slate-700 font-medium">Email *</Label>
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      placeholder="you@company.com"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      className="h-11 border-slate-300"
+                      required
+                    />
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleRequestResetOtp}
+                    disabled={requestingOtp}
+                    className="w-full"
+                  >
+                    {requestingOtp ? "Sending code..." : "Send OTP code"}
+                  </Button>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-otp" className="text-slate-700 font-medium">OTP code *</Label>
+                    <Input
+                      id="reset-otp"
+                      type="text"
+                      placeholder="6-digit code"
+                      value={resetOtp}
+                      onChange={(e) => setResetOtp(e.target.value)}
+                      className="h-11 border-slate-300"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-new-password" className="text-slate-700 font-medium">New password *</Label>
+                    <Input
+                      id="reset-new-password"
+                      type="password"
+                      placeholder="At least 8 characters"
+                      value={resetNewPassword}
+                      onChange={(e) => setResetNewPassword(e.target.value)}
+                      className="h-11 border-slate-300"
+                      minLength={8}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-confirm-password" className="text-slate-700 font-medium">Confirm new password *</Label>
+                    <Input
+                      id="reset-confirm-password"
+                      type="password"
+                      placeholder="Re-enter new password"
+                      value={resetConfirmPassword}
+                      onChange={(e) => setResetConfirmPassword(e.target.value)}
+                      className="h-11 border-slate-300"
+                      minLength={8}
+                      required
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setShowForgotPassword(false)}
+                      disabled={resetLoading}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      disabled={resetLoading}
+                    >
+                      {resetLoading ? "Resetting..." : "Reset Password"}
                     </Button>
                   </div>
                 </form>

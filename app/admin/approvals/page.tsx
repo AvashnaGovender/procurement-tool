@@ -378,7 +378,9 @@ export default function ApprovalsPage() {
         return 'Awaiting initiator (Procurement requested changes)'
       }
       if (procurementApproval?.status === 'PENDING') {
-        return 'Awaiting Procurement Manager Approval'
+        return procurementApproval?.approver
+          ? `Awaiting Procurement Manager Approval (${procurementApproval.approver})`
+          : 'Awaiting Procurement Manager Approval'
       }
       if (procurementApproval?.status === 'REJECTED') {
         return 'Rejected by Procurement Manager'
