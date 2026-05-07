@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import fs from "fs"
 import path from "path"
 import { prisma } from "@/lib/prisma"
 import {
@@ -52,6 +53,8 @@ export async function POST(request: NextRequest) {
 
     const smtpConfig = loadAdminSmtpConfig()
     const transporter = getMailTransporter(smtpConfig)
+    const logoPath = path.join(process.cwd(), "public", "logo.png")
+    const hasLogo = fs.existsSync(logoPath)
 
     await sendMailAndCheck(
       transporter,
@@ -60,14 +63,18 @@ export async function POST(request: NextRequest) {
         to: user.email,
         envelope: getEnvelope(smtpConfig, user.email),
         subject: "Password reset code",
-        html: buildResetOtpEmail(user.name || "User", otp),
-        attachments: [
-          {
-            filename: "logo.png",
-            path: path.join(process.cwd(), "public", "logo.png"),
-            cid: "logo",
-          },
-        ],
+        html: buildResetOtpEmail(user.name || "User", otp, hasLogo),
+        ...(hasLogo
+          ? {
+              attachments: [
+                {
+                  filename: "logo.png",
+                  path: logoPath,
+                  cid: "logo",
+                },
+              ],
+            }
+          : {}),
       },
       "Password reset OTP"
     )
@@ -85,13 +92,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function buildResetOtpEmail(name: string, otp: string): string {
+function buildResetOtpEmail(name: string, otp: string, includeLogo: boolean): string {
   return `
   <html>
     <body style="font-family: Arial, sans-serif; background:#f4f4f4; padding:20px;">
       <div style="max-width:600px; margin:0 auto; background:#fff; border-radius:8px; overflow:hidden;">
         <div style="padding:30px; text-align:center; border-bottom:3px solid #1e40af;">
-          <img src="cid:logo" alt="Schauenburg Systems" style="max-width:150px;" />
+          ${includeLogo ? `<img src="cid:logo" alt="Schauenburg Systems" style="max-width:150px;" />` : ""}
           <h2 style="color:#1e40af; margin-top:20px;">Password Reset</h2>
         </div>
         <div style="padding:30px; color:#333; line-height:1.6;">
