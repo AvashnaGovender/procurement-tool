@@ -108,8 +108,8 @@ def _extract_via_ollama_direct(raw_text: str) -> dict | None:
         "From this bank letter or statement text, extract ONLY a JSON object with these exact keys:\n"
         "bank_name, account_number, statement_date, account_holder, document_type, confidence.\n"
         "Rules:\n"
-        "- document_type must be exactly \"bank_statement\" or \"bank_confirmation_letter\".\n"
-        "- statement_date as YYYY-MM-DD if possible, else null.\n"
+        "- document_type must be exactly one of: \"bank_statement\", \"bank_confirmation_letter\", \"account_confirmation_letter\".\n"
+        "- statement_date: extract the document date or letter date as YYYY-MM-DD. Do NOT include any label prefix like 'Date:' — only the date value.\n"
         "- confidence is a number 0-1.\n"
         "- Return ONLY the JSON object, no other text, no markdown.\n\n"
         f"TEXT:\n{text}"
@@ -195,12 +195,12 @@ Extract the following fields into a JSON object:
 - account_number (string or null)
 - statement_date (string, YYYY-MM-DD if possible, or null)
 - account_holder (string or null)
-- document_type: use "bank_statement" or "bank_confirmation_letter" only
+- document_type: use "bank_statement", "bank_confirmation_letter", or "account_confirmation_letter" only
 - confidence (number 0-1 or null)
 
 Rules:
 - Return only valid JSON, no other text, no markdown formatting.
-- document_type: "bank_confirmation_letter" for letters confirming account details; "bank_statement" for account statements.
+- document_type: "bank_confirmation_letter" or "account_confirmation_letter" for letters confirming account details; "bank_statement" for account statements.
 - statement_date: document date or letter date; use YYYY-MM-DD.
 - Do not invent values. If a field is missing, use null.
 
@@ -266,7 +266,10 @@ def parse_date(date_str: str | None) -> datetime | None:
     if not date_str or not isinstance(date_str, str):
         return None
     date_str = date_str.strip()
-    # Handle ISO 8601 (e.g. 2025-04-04T00:00:00.000Z) by using date part only
+    # Strip common label prefixes that the LLM may copy verbatim from the PDF
+    # e.g. "Date:2025-08-19", "Date: 2025-08-19", "Dated: 19 August 2025"
+    date_str = re.sub(r"^[Dd]ate[d]?\s*:\s*", "", date_str).strip()
+    # Handle ISO 8601 with time component (e.g. 2025-04-04T00:00:00.000Z)
     if "T" in date_str:
         date_str = date_str.split("T")[0]
     formats = [
@@ -278,6 +281,11 @@ def parse_date(date_str: str | None) -> datetime | None:
         "%d %B %Y",
         "%b %d %Y",
         "%B %d %Y",
+        "%b %d, %Y",
+        "%B %d, %Y",
+        "%d %b, %Y",
+        "%d %B, %Y",
+        "%Y %m %d",
     ]
     for fmt in formats:
         try:
@@ -316,8 +324,9 @@ def validate_statement(data: dict | None) -> dict:
         passed = False
         reasons.append("Account number not found.")
 
-    # Accept bank statements or bank confirmation letters
-    if document_type not in ("bank_statement", "bank_confirmation_letter"):
+    # Accept bank statements, bank confirmation letters, and account confirmation letters (same document)
+    accepted_doc_types = ("bank_statement", "bank_confirmation_letter", "account_confirmation_letter")
+    if document_type not in accepted_doc_types:
         passed = False
         reasons.append("Document is not a bank statement or bank confirmation letter.")
 
