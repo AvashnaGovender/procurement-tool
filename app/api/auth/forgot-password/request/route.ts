@@ -9,6 +9,10 @@ import {
   hashPasswordResetOtp,
 } from "@/lib/password-reset-otp"
 import {
+  createPasswordResetOtp,
+  invalidateActivePasswordResetOtps,
+} from "@/lib/password-reset-otp-store"
+import {
   getEnvelope,
   getFromAddress,
   getMailTransporter,
@@ -37,19 +41,14 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    await prisma.passwordResetOtp.updateMany({
-      where: { email: user.email, invalidated: false },
-      data: { invalidated: true },
-    })
+    await invalidateActivePasswordResetOtps(user.email)
 
     const otp = generatePasswordResetOtp()
     const salt = generateOtpSalt()
     const otpHash = hashPasswordResetOtp(otp, salt)
     const expiresAt = getPasswordResetOtpExpiresAt()
 
-    await prisma.passwordResetOtp.create({
-      data: { email: user.email, otpHash, salt, expiresAt },
-    })
+    await createPasswordResetOtp({ email: user.email, otpHash, salt, expiresAt })
 
     const smtpConfig = loadAdminSmtpConfig()
     const transporter = getMailTransporter(smtpConfig)

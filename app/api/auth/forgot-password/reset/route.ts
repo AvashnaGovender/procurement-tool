@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { hashPassword } from "@/lib/password"
 import { OTP_MAX_ATTEMPTS, verifyPasswordResetOtp } from "@/lib/password-reset-otp"
+import {
+  getLatestActivePasswordResetOtp,
+  invalidateActivePasswordResetOtps,
+  updatePasswordResetOtpById,
+} from "@/lib/password-reset-otp-store"
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,10 +35,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const otpRecord = await prisma.passwordResetOtp.findFirst({
-      where: { email, invalidated: false },
-      orderBy: { createdAt: "desc" },
-    })
+    const otpRecord = await getLatestActivePasswordResetOtp(email)
 
     if (!otpRecord) {
       return NextResponse.json(
@@ -43,10 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (otpRecord.expiresAt < new Date()) {
-      await prisma.passwordResetOtp.update({
-        where: { id: otpRecord.id },
-        data: { invalidated: true },
-      })
+      await updatePasswordResetOtpById(otpRecord.id, { invalidated: true })
       return NextResponse.json(
         { success: false, error: "Reset code expired. Request a new code." },
         { status: 400 }
@@ -54,10 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (otpRecord.attempts >= OTP_MAX_ATTEMPTS) {
-      await prisma.passwordResetOtp.update({
-        where: { id: otpRecord.id },
-        data: { invalidated: true },
-      })
+      await updatePasswordResetOtpById(otpRecord.id, { invalidated: true })
       return NextResponse.json(
         { success: false, error: "Too many incorrect attempts. Request a new code." },
         { status: 429 }
@@ -67,9 +63,9 @@ export async function POST(request: NextRequest) {
     const isValidOtp = verifyPasswordResetOtp(otp, otpRecord.salt, otpRecord.otpHash)
     if (!isValidOtp) {
       const attempts = otpRecord.attempts + 1
-      await prisma.passwordResetOtp.update({
-        where: { id: otpRecord.id },
-        data: { attempts, invalidated: attempts >= OTP_MAX_ATTEMPTS },
+      await updatePasswordResetOtpById(otpRecord.id, {
+        attempts,
+        invalidated: attempts >= OTP_MAX_ATTEMPTS,
       })
       return NextResponse.json({ success: false, error: "Invalid reset code" }, { status: 400 })
     }
@@ -88,11 +84,8 @@ export async function POST(request: NextRequest) {
         where: { id: user.id },
         data: { password: passwordHash },
       }),
-      prisma.passwordResetOtp.updateMany({
-        where: { email, invalidated: false },
-        data: { invalidated: true },
-      }),
     ])
+    await invalidateActivePasswordResetOtps(email)
 
     return NextResponse.json({ success: true, message: "Password reset successful." })
   } catch (error) {

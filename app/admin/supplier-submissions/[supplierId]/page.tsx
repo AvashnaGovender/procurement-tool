@@ -140,6 +140,9 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [revisionNotes, setRevisionNotes] = useState("")
   const [revisionSubmitting, setRevisionSubmitting] = useState(false)
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
+  const [overrideDialogOpen, setOverrideDialogOpen] = useState(false)
+  const [overrideMissingDocs, setOverrideMissingDocs] = useState<Array<{ key: string; name: string; reason: 'not_uploaded' | 'not_verified' }>>([])
+  const [overrideApplied, setOverrideApplied] = useState(false)
   const [successDialogOpen, setSuccessDialogOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
   const [errorDialogOpen, setErrorDialogOpen] = useState(false)
@@ -344,8 +347,8 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     }))
   }
 
-  // Get list of unverified mandatory documents
-  const getUnverifiedMandatoryDocuments = (): Array<{ key: string, name: string }> => {
+  // Get list of unverified mandatory documents, with reason: 'not_uploaded' or 'not_verified'
+  const getUnverifiedMandatoryDocuments = (): Array<{ key: string, name: string, reason: 'not_uploaded' | 'not_verified' }> => {
     if (!supplier?.airtableData?.allVersions || !supplier.onboarding) {
       return []
     }
@@ -398,7 +401,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       'taxClearance': 'Tax Clearance Certificate or Letter of Good Standing'
     }
 
-    const unverified: Array<{ key: string, name: string }> = []
+    const unverified: Array<{ key: string, name: string, reason: 'not_uploaded' | 'not_verified' }> = []
 
     // Check each mandatory document
     for (const docKey of mandatoryDocKeys) {
@@ -416,7 +419,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
             })
           })
           if (!hasVerifiedTaxClearance) {
-            unverified.push({ key: 'taxClearance', name: docNames['taxClearance'] })
+            unverified.push({ key: 'taxClearance', name: docNames['taxClearance'], reason: 'not_verified' })
           }
         } else if (hasGoodStanding) {
           const hasVerifiedGoodStanding = supplier.airtableData.allVersions.some((version: any) => {
@@ -427,16 +430,16 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
             })
           })
           if (!hasVerifiedGoodStanding) {
-            unverified.push({ key: 'taxClearance', name: docNames['taxClearance'] })
+            unverified.push({ key: 'taxClearance', name: docNames['taxClearance'], reason: 'not_verified' })
           }
         } else {
-          unverified.push({ key: 'taxClearance', name: docNames['taxClearance'] })
+          unverified.push({ key: 'taxClearance', name: docNames['taxClearance'], reason: 'not_uploaded' })
         }
       } else {
         // For other mandatory documents
         const files = allUploadedFiles[docKey] || []
         if (files.length === 0) {
-          unverified.push({ key: docKey, name: docNames[docKey] || docKey })
+          unverified.push({ key: docKey, name: docNames[docKey] || docKey, reason: 'not_uploaded' })
         } else {
           const hasVerifiedFile = supplier.airtableData.allVersions.some((version: any) => {
             const versionFiles = version.uploadedFiles?.[docKey] || []
@@ -447,7 +450,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
           })
           
           if (!hasVerifiedFile) {
-            unverified.push({ key: docKey, name: docNames[docKey] || docKey })
+            unverified.push({ key: docKey, name: docNames[docKey] || docKey, reason: 'not_verified' })
           }
         }
       }
@@ -462,9 +465,11 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   }
 
   const handleApproveClick = () => {
-    // Check if all mandatory documents are verified
-    if (!areAllMandatoryDocumentsVerified()) {
-      setErrorMessage('Please verify all mandatory documents before requesting final approval.')
+    // If override was already applied (status is AWAITING_FINAL_APPROVAL or overrideApplied flag set),
+    // skip the mandatory docs check but remind the user that override is in effect.
+    const isOverrideInEffect = overrideApplied || supplier?.status === 'AWAITING_FINAL_APPROVAL'
+    if (!areAllMandatoryDocumentsVerified() && !isOverrideInEffect) {
+      setErrorMessage('Please verify all mandatory documents before requesting final approval, or use Override Missing Docs.')
       setErrorDialogOpen(true)
       return
     }
@@ -1514,14 +1519,15 @@ Procurement Team`
                             <Button
                               variant="outline"
                               className="border-amber-500 text-amber-700 hover:bg-amber-100"
-                              onClick={async () => {
-                                const preview = missingDocNames.slice(0, 5).join(', ')
-                                const remaining = missingDocNames.length > 5 ? ` +${missingDocNames.length - 5} more` : ''
-                                const confirmed = window.confirm(
-                                  `Override missing mandatory documents and continue to final approval?\n\nMissing: ${preview}${remaining}\n\nUse this only when the missing documents are intentionally not required.`
+                              onClick={() => {
+                                setOverrideMissingDocs(
+                                  missingMandatoryDocs.map((doc) => ({
+                                    key: doc.key,
+                                    name: doc.name,
+                                    reason: (doc as any).reason ?? 'not_verified',
+                                  }))
                                 )
-                                if (!confirmed) return
-                                await markReadyForFinalApproval(true)
+                                setOverrideDialogOpen(true)
                               }}
                             >
                               <AlertCircle className="h-4 w-4 mr-2" />
@@ -2141,6 +2147,56 @@ Procurement Team`
         </DialogContent>
       </Dialog>
 
+      {/* Override Missing Docs Confirmation Dialog */}
+      <Dialog open={overrideDialogOpen} onOpenChange={setOverrideDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700">
+              <AlertCircle className="h-5 w-5" />
+              Override Missing Documents?
+            </DialogTitle>
+            <DialogDescription>
+              The following mandatory documents are incomplete. Use override only when their absence is intentionally accepted.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {overrideMissingDocs.length > 0 && (
+              <ul className="space-y-2">
+                {overrideMissingDocs.map((doc) => (
+                  <li key={doc.key} className="flex items-start gap-2 text-sm">
+                    <span className="mt-0.5 shrink-0">
+                      {doc.reason === 'not_uploaded' ? '❌' : '⚠️'}
+                    </span>
+                    <span>
+                      <span className="font-medium">{doc.name}</span>
+                      <span className="text-slate-500 ml-1">
+                        {doc.reason === 'not_uploaded' ? '— not uploaded by supplier' : '— uploaded but not verified'}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => setOverrideDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={async () => {
+                setOverrideDialogOpen(false)
+                setOverrideApplied(true)
+                await markReadyForFinalApproval(true)
+              }}
+            >
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Confirm Override
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Approve Confirmation Dialog */}
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
@@ -2155,6 +2211,17 @@ Procurement Team`
           
           <div className="flex-1 overflow-y-auto pr-2">
           <div className="space-y-4 py-4">
+            {(overrideApplied || supplier?.status === 'AWAITING_FINAL_APPROVAL') && !areAllMandatoryDocumentsVerified() && (
+              <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 flex gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-amber-800 text-sm">Override in effect</p>
+                  <p className="text-amber-700 text-sm mt-1">
+                    Some mandatory documents were not fully verified before marking this supplier ready for approval. You are approving with the override applied.
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h4 className="font-medium text-green-900 mb-2">Supplier Information:</h4>
               <div className="text-sm text-green-800 space-y-1">
