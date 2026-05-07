@@ -83,7 +83,12 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/suppliers/documents/') &&
     pathname.includes('signedCreditApplication')
 
-  if (isPublicApi || isSignedCreditDownload) return NextResponse.next()
+  // Allow internal server-to-server trigger requests (e.g. bank verification auto-trigger)
+  const triggerSecret = request.headers.get('x-trigger-secret')
+  const expectedSecret = process.env.BANK_VERIFICATION_TRIGGER_SECRET || 'internal-trigger'
+  const isInternalTrigger = triggerSecret === expectedSecret
+
+  if (isPublicApi || isSignedCreditDownload || isInternalTrigger) return NextResponse.next()
 
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
 
