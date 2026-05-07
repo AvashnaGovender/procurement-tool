@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, Lock, AlertCircle, UserPlus, X, CheckCircle } from "lucide-react"
+import { Mail, Lock, AlertCircle, UserPlus, X, CheckCircle, Eye, EyeOff } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -39,6 +39,11 @@ function LoginForm() {
   const [requestingOtp, setRequestingOtp] = useState(false)
   const [resetMessage, setResetMessage] = useState("")
   const [resetError, setResetError] = useState("")
+  const [showLoginPassword, setShowLoginPassword] = useState(false)
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false)
+  const [showRegisterPasswordConfirm, setShowRegisterPasswordConfirm] = useState(false)
+  const [showResetNewPassword, setShowResetNewPassword] = useState(false)
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -317,14 +322,22 @@ function LoginForm() {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
                 <Input
                   id="password"
-                  type="password"
+                  type={showLoginPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-12 h-12 bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="pl-12 pr-12 h-12 bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword((prev) => !prev)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors"
+                  aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                >
+                  {showLoginPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
               <div className="flex justify-end">
                 <button
@@ -420,31 +433,51 @@ function LoginForm() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-password" className="text-slate-700 font-medium">Password *</Label>
+                    <div className="relative">
                     <Input
                       id="register-password"
-                      type="password"
+                      type={showRegisterPassword ? "text" : "password"}
                       placeholder="Choose a password (min. 8 characters)"
                       autoComplete="new-password"
                       value={registerPassword}
                       onChange={(e) => setRegisterPassword(e.target.value)}
-                      className="h-11 border-slate-300"
+                      className="h-11 border-slate-300 pr-10"
                       required
                       minLength={8}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterPassword((prev) => !prev)}
+                      className="absolute right-3 top-[38px] text-slate-500 hover:text-slate-700 transition-colors"
+                      aria-label={showRegisterPassword ? "Hide password" : "Show password"}
+                    >
+                      {showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-password-confirm" className="text-slate-700 font-medium">Confirm password *</Label>
+                    <div className="relative">
                     <Input
                       id="register-password-confirm"
-                      type="password"
+                      type={showRegisterPasswordConfirm ? "text" : "password"}
                       placeholder="Re-enter your password"
                       autoComplete="new-password"
                       value={registerPasswordConfirm}
                       onChange={(e) => setRegisterPasswordConfirm(e.target.value)}
-                      className="h-11 border-slate-300"
+                      className="h-11 border-slate-300 pr-10"
                       required
                       minLength={8}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterPasswordConfirm((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors"
+                      aria-label={showRegisterPasswordConfirm ? "Hide password" : "Show password"}
+                    >
+                      {showRegisterPasswordConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-role" className="text-slate-700 font-medium">Role *</Label>
@@ -587,30 +620,50 @@ function LoginForm() {
 
                   <div className="space-y-2">
                     <Label htmlFor="reset-new-password" className="text-slate-700 font-medium">New password *</Label>
+                    <div className="relative">
                     <Input
                       id="reset-new-password"
-                      type="password"
+                      type={showResetNewPassword ? "text" : "password"}
                       placeholder="At least 8 characters"
                       value={resetNewPassword}
                       onChange={(e) => setResetNewPassword(e.target.value)}
-                      className="h-11 border-slate-300"
+                      className="h-11 border-slate-300 pr-10"
                       minLength={8}
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowResetNewPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors"
+                      aria-label={showResetNewPassword ? "Hide password" : "Show password"}
+                    >
+                      {showResetNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="reset-confirm-password" className="text-slate-700 font-medium">Confirm new password *</Label>
+                    <div className="relative">
                     <Input
                       id="reset-confirm-password"
-                      type="password"
+                      type={showResetConfirmPassword ? "text" : "password"}
                       placeholder="Re-enter new password"
                       value={resetConfirmPassword}
                       onChange={(e) => setResetConfirmPassword(e.target.value)}
-                      className="h-11 border-slate-300"
+                      className="h-11 border-slate-300 pr-10"
                       minLength={8}
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowResetConfirmPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors"
+                      aria-label={showResetConfirmPassword ? "Hide password" : "Show password"}
+                    >
+                      {showResetConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                    </div>
                   </div>
 
                   <div className="flex gap-2 pt-2">
