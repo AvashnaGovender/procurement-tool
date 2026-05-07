@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, useRef, use } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -161,6 +161,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [bankVerification, setBankVerification] = useState<any>(null)
   const [bankVerificationLoading, setBankVerificationLoading] = useState(true)
   const [bankVerificationRunning, setBankVerificationRunning] = useState(false)
+  const bankVerificationAutoRan = useRef(false)
 
   // Document verification state
   const [documentVerifications, setDocumentVerifications] = useState<Record<string, boolean>>({})
@@ -177,6 +178,20 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       fetchBankVerification()
     }
   }, [supplier?.id])
+
+  // Safety-net: if the worker was offline at submission time, auto-run when PM opens the page.
+  useEffect(() => {
+    if (bankVerificationLoading) return
+    if (bankVerification !== null) return
+    if (bankVerificationAutoRan.current) return
+    if (!supplier?.id) return
+    const latestVersion = (supplier.airtableData as any)?.allVersions?.[(supplier.airtableData as any).allVersions.length - 1]
+    const hasBankDoc = Array.isArray(latestVersion?.uploadedFiles?.bankConfirmation) && latestVersion.uploadedFiles.bankConfirmation.length > 0
+    if (!hasBankDoc) return
+    bankVerificationAutoRan.current = true
+    console.log('🏦 No verification result found — auto-running bank verification on page load')
+    handleRunBankVerification()
+  }, [bankVerificationLoading, bankVerification, supplier?.id])
 
   // Handle browser back button to redirect to dashboard
   useEffect(() => {

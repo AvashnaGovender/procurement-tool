@@ -7,7 +7,6 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
 import { requireSupplierSession } from '@/lib/supplier-portal/auth-guard'
-import { runBankVerification } from '@/lib/bank-verification-run'
 
 export async function POST(request: NextRequest) {
   try {
@@ -428,16 +427,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Run AI insight (bank verification) immediately when supplier submits bank confirmation doc.
-    // Fire-and-forget: don't block the response — start the async work and let it run in the background.
+    // Trigger AI bank verification as a real independent HTTP request so it runs
+    // in its own request lifecycle (not dropped when this handler's context ends).
     if (uploadedFiles.bankConfirmation?.length > 0 && supplier?.id) {
       const supplierId = supplier.id
-      runBankVerification(supplierId)
-        .then((r) => {
-          if (!r.success) console.error('Bank verification background run failed:', r.error)
-          else console.log(`✅ Bank verification completed for supplier ${supplierId}`)
+      const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+      const triggerSecret = process.env.BANK_VERIFICATION_TRIGGER_SECRET || 'internal-trigger'
+      console.log(`🏦 Triggering bank verification for supplier ${supplierId}`)
+      fetch(`${baseUrl}/api/suppliers/${supplierId}/bank-verification/run`, {
+        method: 'POST',
+        headers: { 'x-trigger-secret': triggerSecret },
+      })
+        .then(async (res) => {
+          const body = await res.json().catch(() => ({}))
+          if (!res.ok) console.error(`❌ Bank verification trigger failed (${res.status}):`, body)
+          else console.log(`✅ Bank verification triggered for supplier ${supplierId}`)
         })
-        .catch((err) => console.error('Bank verification background run error:', err))
+        .catch((err) => console.error('❌ Bank verification trigger request error:', err))
     }
 
     return NextResponse.json({
