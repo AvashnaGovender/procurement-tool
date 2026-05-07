@@ -312,7 +312,7 @@ def validate_statement(data: dict | None) -> dict:
     bank_name = data.get("bank_name")
     account_number = data.get("account_number")
     statement_date_raw = data.get("statement_date")
-    document_type = data.get("document_type")
+    document_type = (data.get("document_type") or "").strip().lower().replace(" ", "_")
 
     if not bank_name or (isinstance(bank_name, str) and not bank_name.strip()):
         passed = False
@@ -324,9 +324,13 @@ def validate_statement(data: dict | None) -> dict:
         passed = False
         reasons.append("Account number not found.")
 
-    # Accept bank statements, bank confirmation letters, and account confirmation letters (same document)
-    accepted_doc_types = ("bank_statement", "bank_confirmation_letter", "account_confirmation_letter")
-    if document_type not in accepted_doc_types:
+    # Accept any variant that references a bank/account statement or confirmation letter.
+    # Normalised to lowercase+underscores above so "Bank Confirmation Letter" → "bank_confirmation_letter".
+    is_valid_doc_type = any(
+        kw in document_type
+        for kw in ("bank_statement", "bank_confirmation", "account_confirmation", "confirmation_letter", "statement")
+    )
+    if not is_valid_doc_type:
         passed = False
         reasons.append("Document is not a bank statement or bank confirmation letter.")
 
