@@ -71,6 +71,27 @@ def _extract_account_number_from_text(raw_text: str) -> str | None:
 # ----------------------------
 # DIRECT OLLAMA (one call, fast – no CrewAI)
 # ----------------------------
+def _parse_json_from_text(text: str) -> dict | None:
+    """Extract the first JSON object from a string that may contain extra text or markdown."""
+    if not text:
+        return None
+    # Strip markdown code fences
+    code_block = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    if code_block:
+        text = code_block.group(1).strip()
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            return json.loads(text[start : end + 1])
+        except json.JSONDecodeError:
+            pass
+    try:
+        return json.loads(text.strip())
+    except json.JSONDecodeError:
+        return None
+
+
 def _extract_via_ollama_direct(raw_text: str) -> dict | None:
     """Call Ollama /api/generate once with an extraction prompt. Returns parsed dict or None."""
     try:
@@ -83,44 +104,38 @@ def _extract_via_ollama_direct(raw_text: str) -> dict | None:
     if len(text) > _MAX_EXTRACTION_TEXT_LENGTH:
         text = text[:_MAX_EXTRACTION_TEXT_LENGTH] + "\n\n[Text truncated for length.]"
 
-    prompt = f"""From this bank letter or statement text, extract ONLY a JSON object with these keys: bank_name, account_number, statement_date, account_holder, document_type, confidence.
-Rules: document_type must be "bank_statement" or "bank_confirmation_letter". statement_date as YYYY-MM-DD if possible. No other text, only the JSON object.
-
-TEXT:
-{text}"""
+    prompt = (
+        "From this bank letter or statement text, extract ONLY a JSON object with these exact keys:\n"
+        "bank_name, account_number, statement_date, account_holder, document_type, confidence.\n"
+        "Rules:\n"
+        "- document_type must be exactly \"bank_statement\" or \"bank_confirmation_letter\".\n"
+        "- statement_date as YYYY-MM-DD if possible, else null.\n"
+        "- confidence is a number 0-1.\n"
+        "- Return ONLY the JSON object, no other text, no markdown.\n\n"
+        f"TEXT:\n{text}"
+    )
 
     url = f"{settings.ollama_base_url.rstrip('/')}/api/generate"
     payload = {"model": settings.ollama_model, "prompt": prompt, "stream": False}
 
     try:
-        with httpx.Client(timeout=90.0) as client:
+        with httpx.Client(timeout=120.0) as client:
             r = client.post(url, json=payload)
             r.raise_for_status()
             data = r.json()
     except Exception as e:
-        logger.warning("Direct Ollama extraction failed: %s", e)
+        logger.warning("Direct Ollama /api/generate extraction failed: %s", e)
         return None
 
     response_text = (data.get("response") or "").strip()
+    logger.info("Direct Ollama raw response (first 300 chars): %s", response_text[:300])
     if not response_text:
         return None
 
-    # Parse JSON from response (may be wrapped in markdown or have extra text)
-    code_block = re.search(r"```(?:json)?\s*([\s\S]*?)```", response_text)
-    if code_block:
-        response_text = code_block.group(1).strip()
-    start = response_text.find("{")
-    end = response_text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        response_text = response_text[start : end + 1]
-    try:
-        return json.loads(response_text)
-    except json.JSONDecodeError:
-        pass
-    try:
-        return json.loads((data.get("response") or "").strip())
-    except json.JSONDecodeError:
-        return None
+    result = _parse_json_from_text(response_text)
+    if result is None:
+        logger.warning("Could not parse JSON from direct Ollama response: %s", response_text[:300])
+    return result
 
 
 # ----------------------------
@@ -184,7 +199,7 @@ Extract the following fields into a JSON object:
 - confidence (number 0-1 or null)
 
 Rules:
-- Return only valid JSON, no other text.
+- Return only valid JSON, no other text, no markdown formatting.
 - document_type: "bank_confirmation_letter" for letters confirming account details; "bank_statement" for account statements.
 - statement_date: document date or letter date; use YYYY-MM-DD.
 - Do not invent values. If a field is missing, use null.
@@ -194,7 +209,6 @@ RAW TEXT:
 """,
         agent=agent,
         expected_output="A single JSON object with keys: bank_name, account_number, statement_date, account_holder, document_type, confidence.",
-        output_pydantic=BankStatementExtraction,
     )
     return agent, task
 
@@ -238,25 +252,10 @@ def _run_extraction_crew(raw_text: str) -> dict | None:
         logger.warning("Crew returned empty output")
         return None
 
-    code_block = re.search(r"```(?:json)?\s*([\s\S]*?)```", result_text)
-    if code_block:
-        result_text = code_block.group(1).strip()
-
-    try:
-        return json.loads(result_text)
-    except json.JSONDecodeError:
-        pass
-
-    start = result_text.find("{")
-    end = result_text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        try:
-            return json.loads(result_text[start : end + 1])
-        except json.JSONDecodeError:
-            pass
-
-    logger.warning("Failed to parse crew output as JSON. Raw output (first 500 chars): %s", result_text[:500])
-    return None
+    parsed = _parse_json_from_text(result_text)
+    if parsed is None:
+        logger.warning("Failed to parse crew output as JSON. Raw output (first 500 chars): %s", result_text[:500])
+    return parsed
 
 
 # ----------------------------
