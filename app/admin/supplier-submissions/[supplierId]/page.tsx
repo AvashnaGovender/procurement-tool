@@ -1453,12 +1453,20 @@ Procurement Team`
                                   </div>
                                 )}
                               </div>
-                              <div className="pt-4 mt-4 border-t border-gray-200 text-sm text-gray-700">
-                                <span className="font-medium">Older than 3 months:</span> {isOlderThan3Months ? 'Yes' : 'No'}
-                              </div>
+                              {isOlderThan3Months && (
+                                <div className="mt-4 flex items-start gap-3 rounded-lg border-2 border-red-400 bg-red-100 px-4 py-3">
+                                  <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="font-semibold text-red-800 text-sm">⚠️ Bank document is older than 3 months</p>
+                                    <p className="text-red-700 text-sm mt-0.5">
+                                      The statement or confirmation letter date is outside the accepted 3-month window. Request an updated document from the supplier before approving.
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
                               {bv.reasons && bv.reasons.length > 0 && !bv.passed && (
-                                <ul className={`text-sm list-disc list-inside mt-3 ${couldNotProcess ? 'text-red-800' : 'text-amber-800'}`}>
-                                  {bv.reasons.map((r: string, i: number) => (
+                                <ul className={`text-sm list-disc list-inside mt-3 ${couldNotProcess ? 'text-red-800' : isOlderThan3Months ? 'text-red-700' : 'text-amber-800'}`}>
+                                  {bv.reasons.filter((r: string) => !r.toLowerCase().includes('older than 3 months')).map((r: string, i: number) => (
                                     <li key={i}>{r}</li>
                                   ))}
                                 </ul>
