@@ -1,7 +1,84 @@
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
+import AzureADProvider from "next-auth/providers/azure-ad"
 import { prisma } from "./prisma"
 import { verifyPassword } from "./password"
+
+const providers: NextAuthOptions["providers"] = [
+  CredentialsProvider({
+    name: "credentials",
+    credentials: {
+      email: { label: "Email", type: "email" },
+      password: { label: "Password", type: "password" },
+    },
+    async authorize(credentials) {
+      if (!credentials?.email) {
+        throw new Error("Email is required")
+      }
+      if (!credentials?.password?.trim()) {
+        throw new Error("Password is required")
+      }
+
+      const normalizedEmail = credentials.email.toLowerCase().trim()
+      const password = credentials.password
+
+      const user = await prisma.user.findFirst({
+        where: { email: { equals: normalizedEmail, mode: "insensitive" } },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          department: true,
+          isActive: true,
+          password: true,
+        },
+      })
+
+      if (!user) {
+        throw new Error("No account found with this email")
+      }
+
+      if (!user.isActive) {
+        throw new Error("Account is inactive. Please contact administrator.")
+      }
+
+      const passwordOk =
+        !!user.password && (await verifyPassword(password, user.password))
+      if (!passwordOk) {
+        throw new Error("Invalid email or password")
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      })
+
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        department: user.department ?? undefined,
+      }
+    },
+  }),
+]
+
+// Add Azure AD provider when credentials are configured
+if (
+  process.env.AZURE_AD_CLIENT_ID &&
+  process.env.AZURE_AD_CLIENT_SECRET &&
+  process.env.AZURE_AD_TENANT_ID
+) {
+  providers.push(
+    AzureADProvider({
+      clientId: process.env.AZURE_AD_CLIENT_ID,
+      clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
+      tenantId: process.env.AZURE_AD_TENANT_ID,
+    })
+  )
+}
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-development",
@@ -25,75 +102,48 @@ export const authOptions: NextAuthOptions = {
       }
     }
   },
-  providers: [
-    CredentialsProvider({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email) {
-          throw new Error("Email is required")
-        }
-        if (!credentials?.password?.trim()) {
-          throw new Error("Password is required")
-        }
-
-        // Normalize email to lowercase for case-insensitive lookup
-        const normalizedEmail = credentials.email.toLowerCase().trim()
-        const password = credentials.password
-
-        const user = await prisma.user.findFirst({
-          where: { email: { equals: normalizedEmail, mode: "insensitive" } },
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            department: true,
-            isActive: true,
-            password: true,
-          },
-        })
-
-        if (!user) {
-          throw new Error("No account found with this email")
-        }
-
-        if (!user.isActive) {
-          throw new Error("Account is inactive. Please contact administrator.")
-        }
-
-        const passwordOk =
-          !!user.password && (await verifyPassword(password, user.password))
-        if (!passwordOk) {
-          throw new Error("Invalid email or password")
-        }
-
-        // Update last login time
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        })
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          department: user.department ?? undefined,
-        }
-      },
-    }),
-  ],
+  providers,
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
+    async jwt({ token, user, account }) {
+      // Credentials login: user object contains the Prisma record directly
+      if (user && account?.provider === "credentials") {
         token.id = user.id
         token.role = user.role
         token.department = user.department
+        return token
       }
+
+      // Azure AD / OAuth login: look up the internal Prisma user by email so that
+      // token.id is always the internal DB id (not the Azure AD OID).
+      // This runs on first sign-in (account present) and on token refresh.
+      if (account?.provider === "azure-ad" || (!token.id && token.email)) {
+        const email = (token.email as string | undefined)?.toLowerCase().trim()
+        if (email) {
+          const dbUser = await prisma.user.findFirst({
+            where: { email: { equals: email, mode: "insensitive" } },
+            select: { id: true, role: true, department: true, isActive: true, name: true },
+          })
+
+          if (!dbUser || !dbUser.isActive) {
+            // Returning a token without id will cause getServerSession to yield
+            // session.user.id = undefined, which the API correctly rejects.
+            return token
+          }
+
+          token.id = dbUser.id
+          token.role = dbUser.role
+          token.department = dbUser.department ?? undefined
+          token.name = dbUser.name
+
+          if (account?.provider === "azure-ad") {
+            await prisma.user.update({
+              where: { id: dbUser.id },
+              data: { lastLoginAt: new Date() },
+            })
+          }
+        }
+      }
+
       return token
     },
     async session({ session, token }) {

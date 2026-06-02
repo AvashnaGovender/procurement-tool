@@ -370,6 +370,33 @@ function LoginForm() {
               )}
             </Button>
 
+            {process.env.NEXT_PUBLIC_AZURE_AD_ENABLED === "true" && (
+              <>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-slate-300" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-slate-100 px-2 text-slate-500">or</span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-12 border-slate-300 text-slate-700 font-medium text-base hover:bg-slate-50 transition-all"
+                  onClick={() => signIn("azure-ad", { callbackUrl: "/dashboard" })}
+                >
+                  <svg className="mr-2 h-5 w-5" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+                    <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+                    <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+                    <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+                  </svg>
+                  Sign in with Microsoft
+                </Button>
+              </>
+            )}
+
             <p className="text-center text-slate-600 text-sm">
               Don&apos;t have an account?{" "}
               <button

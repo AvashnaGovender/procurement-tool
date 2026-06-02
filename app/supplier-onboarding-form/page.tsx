@@ -1023,7 +1023,7 @@ function SupplierOnboardingForm() {
                             variant="outline"
                             size="sm"
                             className="ml-4 shrink-0"
-                            onClick={() => window.open(`http://${window.location.hostname}:3000/supplier-onboarding-form/standard-nda`, '_blank')}
+                            onClick={() => window.open(`${window.location.origin}/supplier-onboarding-form/standard-nda`, '_blank')}
                           >
                             <Upload className="h-4 w-4 mr-2" />
                             Download NDA *
