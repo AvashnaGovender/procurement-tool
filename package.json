@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
-    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev",
+    "build": "node --max-old-space-size=4096 node_modules/.bin/next build",
+    "dev": "node --max-old-space-size=4096 node_modules/.bin/next dev",
     "lint": "next lint",
-    "start": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next start",
+    "start": "node --max-old-space-size=4096 node_modules/.bin/next start",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
