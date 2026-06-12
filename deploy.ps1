@@ -20,7 +20,7 @@ Write-Host ""
 
 if (Test-Path ".git") {
     Write-Host "[1/3] Pulling latest code..." -ForegroundColor Yellow
-    git pull
+    git pull origin main
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: git pull failed. Fix conflicts and retry." -ForegroundColor Red
         exit 1
