@@ -21,7 +21,7 @@ param(
     [string]$RestartTime = "03:00"
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 # ── 1. Must be Administrator ──────────────────────────────────────────────────
 
@@ -85,15 +85,55 @@ Ensure-Nssm
 
 $nodeOpts = "--max-old-space-size=$HeapMb"
 
+# ── Auto-detect service name if the default doesn't exist ────────────────────
+
+function Find-ServiceName([string]$Hint) {
+    $svc = Get-Service -Name $Hint -ErrorAction SilentlyContinue
+    if ($svc) { return $Hint }
+
+    # Search by display name fragments
+    $candidates = Get-Service | Where-Object {
+        $_.Name        -match "(?i)procurement|nextjs|next-app|procapp" -or
+        $_.DisplayName -match "(?i)procurement|next.?js|procapp"
+    }
+
+    if ($candidates.Count -eq 1) {
+        Write-Host "  Service '$Hint' not found - using '$($candidates[0].Name)' ($($candidates[0].DisplayName)) instead." -ForegroundColor Yellow
+        return $candidates[0].Name
+    }
+
+    if ($candidates.Count -gt 1) {
+        Write-Host "  Multiple candidate services found:" -ForegroundColor Yellow
+        $candidates | ForEach-Object { Write-Host "    $($_.Name)  ($($_.DisplayName))" }
+        Write-Host "  Re-run with: .\fix-memory-leak.ps1 -ServiceName <name>" -ForegroundColor Cyan
+        exit 1
+    }
+
+    # Last resort: list all services so the user can pick
+    Write-Host ""
+    Write-Host "ERROR: Could not find a service matching '$Hint'." -ForegroundColor Red
+    Write-Host "All running services:" -ForegroundColor Yellow
+    Get-Service | Where-Object { $_.Status -eq "Running" } |
+        Select-Object Name, DisplayName |
+        Format-Table -AutoSize
+    Write-Host "Re-run with: .\fix-memory-leak.ps1 -ServiceName <correct-name>" -ForegroundColor Cyan
+    exit 1
+}
+
+$ServiceName = Find-ServiceName $ServiceName
+Write-Host "Target service: '$ServiceName'" -ForegroundColor Cyan
+
+# ── Set NODE_OPTIONS ──────────────────────────────────────────────────────────
+
 Write-Host "Setting NODE_OPTIONS=$nodeOpts on service '$ServiceName'..." -ForegroundColor Cyan
 
 $usedNssm = $false
 
 if (Get-Command nssm -ErrorAction SilentlyContinue) {
-    # Check whether this service is actually managed by nssm
-    $nssmCheck = nssm status $ServiceName 2>&1
-    if ($LASTEXITCODE -eq 0 -or $nssmCheck -notmatch "not found") {
-        nssm set $ServiceName AppEnvironmentExtra "NODE_OPTIONS=$nodeOpts"
+    # Suppress nssm stderr so it doesn't crash the script
+    $nssmOut = & nssm status $ServiceName 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        & nssm set $ServiceName AppEnvironmentExtra "NODE_OPTIONS=$nodeOpts" 2>&1 | Out-Null
         if ($LASTEXITCODE -eq 0) {
             $usedNssm = $true
             Write-Host "  Set via nssm." -ForegroundColor Green
@@ -106,8 +146,7 @@ if (-not $usedNssm) {
     $regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName"
 
     if (-not (Test-Path $regPath)) {
-        Write-Host "ERROR: Service '$ServiceName' not found in registry." -ForegroundColor Red
-        Write-Host "Check the service name with: Get-Service | Where-Object { `$_.DisplayName -like '*Procurement*' }" -ForegroundColor Yellow
+        Write-Host "ERROR: Registry key not found for service '$ServiceName'." -ForegroundColor Red
         exit 1
     }
 
@@ -115,8 +154,7 @@ if (-not $usedNssm) {
     $newEntry  = "NODE_OPTIONS=$nodeOpts"
 
     if ($existing) {
-        # Replace any existing NODE_OPTIONS entry, keep others
-        $filtered = $existing | Where-Object { $_ -notmatch "^NODE_OPTIONS=" }
+        $filtered  = @($existing | Where-Object { $_ -notmatch "^NODE_OPTIONS=" })
         $filtered += $newEntry
         Set-ItemProperty -Path $regPath -Name Environment -Value $filtered
     } else {
@@ -132,11 +170,7 @@ if (-not $usedNssm) {
 Write-Host "Restarting '$ServiceName'..." -ForegroundColor Cyan
 
 try {
-    if ($usedNssm) {
-        nssm restart $ServiceName
-    } else {
-        Restart-Service -Name $ServiceName -Force
-    }
+    Restart-Service -Name $ServiceName -Force -ErrorAction Stop
     Start-Sleep -Seconds 8
     $svc = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
     if ($svc -and $svc.Status -eq "Running") {
@@ -147,15 +181,14 @@ try {
     }
 } catch {
     Write-Host "  Could not restart automatically: $_" -ForegroundColor Yellow
-    Write-Host "  Restart manually: Restart-Service $ServiceName" -ForegroundColor Cyan
+    Write-Host "  Restart manually: Restart-Service -Name '$ServiceName' -Force" -ForegroundColor Cyan
 }
 
 # ── 5. Create a daily scheduled restart task ─────────────────────────────────
 
 $taskName   = "RestartProcurementApp"
-$restartCmd = if ($usedNssm) { "nssm.exe" } else { "powershell.exe" }
-$restartArg = if ($usedNssm) { "restart $ServiceName" } `
-              else { "-NonInteractive -Command `"Restart-Service -Name '$ServiceName' -Force`"" }
+$restartCmd = "powershell.exe"
+$restartArg = "-NonInteractive -Command `"Restart-Service -Name '$ServiceName' -Force`""
 
 Write-Host "Creating daily restart task '$taskName' at $RestartTime..." -ForegroundColor Cyan
 
