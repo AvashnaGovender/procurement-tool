@@ -32,6 +32,9 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
   const [errorMessage, setErrorMessage] = useState('')
   const [successDialogOpen, setSuccessDialogOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+  const [overrideDialogOpen, setOverrideDialogOpen] = useState(false)
+  const [overrideMessage, setOverrideMessage] = useState('')
+  const [pendingSubmitData, setPendingSubmitData] = useState<any>(null)
   const [customCurrencyInput, setCustomCurrencyInput] = useState('')
   const [customCurrencies, setCustomCurrencies] = useState<string[]>(() => {
     // Load custom currencies from localStorage on initial mount
@@ -402,22 +405,30 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         onSubmissionComplete?.(result.initiationId)
       } else {
         const responseText = await response.text()
-        let errorData: { message?: string; error?: string } = {}
+        let errorData: { message?: string; error?: string; canOverride?: boolean } = {}
         try {
           errorData = responseText ? JSON.parse(responseText) : {}
         } catch {
           errorData = {}
         }
         console.error('Initiation submit failed:', response.status, responseText?.slice(0, 1000) || '(empty body)')
-        const errorMsg =
-          errorData.message ||
-          errorData.error ||
-          (responseText && responseText !== '{}' ? `Server error: ${responseText.slice(0, 300)}` : null) ||
-          (response.status === 500 ? 'Server error. Please try again or contact support.' : null) ||
-          (response.status === 400 ? 'Invalid request. Please check all required fields and try again.' : null) ||
-          `Request failed (${response.status}). Please try again.`
-        setErrorMessage(errorMsg)
-        setErrorDialogOpen(true)
+
+        // Duplicate detected — offer override instead of a hard error
+        if (response.status === 409 && errorData.canOverride) {
+          setPendingSubmitData(submitData)
+          setOverrideMessage(errorData.message || 'A duplicate was detected. Do you want to proceed anyway?')
+          setOverrideDialogOpen(true)
+        } else {
+          const errorMsg =
+            errorData.message ||
+            errorData.error ||
+            (responseText && responseText !== '{}' ? `Server error: ${responseText.slice(0, 300)}` : null) ||
+            (response.status === 500 ? 'Server error. Please try again or contact support.' : null) ||
+            (response.status === 400 ? 'Invalid request. Please check all required fields and try again.' : null) ||
+            `Request failed (${response.status}). Please try again.`
+          setErrorMessage(errorMsg)
+          setErrorDialogOpen(true)
+        }
       }
     } catch (error) {
       console.error('Error submitting initiation:', error)
@@ -1067,6 +1078,57 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           <div className="flex justify-end">
             <Button onClick={() => setErrorDialogOpen(false)}>
               OK
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Override Dialog */}
+      <Dialog open={overrideDialogOpen} onOpenChange={setOverrideDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-yellow-600">
+              <AlertCircle className="h-5 w-5" />
+              Duplicate Detected
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              {overrideMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => { setOverrideDialogOpen(false); setPendingSubmitData(null) }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                setOverrideDialogOpen(false)
+                if (!pendingSubmitData) return
+                setIsSubmitting(true)
+                try {
+                  const response = await fetch('/api/suppliers/initiate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...pendingSubmitData, overrideDuplicate: true }),
+                  })
+                  if (response.ok) {
+                    const result = await response.json()
+                    onSubmissionComplete?.(result.initiationId)
+                  } else {
+                    const errorData = await response.json().catch(() => ({}))
+                    setErrorMessage(errorData.message || errorData.error || `Request failed (${response.status})`)
+                    setErrorDialogOpen(true)
+                  }
+                } catch (err) {
+                  setErrorMessage(err instanceof Error ? err.message : 'Failed to submit')
+                  setErrorDialogOpen(true)
+                } finally {
+                  setIsSubmitting(false)
+                  setPendingSubmitData(null)
+                }
+              }}
+            >
+              Proceed Anyway
             </Button>
           </div>
         </DialogContent>

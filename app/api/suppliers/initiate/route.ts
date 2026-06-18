@@ -247,78 +247,75 @@ export async function POST(request: NextRequest) {
 
     const purchaseTypeLabel = purchaseType === 'COD' ? 'COD' : purchaseType === 'COD_IP_SHARED' ? 'COD IP Shared' : purchaseType === 'CREDIT_TERMS' ? 'Credit Terms' : purchaseType === 'CREDIT_TERMS_IP_SHARED' ? 'Credit Terms IP Shared' : purchaseType === 'REGULAR' ? 'Regular Purchase' : purchaseType === 'ONCE_OFF' ? 'Once-off Purchase' : 'Shared IP'
 
-    // Check for duplicate suppliers
-    // 1. Check if supplier already exists in the Supplier table
-    const existingSupplier = await prisma.supplier.findFirst({
-      where: {
-        OR: [
-          { supplierName: { equals: supplierName, mode: 'insensitive' } },
-          { contactEmail: { equals: supplierEmail, mode: 'insensitive' } },
-          { companyName: { equals: supplierName, mode: 'insensitive' } }
-        ]
-      }
-    })
+    // Check for duplicate suppliers (skipped when user explicitly overrides)
+    const overrideDuplicate = body.overrideDuplicate === true
 
-    if (existingSupplier) {
-      console.error('Validation failed - Duplicate supplier found:', {
-        supplierName,
-        supplierEmail,
-        existingSupplierId: existingSupplier.id,
-        existingSupplierCode: existingSupplier.supplierCode
-      })
-      return NextResponse.json({ 
-        success: false,
-        error: 'Duplicate supplier',
-        message: `A supplier with the name "${supplierName}" or email "${supplierEmail}" already exists in the system (Supplier Code: ${existingSupplier.supplierCode}). Please use the existing supplier record instead.`
-      }, { status: 400 })
-    }
-
-    // 2. Check if there's an active initiation for this supplier (not DRAFT or REJECTED)
-    // Exclude the current initiation if we're updating an existing one
-    const activeInitiationWhere: any = {
-      AND: [
-        {
+    if (!overrideDuplicate) {
+      // 1. Check if supplier already exists in the Supplier table
+      const existingSupplier = await prisma.supplier.findFirst({
+        where: {
           OR: [
             { supplierName: { equals: supplierName, mode: 'insensitive' } },
-            { supplierEmail: { equals: supplierEmail, mode: 'insensitive' } }
+            { contactEmail: { equals: supplierEmail, mode: 'insensitive' } },
+            { companyName: { equals: supplierName, mode: 'insensitive' } }
           ]
-        },
-        {
-          status: {
-            notIn: ['DRAFT', 'REJECTED'] as any
-          }
         }
-      ]
-    }
-
-    // If updating an existing initiation, exclude it from the duplicate check
-    if (id) {
-      activeInitiationWhere.AND.push({
-        id: { not: id }
       })
-    }
 
-    const activeInitiation = await prisma.supplierInitiation.findFirst({
-      where: activeInitiationWhere,
-      orderBy: {
-        createdAt: 'desc'
+      if (existingSupplier) {
+        console.warn('Duplicate supplier found (awaiting override):', {
+          supplierName,
+          supplierEmail,
+          existingSupplierCode: existingSupplier.supplierCode
+        })
+        return NextResponse.json({ 
+          success: false,
+          error: 'Duplicate supplier',
+          canOverride: true,
+          message: `A supplier with the name "${supplierName}" or email "${supplierEmail}" already exists in the system (Supplier Code: ${existingSupplier.supplierCode}). Do you want to proceed and create a new initiation anyway?`
+        }, { status: 409 })
       }
-    })
 
-    if (activeInitiation) {
-      console.error('Validation failed - Active initiation found for supplier:', {
-        supplierName,
-        supplierEmail,
-        existingInitiationId: activeInitiation.id,
-        existingStatus: activeInitiation.status
+      // 2. Check if there's an active initiation for this supplier (not DRAFT or REJECTED)
+      const activeInitiationWhere: any = {
+        AND: [
+          {
+            OR: [
+              { supplierName: { equals: supplierName, mode: 'insensitive' } },
+              { supplierEmail: { equals: supplierEmail, mode: 'insensitive' } }
+            ]
+          },
+          {
+            status: {
+              notIn: ['DRAFT', 'REJECTED'] as any
+            }
+          }
+        ]
+      }
+
+      if (id) {
+        activeInitiationWhere.AND.push({ id: { not: id } })
+      }
+
+      const activeInitiation = await prisma.supplierInitiation.findFirst({
+        where: activeInitiationWhere,
+        orderBy: { createdAt: 'desc' }
       })
-      
-      const statusDisplay = activeInitiation.status.replace(/_/g, ' ')
-      return NextResponse.json({ 
-        success: false,
-        error: 'Duplicate initiation',
-        message: `An active supplier initiation already exists for "${supplierName}" with status: ${statusDisplay}. Please wait for the current initiation to be completed or rejected before creating a new one.`
-      }, { status: 400 })
+
+      if (activeInitiation) {
+        console.warn('Active initiation found for supplier (awaiting override):', {
+          supplierName,
+          supplierEmail,
+          existingStatus: activeInitiation.status
+        })
+        const statusDisplay = activeInitiation.status.replace(/_/g, ' ')
+        return NextResponse.json({ 
+          success: false,
+          error: 'Duplicate initiation',
+          canOverride: true,
+          message: `An active supplier initiation already exists for "${supplierName}" with status: ${statusDisplay}. Do you want to proceed and create a new initiation anyway?`
+        }, { status: 409 })
+      }
     }
 
     // Get the current user with their manager relationship
