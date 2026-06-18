@@ -85,6 +85,31 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
+  // Explicit cookie config required when running behind an HTTPS reverse proxy
+  // (IIS → Node HTTP). Without this, NextAuth auto-enables __Secure- prefixed
+  // cookies based on NEXTAUTH_URL, which can break session reads server-side.
+  cookies: {
+    sessionToken: {
+      name: "next-auth.session-token",
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    },
+    callbackUrl: {
+      name: "next-auth.callback-url",
+      options: { sameSite: "lax", path: "/", secure: true },
+    },
+    csrfToken: {
+      name: "next-auth.csrf-token",
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    },
+    state: {
+      name: "next-auth.state",
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    },
+    pkceCodeVerifier: {
+      name: "next-auth.pkce.code_verifier",
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    },
+  },
   pages: {
     signIn: "/login",
   },
