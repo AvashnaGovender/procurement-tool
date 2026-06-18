@@ -400,35 +400,32 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         body: JSON.stringify(submitData),
       })
 
-      if (response.ok) {
-        const result = await response.json()
-        onSubmissionComplete?.(result.initiationId)
-      } else {
-        const responseText = await response.text()
-        let errorData: { message?: string; error?: string; canOverride?: boolean } = {}
-        try {
-          errorData = responseText ? JSON.parse(responseText) : {}
-        } catch {
-          errorData = {}
-        }
-        console.error('Initiation submit failed:', response.status, responseText?.slice(0, 1000) || '(empty body)')
+      const responseText = await response.text()
+      let result: { success?: boolean; message?: string; error?: string; canOverride?: boolean; initiationId?: string } = {}
+      try {
+        result = responseText ? JSON.parse(responseText) : {}
+      } catch {
+        result = {}
+      }
 
+      if (response.ok && result.success !== false) {
+        onSubmissionComplete?.(result.initiationId!)
+      } else if (result.canOverride) {
         // Duplicate detected — offer override instead of a hard error
-        if (response.status === 409 && errorData.canOverride) {
-          setPendingSubmitData(submitData)
-          setOverrideMessage(errorData.message || 'A duplicate was detected. Do you want to proceed anyway?')
-          setOverrideDialogOpen(true)
-        } else {
-          const errorMsg =
-            errorData.message ||
-            errorData.error ||
-            (responseText && responseText !== '{}' ? `Server error: ${responseText.slice(0, 300)}` : null) ||
-            (response.status === 500 ? 'Server error. Please try again or contact support.' : null) ||
-            (response.status === 400 ? 'Invalid request. Please check all required fields and try again.' : null) ||
-            `Request failed (${response.status}). Please try again.`
-          setErrorMessage(errorMsg)
-          setErrorDialogOpen(true)
-        }
+        setPendingSubmitData(submitData)
+        setOverrideMessage(result.message || 'A duplicate was detected. Do you want to proceed anyway?')
+        setOverrideDialogOpen(true)
+      } else {
+        console.error('Initiation submit failed:', response.status, responseText?.slice(0, 1000) || '(empty body)')
+        const errorMsg =
+          result.message ||
+          result.error ||
+          (responseText && responseText !== '{}' ? `Server error: ${responseText.slice(0, 300)}` : null) ||
+          (response.status === 500 ? 'Server error. Please try again or contact support.' : null) ||
+          (response.status === 400 ? 'Invalid request. Please check all required fields and try again.' : null) ||
+          `Request failed (${response.status}). Please try again.`
+        setErrorMessage(errorMsg)
+        setErrorDialogOpen(true)
       }
     } catch (error) {
       console.error('Error submitting initiation:', error)

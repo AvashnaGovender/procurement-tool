@@ -273,7 +273,7 @@ export async function POST(request: NextRequest) {
           error: 'Duplicate supplier',
           canOverride: true,
           message: `A supplier with the name "${supplierName}" or email "${supplierEmail}" already exists in the system (Supplier Code: ${existingSupplier.supplierCode}). Do you want to proceed and create a new initiation anyway?`
-        }, { status: 409 })
+        }, { status: 200 })
       }
 
       // 2. Check if there's an active initiation for this supplier (not DRAFT or REJECTED)
@@ -314,7 +314,7 @@ export async function POST(request: NextRequest) {
           error: 'Duplicate initiation',
           canOverride: true,
           message: `An active supplier initiation already exists for "${supplierName}" with status: ${statusDisplay}. Do you want to proceed and create a new initiation anyway?`
-        }, { status: 409 })
+        }, { status: 200 })
       }
     }
 
