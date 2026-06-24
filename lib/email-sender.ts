@@ -1,6 +1,8 @@
 import path from 'path'
+import fs from 'fs'
 import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope } from '@/lib/smtp-admin'
 import { injectOnboardingFormLinkIntoEmailBody } from '@/lib/email-onboarding-form-link'
+import { sendViaGraphApi, isGraphApiConfigured } from '@/lib/microsoft-graph-email'
 
 interface EmailOptions {
   to: string
@@ -40,16 +42,23 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
     }
   }
 
-  // Use admin-captured SMTP settings only (data/smtp-config.json)
+  // Prefer Microsoft Graph API when Azure AD credentials are configured
+  const useGraphApi = isGraphApiConfigured()
+
+  // Load SMTP config (needed for branding fields even when using Graph API)
   let smtpConfig
   try {
     smtpConfig = loadAdminSmtpConfig()
   } catch (error) {
-    console.error('Failed to load SMTP config:', error)
-    return {
-      success: false,
-      message: 'Email service not configured. Please configure SMTP settings first in the Email Settings dialog.'
+    if (!useGraphApi) {
+      console.error('Failed to load SMTP config:', error)
+      return {
+        success: false,
+        message: 'Email service not configured. Please configure SMTP settings first in the Email Settings dialog.'
+      }
     }
+    // Graph API path doesn't need SMTP config — use minimal defaults
+    smtpConfig = { host: '', user: '', pass: '', companyWebsite: 'https://schauenburg.co.za' } as any
   }
 
   // Use provided content (already templated from frontend)
@@ -89,7 +98,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
     emailContent = injectOnboardingFormLinkIntoEmailBody(emailContent, onboardingToken)
   }
   
-  const transporter = getMailTransporter(smtpConfig)
+  const transporter = useGraphApi ? null : getMailTransporter(smtpConfig)
 
   try {
     // Create mobile-friendly HTML email with Schauenburg branding
@@ -238,50 +247,58 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 </html>
     `
 
-    const mailOptions = {
-      from: getFromAddress(smtpConfig),
-      to: to,
-      subject: emailSubject,
-      envelope: getEnvelope(smtpConfig, to),
-      html: htmlContent,
-      attachments: [
-        {
-          filename: 'logo.png',
-          path: path.join(process.cwd(), 'public', 'logo.png'),
-          cid: 'logo'
-        }
-      ]
-    }
-
-    const info = await transporter.sendMail(mailOptions)
-
-    const rejected = (info as { rejected?: string[] }).rejected
-    if (rejected && rejected.length > 0) {
-      console.error('❌ SMTP server rejected recipient(s):', rejected)
-      return {
-        success: false,
-        message: `Recipient(s) rejected by server: ${rejected.join(', ')}`,
-        emailId: undefined
+    if (useGraphApi) {
+      // ── Microsoft Graph API path ────────────────────────────────────────────
+      const senderEmail = process.env.GRAPH_SENDER_EMAIL || smtpConfig.user
+      if (!senderEmail) {
+        return { success: false, message: 'GRAPH_SENDER_EMAIL is not configured.' }
       }
-    }
 
-    return {
-      success: true,
-      message: 'Email sent successfully',
-      emailId: info.messageId
+      // Read logo for inline attachment
+      let inlineAttachment: { name: string; contentType: string; contentBytes: string; contentId: string } | undefined
+      try {
+        const logoPath = path.join(process.cwd(), 'public', 'logo.png')
+        const logoBytes = fs.readFileSync(logoPath)
+        inlineAttachment = {
+          name: 'logo.png',
+          contentType: 'image/png',
+          contentBytes: logoBytes.toString('base64'),
+          contentId: 'logo',
+        }
+      } catch {
+        // Logo not critical — send without it
+      }
+
+      await sendViaGraphApi({ to, subject: emailSubject, htmlContent, senderEmail, inlineAttachment })
+      console.log('✅ Email sent via Microsoft Graph API')
+      return { success: true, message: 'Email sent successfully' }
+
+    } else {
+      // ── SMTP path ───────────────────────────────────────────────────────────
+      const mailOptions = {
+        from: getFromAddress(smtpConfig),
+        to,
+        subject: emailSubject,
+        envelope: getEnvelope(smtpConfig, to),
+        html: htmlContent,
+        attachments: [
+          { filename: 'logo.png', path: path.join(process.cwd(), 'public', 'logo.png'), cid: 'logo' }
+        ]
+      }
+
+      const info = await transporter!.sendMail(mailOptions)
+      const rejected = (info as { rejected?: string[] }).rejected
+      if (rejected && rejected.length > 0) {
+        console.error('❌ SMTP server rejected recipient(s):', rejected)
+        return { success: false, message: `Recipient(s) rejected by server: ${rejected.join(', ')}`, emailId: undefined }
+      }
+
+      return { success: true, message: 'Email sent successfully', emailId: info.messageId }
     }
   } catch (error: any) {
     console.error('❌ Failed to send email:', error)
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      command: error.command
-    })
-    
-    return {
-      success: false,
-      message: `Failed to send email: ${error.message}`
-    }
+    console.error('Error details:', { message: error.message, code: error.code, command: error.command })
+    return { success: false, message: `Failed to send email: ${error.message}` }
   }
 }
 

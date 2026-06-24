@@ -48,6 +48,18 @@ Write-Host ""
 # ── 3. Restart PM2 ───────────────────────────────────────────────────────────
 
 Write-Host "[3/3] Restarting app..." -ForegroundColor Yellow
+
+# Free port 3002 before restarting to avoid EADDRINUSE
+$portPids = netstat -ano | Select-String ":3002 " | ForEach-Object {
+    ($_ -split '\s+')[-1]
+} | Sort-Object -Unique
+foreach ($p in $portPids) {
+    if ($p -match '^\d+$') {
+        Stop-Process -Id ([int]$p) -Force -ErrorAction SilentlyContinue
+    }
+}
+Start-Sleep -Seconds 2
+
 & $Pm2 restart $AppName
 
 if ($LASTEXITCODE -ne 0) {
