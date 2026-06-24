@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CheckCircle, Clock, XCircle, User, Mail, AlertCircle } from "lucide-react"
+import { CheckCircle, Clock, XCircle, User, Mail, AlertCircle, RefreshCw } from "lucide-react"
 
 interface SupplierInitiationStatusProps {
   initiationId: string
@@ -46,6 +46,8 @@ interface InitiationData {
 export function SupplierInitiationStatus({ initiationId }: SupplierInitiationStatusProps) {
   const [initiationData, setInitiationData] = useState<InitiationData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [resending, setResending] = useState(false)
+  const [resendResult, setResendResult] = useState<{ success: boolean; message: string } | null>(null)
 
   useEffect(() => {
     const fetchInitiationData = async () => {
@@ -257,7 +259,7 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
               Email Status
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             {initiationData.emailSent ? (
               <div className="flex items-center gap-2 text-green-600">
                 <CheckCircle className="h-4 w-4" />
@@ -271,6 +273,42 @@ export function SupplierInitiationStatus({ initiationId }: SupplierInitiationSta
                   {procurementApproverName ? ` (${procurementApproverName})` : ''}
                   {' '}to send email to supplier
                 </span>
+              </div>
+            )}
+
+            {/* Resend button — shown once approved */}
+            {initiationData.status === 'APPROVED' && (
+              <div className="pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={resending}
+                  onClick={async () => {
+                    setResending(true)
+                    setResendResult(null)
+                    try {
+                      const res = await fetch(`/api/suppliers/initiation/${initiationData.id}/resend-email`, {
+                        method: 'POST',
+                      })
+                      const data = await res.json()
+                      setResendResult({ success: data.success, message: data.message || data.error })
+                    } catch {
+                      setResendResult({ success: false, message: 'Network error — please try again.' })
+                    } finally {
+                      setResending(false)
+                    }
+                  }}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${resending ? 'animate-spin' : ''}`} />
+                  {resending ? 'Sending…' : 'Resend Supplier Email'}
+                </Button>
+
+                {resendResult && (
+                  <p className={`text-sm mt-2 ${resendResult.success ? 'text-green-600' : 'text-red-600'}`}>
+                    {resendResult.success ? <CheckCircle className="inline h-4 w-4 mr-1" /> : <AlertCircle className="inline h-4 w-4 mr-1" />}
+                    {resendResult.message}
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
