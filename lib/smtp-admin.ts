@@ -97,6 +97,9 @@ export function getMailTransporter(config: AdminSmtpConfig): Transporter {
     tls: {
       rejectUnauthorized: false,
     },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   })
 }
 
