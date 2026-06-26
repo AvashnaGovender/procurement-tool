@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
+import fs from 'fs'
 import { prisma } from '@/lib/prisma'
 import { validateMagicLinkToken, FormType } from '@/lib/supplier-portal/token'
 import { generateOtp, generateSalt, hashOtp, getOtpExpiresAt } from '@/lib/supplier-portal/otp'
 import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
+import { sendViaGraphApi, isGraphApiConfigured } from '@/lib/microsoft-graph-email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -74,37 +76,60 @@ export async function POST(request: NextRequest) {
     })
 
     // Send OTP email
-    let smtpConfig
-    try {
-      smtpConfig = loadAdminSmtpConfig()
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Email service not configured. Please contact your procurement representative.' },
-        { status: 503 }
-      )
-    }
-
-    const transporter = getMailTransporter(smtpConfig)
     const htmlContent = buildOtpEmail(contactName, otp)
 
-    await sendMailAndCheck(
-      transporter,
-      {
-        from: getFromAddress(smtpConfig),
+    if (isGraphApiConfigured()) {
+      const senderEmail = process.env.GRAPH_SENDER_EMAIL
+      if (!senderEmail) {
+        throw new Error('GRAPH_SENDER_EMAIL environment variable is not configured.')
+      }
+
+      const logoPath = path.join(process.cwd(), 'public', 'logo.png')
+      const logoBase64 = fs.existsSync(logoPath)
+        ? fs.readFileSync(logoPath).toString('base64')
+        : null
+
+      await sendViaGraphApi({
         to: contactEmail,
-        envelope: getEnvelope(smtpConfig, contactEmail),
         subject: 'Your verification code',
-        html: htmlContent,
-        attachments: [
-          {
-            filename: 'logo.png',
-            path: path.join(process.cwd(), 'public', 'logo.png'),
-            cid: 'logo',
-          },
-        ],
-      },
-      'OTP request'
-    )
+        htmlContent,
+        senderEmail,
+        inlineAttachment: logoBase64
+          ? { name: 'logo.png', contentType: 'image/png', contentBytes: logoBase64, contentId: 'logo' }
+          : undefined,
+      })
+    } else {
+      let smtpConfig
+      try {
+        smtpConfig = loadAdminSmtpConfig()
+      } catch {
+        return NextResponse.json(
+          { success: false, error: 'Email service not configured. Please contact your procurement representative.' },
+          { status: 503 }
+        )
+      }
+
+      const transporter = getMailTransporter(smtpConfig)
+
+      await sendMailAndCheck(
+        transporter,
+        {
+          from: getFromAddress(smtpConfig),
+          to: contactEmail,
+          envelope: getEnvelope(smtpConfig, contactEmail),
+          subject: 'Your verification code',
+          html: htmlContent,
+          attachments: [
+            {
+              filename: 'logo.png',
+              path: path.join(process.cwd(), 'public', 'logo.png'),
+              cid: 'logo',
+            },
+          ],
+        },
+        'OTP request'
+      )
+    }
 
     // Return masked email so the UI can confirm where the code was sent
     const maskedEmail = maskEmail(contactEmail)
