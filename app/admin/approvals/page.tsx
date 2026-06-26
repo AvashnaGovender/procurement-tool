@@ -826,57 +826,53 @@ export default function ApprovalsPage() {
                                   </div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div>
-                                    <p className="text-sm font-medium text-slate-600">Manager Approval</p>
+                                  <div className="min-w-0 p-3 bg-white rounded-lg border border-slate-200">
+                                    <p className="text-sm font-medium text-slate-600 mb-2">Manager Approval</p>
                                     <div className="flex items-center gap-2 mb-1">
                                       {getStatusIcon(initiation.managerApproval?.status || 'PENDING')}
-                                      <span className="text-sm">
-                                        {initiation.managerApproval?.status || 'PENDING'}
-                                      </span>
+                                      <span className="text-sm font-medium">{initiation.managerApproval?.status || 'PENDING'}</span>
                                     </div>
                                     {initiation.managerApproval?.approver && (
-                                      <p className="text-xs text-slate-500">by {initiation.managerApproval.approver}</p>
+                                      <p className="text-xs text-slate-500 break-words">by {initiation.managerApproval.approver}</p>
                                     )}
                                     {initiation.managerApproval?.status === 'REJECTED' && initiation.managerApproval?.comments && (
                                       <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
                                         <p className="text-xs font-medium text-red-900 mb-1">Rejection Reason:</p>
-                                        <p className="text-xs text-red-800">{initiation.managerApproval.comments}</p>
+                                        <p className="text-xs text-red-800 break-words">{initiation.managerApproval.comments}</p>
                                       </div>
                                     )}
                                     {initiation.managerApproval?.status === 'APPROVED' && initiation.managerApproval?.comments && (
                                       <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
                                         <p className="text-xs font-medium text-green-900 mb-1">Comments:</p>
-                                        <p className="text-xs text-green-800">{initiation.managerApproval.comments}</p>
+                                        <p className="text-xs text-green-800 break-words">{initiation.managerApproval.comments}</p>
                                       </div>
                                     )}
                                   </div>
-                                  <div>
-                                    <p className="text-sm font-medium text-slate-600">Procurement Manager Approval</p>
+                                  <div className="min-w-0 p-3 bg-white rounded-lg border border-slate-200">
+                                    <p className="text-sm font-medium text-slate-600 mb-2">Procurement Manager Approval</p>
                                     <div className="flex items-center gap-2 mb-1">
                                       {getStatusIcon(initiation.procurementApproval?.status || 'PENDING')}
-                                      <span className="text-sm">
-                                        {initiation.procurementApproval?.status || 'PENDING'}
-                                      </span>
+                                      <span className="text-sm font-medium">{initiation.procurementApproval?.status || 'PENDING'}</span>
                                     </div>
                                     {initiation.procurementApproval?.approver && (
-                                      <p className="text-xs text-slate-500">by {initiation.procurementApproval.approver}</p>
+                                      <p className="text-xs text-slate-500 break-words">by {initiation.procurementApproval.approver}</p>
                                     )}
                                     {initiation.procurementApproval?.status === 'REJECTED' && initiation.procurementApproval?.comments && (
                                       <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
                                         <p className="text-xs font-medium text-red-900 mb-1">Rejection Reason:</p>
-                                        <p className="text-xs text-red-800">{initiation.procurementApproval.comments}</p>
+                                        <p className="text-xs text-red-800 break-words">{initiation.procurementApproval.comments}</p>
                                       </div>
                                     )}
                                     {initiation.procurementApproval?.status === 'REVISION_REQUESTED' && initiation.procurementApproval?.comments && (
                                       <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
                                         <p className="text-xs font-medium text-amber-900 mb-1">Revision requested:</p>
-                                        <p className="text-xs text-amber-900">{initiation.procurementApproval.comments}</p>
+                                        <p className="text-xs text-amber-900 break-words">{initiation.procurementApproval.comments}</p>
                                       </div>
                                     )}
                                     {initiation.procurementApproval?.status === 'APPROVED' && initiation.procurementApproval?.comments && (
                                       <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
                                         <p className="text-xs font-medium text-green-900 mb-1">Comments:</p>
-                                        <p className="text-xs text-green-800">{initiation.procurementApproval.comments}</p>
+                                        <p className="text-xs text-green-800 break-words">{initiation.procurementApproval.comments}</p>
                                       </div>
                                     )}
                                   </div>
