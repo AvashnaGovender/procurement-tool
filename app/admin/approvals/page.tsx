@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -129,7 +129,7 @@ function formatAnnualPurchaseValue(value: number | null | undefined, currency: s
   }
 }
 
-export default function ApprovalsPage() {
+function ApprovalsPageContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -1272,4 +1272,14 @@ export default function ApprovalsPage() {
   )
 }
 
-
+export default function ApprovalsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <ApprovalsPageContent />
+    </Suspense>
+  )
+}
