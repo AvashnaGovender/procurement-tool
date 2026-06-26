@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   })
 }
 
-const ALLOWED_ROLES = ['USER', 'MANAGER', 'PROCUREMENT_MANAGER'] as const
+const ALLOWED_ROLES = ['USER', 'MANAGER'] as const
 type AllowedRole = (typeof ALLOWED_ROLES)[number]
 
 // POST - Public self-registration (no auth required)

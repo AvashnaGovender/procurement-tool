@@ -515,7 +515,6 @@ function LoginForm() {
                       <SelectContent>
                         <SelectItem value="USER">User</SelectItem>
                         <SelectItem value="MANAGER">Manager</SelectItem>
-                        <SelectItem value="PROCUREMENT_MANAGER">Procurement Manager</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
