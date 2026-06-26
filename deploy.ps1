@@ -60,12 +60,26 @@ foreach ($p in $portPids) {
 }
 Start-Sleep -Seconds 2
 
-& $Pm2 restart $AppName
+$pm2Status = & $Pm2 describe $AppName 2>&1
+if ($pm2Status -match "not found|error" -or $LASTEXITCODE -ne 0) {
+    Write-Host "  Process not found in PM2 — starting fresh..." -ForegroundColor Yellow
+    & $Pm2 delete $AppName 2>$null
+    & $Pm2 start node_modules/next/dist/bin/next `
+        --name $AppName `
+        --node-args="--max-old-space-size=4096" `
+        --restart-delay=5000 `
+        --max-restarts=10 `
+        -- start -p 3001
+} else {
+    & $Pm2 restart $AppName
+}
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: PM2 restart failed. Try manually: pm2 restart $AppName" -ForegroundColor Red
+    Write-Host "ERROR: PM2 failed. Check: pm2 logs $AppName" -ForegroundColor Red
     exit 1
 }
+
+& $Pm2 save | Out-Null
 
 Write-Host "  App restarted." -ForegroundColor Green
 Write-Host ""
