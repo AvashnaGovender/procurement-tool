@@ -49,8 +49,8 @@ Write-Host ""
 
 Write-Host "[3/3] Restarting app..." -ForegroundColor Yellow
 
-# Free port 3002 before restarting to avoid EADDRINUSE
-$portPids = netstat -ano | Select-String ":3002 " | ForEach-Object {
+# Free port 3001 before restarting to avoid EADDRINUSE
+$portPids = netstat -ano | Select-String ":3001 " | ForEach-Object {
     ($_ -split '\s+')[-1]
 } | Sort-Object -Unique
 foreach ($p in $portPids) {
