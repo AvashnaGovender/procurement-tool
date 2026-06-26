@@ -60,22 +60,22 @@ foreach ($p in $portPids) {
 }
 Start-Sleep -Seconds 2
 
-$pm2Status = & $Pm2 describe $AppName 2>&1
-if ($pm2Status -match "not found|error" -or $LASTEXITCODE -ne 0) {
-    Write-Host "  Process not found in PM2 — starting fresh..." -ForegroundColor Yellow
-    & $Pm2 delete $AppName 2>$null
-    & $Pm2 start node_modules/next/dist/bin/next `
-        --name $AppName `
-        --node-args="--max-old-space-size=4096" `
-        --restart-delay=5000 `
-        --max-restarts=10 `
-        -- start -p 3001
-} else {
+$pm2Status = (& $Pm2 describe $AppName 2>&1) | Out-String
+$pm2Exists = $pm2Status -notmatch "not found|error|does not exist"
+
+if ($pm2Exists) {
     & $Pm2 restart $AppName
+} else {
+    Write-Host "  Process not found in PM2 - starting fresh..." -ForegroundColor Yellow
+    & $Pm2 delete $AppName 2>$null
+    $startArgs = @("start", "node_modules/next/dist/bin/next", "--name", $AppName, "--node-args=--max-old-space-size=4096", "--restart-delay=5000", "--max-restarts=10", "--", "start", "-p", "3001")
+    & $Pm2 @startArgs
 }
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: PM2 failed. Check: pm2 logs $AppName" -ForegroundColor Red
+Start-Sleep -Seconds 5
+$pm2Check = (& $Pm2 list 2>&1) | Out-String
+if ($pm2Check -notmatch "online") {
+    Write-Host "ERROR: PM2 process is not online. Check: pm2 logs $AppName" -ForegroundColor Red
     exit 1
 }
 
