@@ -5,7 +5,7 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
+import { sendNotificationEmail, logoAttachment } from '@/lib/send-notification-email'
 import { requireSupplierSession } from '@/lib/supplier-portal/auth-guard'
 
 export async function POST(request: NextRequest) {
@@ -477,28 +477,16 @@ async function sendEmailNotifications(
   try {
     console.log('📧 sendEmailNotifications called')
     console.log('PM emails:', pmEmails.length ? pmEmails.join(', ') : '(none)')
-    console.log('Supplier email:', supplierData.emailAddress)
 
     if (pmEmails.length === 0) {
       console.warn('⚠️ No recipient emails provided to sendEmailNotifications')
       return
     }
 
-    let smtpConfig
-    try {
-      smtpConfig = loadAdminSmtpConfig()
-    } catch (configError) {
-      console.error('⚠️ SMTP not configured or failed to load (data/smtp-config.json). Skipping PM notification.', configError)
-      return
-    }
-    const transporter = getMailTransporter(smtpConfig)
-    console.log('SMTP (admin config):', { host: smtpConfig.host, from: getFromAddress(smtpConfig) })
-
     const totalFiles = Object.values(uploadedFiles).reduce((acc, files) => acc + files.length, 0)
     const documentCategories = Object.keys(uploadedFiles).join(', ')
 
-    // Use Procurement Manager emails or fallback to company email
-    const recipientEmails = pmEmails.length > 0 ? pmEmails : [getFromAddress(smtpConfig)]
+    const recipientEmails = pmEmails
     const recipientNamesStr = pmNames.length > 0 ? pmNames.join(', ') : 'Procurement Team'
     
     console.log('\n📧 ===== SENDING EMAIL TO PROCUREMENT MANAGERS =====')
@@ -516,14 +504,11 @@ async function sendEmailNotifications(
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
 
     // 1. Send notification to Procurement Managers (NOT initiator)
-    const pmNotification = {
-      from: getFromAddress(smtpConfig),
-      envelope: getEnvelope(smtpConfig, recipientEmails),
-      to: recipientEmails.join(', '), // Send to all Procurement Managers
-      subject: isRevision 
-        ? `Supplier Revision Submitted: ${supplierData.supplierName} (Revision ${onboarding.revisionCount})`
-        : `Supplier Documents Received: ${supplierData.supplierName}`,
-      html: `
+    const emailSubject = isRevision
+      ? `Supplier Revision Submitted: ${supplierData.supplierName} (Revision ${onboarding.revisionCount})`
+      : `Supplier Documents Received: ${supplierData.supplierName}`
+
+    const emailHtml = `
         <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
         <html xmlns="http://www.w3.org/1999/xhtml">
         <head>
@@ -863,17 +848,15 @@ async function sendEmailNotifications(
         </body>
         </html>
       `,
-      attachments: [
-        {
-          filename: 'logo.png',
-          path: join(process.cwd(), 'public', 'logo.png'),
-          cid: 'logo'
-        }
-      ]
-    }
+    `
 
     console.log('📧 Sending Procurement Manager notification...')
-    await sendMailAndCheck(transporter, pmNotification, 'PM notification (supplier form)')
+    await sendNotificationEmail({
+      to: recipientEmails,
+      subject: emailSubject,
+      html: emailHtml,
+      attachments: [logoAttachment()],
+    })
 
     // Supplier thank you email removed - suppliers only receive initial onboarding email and final approval email
     console.log('📧 Skipping supplier thank you email (only initial and approval emails are sent)')
