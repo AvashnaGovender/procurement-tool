@@ -154,8 +154,25 @@ function ApprovalsPageContent() {
   const [sortField, setSortField] = useState<SortField>('createdAt')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   
+  // No-credit-application confirmation
+  const [noCreditAppDialogOpen, setNoCreditAppDialogOpen] = useState(false)
+  const [pendingApprovalInitiation, setPendingApprovalInitiation] = useState<SupplierInitiation | null>(null)
+
   // Tab control
   const [activeTab, setActiveTab] = useState(searchParams?.get('tab') || 'initiations')
+
+  const openApproveDialog = (initiation: SupplierInitiation, role: 'MANAGER' | 'PROCUREMENT_MANAGER') => {
+    setApprovalAction('approve')
+    setApprovalRole(role)
+    setSelectedInitiation(initiation)
+    // Warn PM if credit application was not requested
+    if (role === 'PROCUREMENT_MANAGER' && !initiation.creditApplication) {
+      setPendingApprovalInitiation(initiation)
+      setNoCreditAppDialogOpen(true)
+    } else {
+      setApprovalDialogOpen(true)
+    }
+  }
 
   const toggleRow = (id: string) => {
     const newExpanded = new Set(expandedRows)
@@ -726,10 +743,8 @@ function ApprovalsPageContent() {
                                   <Button
                                     size="sm"
                                     onClick={() => {
-                                      setSelectedInitiation(initiation)
-                                      setApprovalAction('approve')
-                                      setApprovalRole(canApproveAsManager(initiation) ? 'MANAGER' : 'PROCUREMENT_MANAGER')
-                                      setApprovalDialogOpen(true)
+                                      const role = canApproveAsManager(initiation) ? 'MANAGER' : 'PROCUREMENT_MANAGER'
+                                      openApproveDialog(initiation, role)
                                     }}
                                   >
                                     <CheckCircle className="h-4 w-4 mr-1" />
@@ -897,6 +912,52 @@ function ApprovalsPageContent() {
             )}
           </CardContent>
         </Card>
+
+        {/* No Credit Application Warning Dialog */}
+        <Dialog open={noCreditAppDialogOpen} onOpenChange={setNoCreditAppDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-700">
+                <AlertCircle className="h-5 w-5" />
+                No Credit Application
+              </DialogTitle>
+              <DialogDescription>
+                This supplier initiation does not include a credit application.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-900">
+                <p className="font-medium mb-1">Credit application was not requested for this supplier.</p>
+                {pendingApprovalInitiation?.creditApplicationReason && (
+                  <p className="text-amber-800 mt-2">
+                    <strong>Reason given:</strong> {pendingApprovalInitiation.creditApplicationReason}
+                  </p>
+                )}
+                <p className="mt-2">Are you sure you want to approve without including one?</p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setNoCreditAppDialogOpen(false)
+                  setPendingApprovalInitiation(null)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  setNoCreditAppDialogOpen(false)
+                  setApprovalDialogOpen(true)
+                }}
+              >
+                Yes, proceed without credit application
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Approval Dialog */}
         <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
