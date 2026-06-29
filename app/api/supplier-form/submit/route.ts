@@ -847,8 +847,7 @@ async function sendEmailNotifications(
           </table>
         </body>
         </html>
-      `,
-    `
+      `
 
     console.log('📧 Sending Procurement Manager notification...')
     await sendNotificationEmail({
