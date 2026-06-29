@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
+import { sendNotificationEmail, logoAttachment } from '@/lib/send-notification-email'
 import { getSupplierPortalBaseUrl } from '@/lib/supplier-portal/public-url'
 
 export async function POST(request: NextRequest) {
@@ -119,8 +118,6 @@ export async function POST(request: NextRequest) {
 
 async function sendRevisionRequestEmail(supplier: any, revisionNotes: string, onboardingToken: string | null) {
   try {
-    const smtpConfig = loadAdminSmtpConfig()
-    const transporter = getMailTransporter(smtpConfig)
 
     // Create form URL with token if available
     const baseUrl = getSupplierPortalBaseUrl()
@@ -345,9 +342,6 @@ async function sendRevisionRequestEmail(supplier: any, revisionNotes: string, on
     
     <div class="footer">
       <p>Schauenburg Systems</p>
-      <p>
-        <a href="${smtpConfig.companyWebsite}" class="footer-link">${smtpConfig.companyWebsite}</a>
-      </p>
       <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
         If you have questions about these revisions, please contact our procurement team.
       </p>
@@ -357,20 +351,12 @@ async function sendRevisionRequestEmail(supplier: any, revisionNotes: string, on
 </html>
     `
 
-    await sendMailAndCheck(transporter, {
-      from: getFromAddress(smtpConfig),
-      envelope: getEnvelope(smtpConfig, supplier.contactEmail),
+    await sendNotificationEmail({
       to: supplier.contactEmail,
       subject: emailSubject,
       html: emailHtml,
-      attachments: [
-        {
-          filename: 'logo.png',
-          path: path.join(process.cwd(), 'public', 'logo.png'),
-          cid: 'logo'
-        }
-      ]
-    }, 'Revision request')
+      attachments: [logoAttachment()],
+    })
   } catch (error) {
     console.error('Error sending revision request email:', error)
     throw error

@@ -63,17 +63,28 @@ async function getAccessToken(
   return data.access_token
 }
 
+export interface GraphAttachment {
+  name: string
+  contentType: string
+  /** Base64-encoded file content */
+  contentBytes: string
+  /** Set true for inline images (requires contentId) */
+  isInline?: boolean
+  contentId?: string
+}
+
 export interface GraphEmailOptions {
   to: string
   subject: string
   htmlContent: string
   /** UPN / email address of the mailbox to send from (must have Mail.Send permission) */
   senderEmail: string
-  /** Optional inline attachment (e.g. logo embedded in email) */
+  /** Attachments — both inline (logo) and regular (PDFs, documents) */
+  attachments?: GraphAttachment[]
+  /** @deprecated Use attachments array instead */
   inlineAttachment?: {
     name: string
     contentType: string
-    /** Base64-encoded file content */
     contentBytes: string
     contentId: string
   }
@@ -105,17 +116,29 @@ export async function sendViaGraphApi(options: GraphEmailOptions): Promise<void>
     saveToSentItems: false,
   }
 
-  if (options.inlineAttachment) {
-    payload.message.attachments = [
-      {
-        '@odata.type': '#microsoft.graph.fileAttachment',
-        name: options.inlineAttachment.name,
-        contentType: options.inlineAttachment.contentType,
-        contentBytes: options.inlineAttachment.contentBytes,
-        isInline: true,
-        contentId: options.inlineAttachment.contentId,
-      },
-    ]
+  // Build attachments list from the new array and/or the legacy single inline attachment
+  const allAttachments: GraphAttachment[] = [
+    ...(options.attachments ?? []),
+    ...(options.inlineAttachment
+      ? [{
+          name: options.inlineAttachment.name,
+          contentType: options.inlineAttachment.contentType,
+          contentBytes: options.inlineAttachment.contentBytes,
+          isInline: true,
+          contentId: options.inlineAttachment.contentId,
+        }]
+      : []),
+  ]
+
+  if (allAttachments.length > 0) {
+    payload.message.attachments = allAttachments.map(a => ({
+      '@odata.type': '#microsoft.graph.fileAttachment',
+      name: a.name,
+      contentType: a.contentType,
+      contentBytes: a.contentBytes,
+      isInline: a.isInline ?? false,
+      ...(a.contentId ? { contentId: a.contentId } : {}),
+    }))
   }
 
   // Encode sender UPN for the URL (handles special characters)

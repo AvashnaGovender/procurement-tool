@@ -3,8 +3,10 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import path from 'path'
+import fs from 'fs'
 import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
 import { generateFinalApprovalPackagePDF } from '@/lib/generate-final-approval-package-pdf'
+import { sendViaGraphApi, isGraphApiConfigured, GraphAttachment } from '@/lib/microsoft-graph-email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -134,8 +136,11 @@ export async function POST(request: NextRequest) {
 
 async function sendFinalApprovalRequestEmail(supplier: any, requesterName: string) {
   try {
-    const smtpConfig = loadAdminSmtpConfig()
-    const transporter = getMailTransporter(smtpConfig)
+    const useGraphApi = isGraphApiConfigured()
+    const smtpConfig = useGraphApi
+      ? { companyWebsite: 'https://schauenburg.co.za' } as any
+      : loadAdminSmtpConfig()
+    const transporter = useGraphApi ? null : getMailTransporter(smtpConfig)
 
     // Get all Procurement Managers
     const procurementManagers = await prisma.user.findMany({
@@ -448,27 +453,43 @@ async function sendFinalApprovalRequestEmail(supplier: any, requesterName: strin
 </html>
     `
 
-    const fromAddress = getFromAddress(smtpConfig)
-    for (const pm of procurementManagers) {
-      await sendMailAndCheck(transporter, {
-        from: fromAddress,
-        envelope: getEnvelope(smtpConfig, pm.email),
-        to: pm.email,
-        subject: emailSubject,
-        html: emailHtml,
-        attachments: [
-          {
-            filename: 'logo.png',
-            path: path.join(process.cwd(), 'public', 'logo.png'),
-            cid: 'logo'
-          },
-          {
-            filename: `Final-Approval-Package-${supplier.supplierCode}.pdf`,
-            content: pdfBuffer,
-            contentType: 'application/pdf'
-          }
-        ]
-      }, `Final approval request → ${pm.email}`)
+    // Build attachment list
+    const logoPath = path.join(process.cwd(), 'public', 'logo.png')
+    const logoBase64 = fs.existsSync(logoPath) ? fs.readFileSync(logoPath).toString('base64') : null
+
+    if (useGraphApi) {
+      const senderEmail = process.env.GRAPH_SENDER_EMAIL
+      if (!senderEmail) throw new Error('GRAPH_SENDER_EMAIL is not configured.')
+
+      const attachments: GraphAttachment[] = []
+      if (logoBase64) {
+        attachments.push({ name: 'logo.png', contentType: 'image/png', contentBytes: logoBase64, isInline: true, contentId: 'logo' })
+      }
+      attachments.push({
+        name: `Final-Approval-Package-${supplier.supplierCode}.pdf`,
+        contentType: 'application/pdf',
+        contentBytes: pdfBuffer.toString('base64'),
+      })
+
+      for (const pm of procurementManagers) {
+        await sendViaGraphApi({ to: pm.email, subject: emailSubject, htmlContent: emailHtml, senderEmail, attachments })
+        console.log(`✅ Final approval request sent via Graph API to ${pm.email}`)
+      }
+    } else {
+      const fromAddress = getFromAddress(smtpConfig)
+      for (const pm of procurementManagers) {
+        await sendMailAndCheck(transporter!, {
+          from: fromAddress,
+          envelope: getEnvelope(smtpConfig, pm.email),
+          to: pm.email,
+          subject: emailSubject,
+          html: emailHtml,
+          attachments: [
+            { filename: 'logo.png', path: logoPath, cid: 'logo' },
+            { filename: `Final-Approval-Package-${supplier.supplierCode}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }
+          ]
+        }, `Final approval request → ${pm.email}`)
+      }
     }
   } catch (error) {
     console.error('Error sending final approval request email:', error)

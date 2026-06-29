@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import fs from 'fs'
 import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
+import { sendNotificationEmail, logoAttachment } from '@/lib/send-notification-email'
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
 import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
 import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
@@ -420,8 +420,6 @@ export async function POST(request: NextRequest) {
 
 async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string | null = null) {
   try {
-    const smtpConfig = loadAdminSmtpConfig()
-    const transporter = getMailTransporter(smtpConfig)
 
     // Create approval email content
     const emailSubject = 'Supplier Onboarding Approved - Welcome to Schauenburg Systems'
@@ -614,9 +612,6 @@ async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string 
     
     <div class="footer">
       <p>Schauenburg Systems</p>
-      <p>
-        <a href="${smtpConfig.companyWebsite}" class="footer-link">${smtpConfig.companyWebsite}</a>
-      </p>
       <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
         This is an automated message. Please do not reply directly to this email.
       </p>
@@ -626,21 +621,12 @@ async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string 
 </html>
     `
 
-    // Send email
-    await sendMailAndCheck(transporter, {
-      from: getFromAddress(smtpConfig),
-      envelope: getEnvelope(smtpConfig, supplier.contactEmail),
+    await sendNotificationEmail({
       to: supplier.contactEmail,
       subject: emailSubject,
       html: emailHtml,
-      attachments: [
-        {
-          filename: 'logo.png',
-          path: path.join(process.cwd(), 'public', 'logo.png'),
-          cid: 'logo'
-        }
-      ]
-    }, 'Approval email → supplier')
+      attachments: [logoAttachment()],
+    })
   } catch (error) {
     console.error('Error sending approval email:', error)
     throw error
@@ -649,8 +635,6 @@ async function sendApprovalEmail(supplier: any, signedCreditAppFileName: string 
 
 async function sendRejectionEmail(supplier: any, rejectionReason: string) {
   try {
-    const smtpConfig = loadAdminSmtpConfig()
-    const transporter = getMailTransporter(smtpConfig)
 
     // Create rejection email content
     const emailSubject = 'Supplier Registration Update - Schauenburg Systems'
@@ -824,7 +808,7 @@ async function sendRejectionEmail(supplier: any, rejectionReason: string) {
     <div class="footer">
       <p>Schauenburg Systems</p>
       <p>
-        <a href="${smtpConfig.companyWebsite}" class="footer-link">${smtpConfig.companyWebsite}</a>
+        <a href="https://schauenburg.co.za" class="footer-link">https://schauenburg.co.za</a>
       </p>
       <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
         This is an automated message. If you have questions, please contact our procurement team.
@@ -835,21 +819,12 @@ async function sendRejectionEmail(supplier: any, rejectionReason: string) {
 </html>
     `
 
-    // Send email
-    await sendMailAndCheck(transporter, {
-      from: getFromAddress(smtpConfig),
-      envelope: getEnvelope(smtpConfig, supplier.contactEmail),
+    await sendNotificationEmail({
       to: supplier.contactEmail,
       subject: emailSubject,
       html: emailHtml,
-      attachments: [
-        {
-          filename: 'logo.png',
-          path: path.join(process.cwd(), 'public', 'logo.png'),
-          cid: 'logo'
-        }
-      ]
-    }, 'Rejection email → supplier')
+      attachments: [logoAttachment()],
+    })
   } catch (error) {
     console.error('Error sending rejection email:', error)
     throw error
@@ -858,8 +833,6 @@ async function sendRejectionEmail(supplier: any, rejectionReason: string) {
 
 async function sendInitiatorApprovalEmail(supplier: any, initiator: { name: string, email: string }) {
   try {
-    const smtpConfig = loadAdminSmtpConfig()
-    const transporter = getMailTransporter(smtpConfig)
 
     const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
 
@@ -1079,7 +1052,7 @@ async function sendInitiatorApprovalEmail(supplier: any, initiator: { name: stri
     <div class="footer">
       <p>Schauenburg Systems</p>
       <p>
-        <a href="${smtpConfig.companyWebsite}" class="footer-link">${smtpConfig.companyWebsite}</a>
+        <a href="https://schauenburg.co.za" class="footer-link">https://schauenburg.co.za</a>
       </p>
       <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
         This is an automated notification from the Supplier Onboarding System.
@@ -1090,21 +1063,12 @@ async function sendInitiatorApprovalEmail(supplier: any, initiator: { name: stri
 </html>
     `
 
-    // Send email
-    await sendMailAndCheck(transporter, {
-      from: getFromAddress(smtpConfig),
-      envelope: getEnvelope(smtpConfig, initiator.email),
+    await sendNotificationEmail({
       to: initiator.email,
       subject: emailSubject,
       html: emailHtml,
-      attachments: [
-        {
-          filename: 'logo.png',
-          path: path.join(process.cwd(), 'public', 'logo.png'),
-          cid: 'logo'
-        }
-      ]
-    }, 'Initiator approval notification')
+      attachments: [logoAttachment()],
+    })
   } catch (error) {
     console.error('Error sending initiator approval notification email:', error)
     throw error
@@ -1113,8 +1077,6 @@ async function sendInitiatorApprovalEmail(supplier: any, initiator: { name: stri
 
 async function sendManagerApprovalEmail(supplier: any, manager: { name: string, email: string }) {
   try {
-    const smtpConfig = loadAdminSmtpConfig()
-    const transporter = getMailTransporter(smtpConfig)
 
     const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
 
@@ -1310,7 +1272,7 @@ async function sendManagerApprovalEmail(supplier: any, manager: { name: string, 
     <div class="footer">
       <p>Schauenburg Systems</p>
       <p>
-        <a href="${smtpConfig.companyWebsite}" class="footer-link">${smtpConfig.companyWebsite}</a>
+        <a href="https://schauenburg.co.za" class="footer-link">https://schauenburg.co.za</a>
       </p>
       <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
         This is an automated notification from the Supplier Onboarding System.
@@ -1321,21 +1283,12 @@ async function sendManagerApprovalEmail(supplier: any, manager: { name: string, 
 </html>
     `
 
-    // Send email
-    await sendMailAndCheck(transporter, {
-      from: getFromAddress(smtpConfig),
-      envelope: getEnvelope(smtpConfig, manager.email),
+    await sendNotificationEmail({
       to: manager.email,
       subject: emailSubject,
       html: emailHtml,
-      attachments: [
-        {
-          filename: 'logo.png',
-          path: path.join(process.cwd(), 'public', 'logo.png'),
-          cid: 'logo'
-        }
-      ]
-    }, 'Manager approval notification')
+      attachments: [logoAttachment()],
+    })
   } catch (error) {
     console.error('Error sending manager approval notification email:', error)
     throw error
@@ -1344,8 +1297,6 @@ async function sendManagerApprovalEmail(supplier: any, manager: { name: string, 
 
 async function sendInitiatorRejectionEmail(supplier: any, initiator: { name: string, email: string }, rejectionReason: string) {
   try {
-    const smtpConfig = loadAdminSmtpConfig()
-    const transporter = getMailTransporter(smtpConfig)
 
     const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
 
@@ -1543,9 +1494,6 @@ async function sendInitiatorRejectionEmail(supplier: any, initiator: { name: str
     
     <div class="footer">
       <p>Schauenburg Systems</p>
-      <p>
-        <a href="${smtpConfig.companyWebsite}" class="footer-link">${smtpConfig.companyWebsite}</a>
-      </p>
       <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
         This is an automated notification from the Supplier Onboarding System.
       </p>
@@ -1555,21 +1503,12 @@ async function sendInitiatorRejectionEmail(supplier: any, initiator: { name: str
 </html>
     `
 
-    // Send email
-    await sendMailAndCheck(transporter, {
-      from: getFromAddress(smtpConfig),
-      envelope: getEnvelope(smtpConfig, initiator.email),
+    await sendNotificationEmail({
       to: initiator.email,
       subject: emailSubject,
       html: emailHtml,
-      attachments: [
-        {
-          filename: 'logo.png',
-          path: path.join(process.cwd(), 'public', 'logo.png'),
-          cid: 'logo'
-        }
-      ]
-    }, 'Initiator rejection notification')
+      attachments: [logoAttachment()],
+    })
   } catch (error) {
     console.error('Error sending initiator rejection notification email:', error)
     throw error
@@ -1578,8 +1517,6 @@ async function sendInitiatorRejectionEmail(supplier: any, initiator: { name: str
 
 async function sendManagerRejectionEmail(supplier: any, manager: { name: string, email: string }, rejectionReason: string) {
   try {
-    const smtpConfig = loadAdminSmtpConfig()
-    const transporter = getMailTransporter(smtpConfig)
 
     const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
 
@@ -1781,9 +1718,6 @@ async function sendManagerRejectionEmail(supplier: any, manager: { name: string,
     
     <div class="footer">
       <p>Schauenburg Systems</p>
-      <p>
-        <a href="${smtpConfig.companyWebsite}" class="footer-link">${smtpConfig.companyWebsite}</a>
-      </p>
       <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
         This is an automated notification from the Supplier Onboarding System.
       </p>
@@ -1793,21 +1727,12 @@ async function sendManagerRejectionEmail(supplier: any, manager: { name: string,
 </html>
     `
 
-    // Send email
-    await sendMailAndCheck(transporter, {
-      from: getFromAddress(smtpConfig),
-      envelope: getEnvelope(smtpConfig, manager.email),
+    await sendNotificationEmail({
       to: manager.email,
       subject: emailSubject,
       html: emailHtml,
-      attachments: [
-        {
-          filename: 'logo.png',
-          path: path.join(process.cwd(), 'public', 'logo.png'),
-          cid: 'logo'
-        }
-      ]
-    }, 'Manager rejection notification')
+      attachments: [logoAttachment()],
+    })
   } catch (error) {
     console.error('Error sending manager rejection notification email:', error)
     throw error
@@ -1822,9 +1747,6 @@ async function sendPMApprovalPackage(
 ) {
   try {
     console.log('📦 Preparing comprehensive approval package for PM:', pmUser.email)
-
-    const smtpConfig = loadAdminSmtpConfig()
-    const transporter = getMailTransporter(smtpConfig)
 
     // Gather all uploaded documents from the file system
     const documentsPath = path.join(
@@ -2117,9 +2039,6 @@ async function sendPMApprovalPackage(
     
     <div class="footer">
       <p>Schauenburg Systems</p>
-      <p>
-        <a href="${smtpConfig.companyWebsite}" style="color: #1e40af; text-decoration: none;">${smtpConfig.companyWebsite}</a>
-      </p>
       <p style="margin-top: 15px;">
         This is an automated notification from the Supplier Onboarding System.
       </p>
@@ -2129,16 +2048,23 @@ async function sendPMApprovalPackage(
 </html>
     `
 
-    // Send email
     console.log(`📧 Sending comprehensive approval package to PM: ${pmUser.email}`)
-    await sendMailAndCheck(transporter, {
-      from: getFromAddress(smtpConfig),
-      envelope: getEnvelope(smtpConfig, pmUser.email),
+
+    // Convert attachments array (which may include Buffer content and file paths) to sendNotificationEmail format
+    const notifAttachments = attachments.map((att: any) => ({
+      filename: att.filename,
+      content: att.content,
+      filePath: att.path,
+      contentType: att.contentType,
+      cid: att.cid,
+    }))
+
+    await sendNotificationEmail({
       to: pmUser.email,
       subject: `Supplier Approval Package - ${supplier.companyName || supplier.supplierName} (${supplier.supplierCode})`,
       html: emailHtml,
-      attachments: attachments
-    }, 'Approval package → PM')
+      attachments: notifAttachments,
+    })
   } catch (error) {
     console.error('Error sending PM approval package:', error)
     throw error

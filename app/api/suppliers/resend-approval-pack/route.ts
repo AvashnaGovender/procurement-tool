@@ -3,11 +3,13 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import path from 'path'
+import fs from 'fs'
 import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
 import { generateApprovalSummaryPDF } from '@/lib/generate-approval-summary-pdf'
 import { generateSupplierFormPDF } from '@/lib/generate-supplier-form-pdf'
 import { generateInitiatorChecklistPDF } from '@/lib/generate-initiator-checklist-pdf'
 import { readdir, readFile, stat, access } from 'fs/promises'
+import { sendViaGraphApi, isGraphApiConfigured, GraphAttachment } from '@/lib/microsoft-graph-email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -113,8 +115,11 @@ async function sendPMApprovalPackage(
   try {
     console.log('📦 Preparing comprehensive approval package for PM:', pmUser.email)
 
-    const smtpConfig = loadAdminSmtpConfig()
-    const transporter = getMailTransporter(smtpConfig)
+    const useGraphApi = isGraphApiConfigured()
+    const smtpConfig = useGraphApi
+      ? { companyWebsite: 'https://schauenburg.co.za' } as any
+      : loadAdminSmtpConfig()
+    const transporter = useGraphApi ? null : getMailTransporter(smtpConfig)
 
     // Generate PDFs
     console.log('📄 Generating approval summary PDF...')
@@ -382,16 +387,50 @@ async function sendPMApprovalPackage(
 </html>
     `
 
-    const fromAddress = getFromAddress(smtpConfig)
-    console.log(`📧 Sending approval package to PM: ${pmUser.email}`)
-    await sendMailAndCheck(transporter, {
-      from: fromAddress,
-      envelope: getEnvelope(smtpConfig, pmUser.email),
-      to: pmUser.email,
-      subject: `Supplier Approval Package - ${supplier.companyName || supplier.supplierName} (${supplier.supplierCode})`,
-      html: emailHtml,
-      attachments: attachments
-    }, 'Resend approval pack to PM')
+    const subject = `Supplier Approval Package - ${supplier.companyName || supplier.supplierName} (${supplier.supplierCode})`
+
+    if (useGraphApi) {
+      const senderEmail = process.env.GRAPH_SENDER_EMAIL
+      if (!senderEmail) throw new Error('GRAPH_SENDER_EMAIL is not configured.')
+
+      const logoPath = path.join(process.cwd(), 'public', 'logo.png')
+      const logoBase64 = fs.existsSync(logoPath) ? fs.readFileSync(logoPath).toString('base64') : null
+
+      const graphAttachments: GraphAttachment[] = []
+      if (logoBase64) {
+        graphAttachments.push({ name: 'logo.png', contentType: 'image/png', contentBytes: logoBase64, isInline: true, contentId: 'logo' })
+      }
+      graphAttachments.push(
+        { name: `Approval-Summary-${supplier.supplierCode}.pdf`, contentType: 'application/pdf', contentBytes: approvalSummaryPDF.toString('base64') },
+        { name: `Supplier-Form-${supplier.supplierCode}.pdf`, contentType: 'application/pdf', contentBytes: supplierFormPDF.toString('base64') },
+        { name: `Initiator-Checklist-${supplier.supplierCode}.pdf`, contentType: 'application/pdf', contentBytes: initiatorChecklistPDF.toString('base64') },
+      )
+      // Add supplier document files
+      for (const att of attachments) {
+        if (att.content && att.filename && att.filename !== 'logo.png') {
+          graphAttachments.push({
+            name: att.filename,
+            contentType: att.contentType || 'application/octet-stream',
+            contentBytes: Buffer.isBuffer(att.content) ? att.content.toString('base64') : Buffer.from(att.content).toString('base64'),
+          })
+        }
+      }
+
+      console.log(`📧 Sending approval package via Graph API to PM: ${pmUser.email}`)
+      await sendViaGraphApi({ to: pmUser.email, subject, htmlContent: emailHtml, senderEmail, attachments: graphAttachments })
+      console.log('✅ Approval package sent via Graph API')
+    } else {
+      const fromAddress = getFromAddress(smtpConfig)
+      console.log(`📧 Sending approval package via SMTP to PM: ${pmUser.email}`)
+      await sendMailAndCheck(transporter!, {
+        from: fromAddress,
+        envelope: getEnvelope(smtpConfig, pmUser.email),
+        to: pmUser.email,
+        subject,
+        html: emailHtml,
+        attachments,
+      }, 'Resend approval pack to PM')
+    }
   } catch (error) {
     console.error('Error sending PM approval package:', error)
     throw error
