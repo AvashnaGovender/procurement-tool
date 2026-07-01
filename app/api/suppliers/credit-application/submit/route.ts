@@ -3,8 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
-import path from 'path'
-import { loadAdminSmtpConfig, getMailTransporter, getFromAddress, getEnvelope, sendMailAndCheck } from '@/lib/smtp-admin'
+import { sendNotificationEmail, logoAttachment } from '@/lib/send-notification-email'
 import { requireSupplierSession } from '@/lib/supplier-portal/auth-guard'
 
 export async function POST(request: NextRequest) {
@@ -184,9 +183,6 @@ export async function POST(request: NextRequest) {
         supplierCode: supplierDetails.supplierCode
       })
 
-      const smtpConfig = loadAdminSmtpConfig()
-      const transporter = getMailTransporter(smtpConfig)
-
       // Get all Procurement Managers
       const procurementManagers = await prisma.user.findMany({
         where: { role: 'PROCUREMENT_MANAGER' }
@@ -200,7 +196,6 @@ export async function POST(request: NextRequest) {
       if (recipients.length === 0) {
         console.warn('No procurement managers or admins found to send notification')
       } else {
-        // Read the PDF file for attachment
         const pdfBuffer = await readFile(filePath)
 
         const emailSubject = `Credit Application Submitted - ${supplierDetails.companyName}`
@@ -211,74 +206,18 @@ export async function POST(request: NextRequest) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { 
-      margin: 0; 
-      padding: 0; 
-      font-family: Arial, sans-serif; 
-      background-color: #f4f4f4; 
-    }
-    .email-container { 
-      max-width: 600px; 
-      margin: 0 auto; 
-      background-color: #ffffff; 
-    }
-    .header { 
-      background-color: #ffffff; 
-      padding: 40px 30px; 
-      text-align: center; 
-      border-bottom: 3px solid #1e40af; 
-    }
-    .logo { 
-      max-width: 150px; 
-      height: auto; 
-      margin-bottom: 20px; 
-    }
-    .header-text { 
-      color: #1e40af; 
-      font-size: 24px; 
-      font-weight: bold; 
-      margin: 0; 
-    }
-    .content { 
-      padding: 40px 30px; 
-      color: #333333; 
-      line-height: 1.6; 
-    }
-    .greeting { 
-      font-size: 18px; 
-      font-weight: bold; 
-      color: #1e40af; 
-      margin-bottom: 20px; 
-    }
-    .info-box { 
-      background-color: #eff6ff; 
-      border-left: 4px solid #3b82f6; 
-      padding: 20px; 
-      margin: 25px 0; 
-      border-radius: 4px; 
-    }
-    .info-box-title { 
-      font-weight: bold; 
-      color: #1e40af; 
-      margin-bottom: 10px; 
-      font-size: 16px; 
-    }
-    .info-item { 
-      margin: 8px 0; 
-      color: #374151; 
-    }
-    .footer { 
-      background-color: #f9fafb; 
-      padding: 30px; 
-      text-align: center; 
-      color: #6b7280; 
-      font-size: 14px; 
-      border-top: 1px solid #e5e7eb; 
-    }
-    .footer-link { 
-      color: #3b82f6; 
-      text-decoration: none; 
-    }
+    body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4; }
+    .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 3px solid #1e40af; }
+    .logo { max-width: 150px; height: auto; margin-bottom: 20px; }
+    .header-text { color: #1e40af; font-size: 24px; font-weight: bold; margin: 0; }
+    .content { padding: 40px 30px; color: #333333; line-height: 1.6; }
+    .greeting { font-size: 18px; font-weight: bold; color: #1e40af; margin-bottom: 20px; }
+    .info-box { background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 25px 0; border-radius: 4px; }
+    .info-box-title { font-weight: bold; color: #1e40af; margin-bottom: 10px; font-size: 16px; }
+    .info-item { margin: 8px 0; color: #374151; }
+    .footer { background-color: #f9fafb; padding: 30px; text-align: center; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb; }
+    .footer-link { color: #3b82f6; text-decoration: none; }
   </style>
 </head>
 <body>
@@ -287,12 +226,9 @@ export async function POST(request: NextRequest) {
       <img src="cid:logo" alt="Schauenburg Systems" class="logo" />
       <p class="header-text">Credit Application Submitted</p>
     </div>
-    
     <div class="content">
       <p class="greeting">Dear Procurement Manager,</p>
-      
       <p>The supplier <strong>${supplierDetails.companyName}</strong> (Code: ${supplierDetails.supplierCode}) has submitted their fully signed credit application and credit account information.</p>
-      
       <div class="info-box">
         <div class="info-box-title">Supplier Details</div>
         <div class="info-item"><strong>Company Name:</strong> ${supplierDetails.companyName}</div>
@@ -300,17 +236,14 @@ export async function POST(request: NextRequest) {
         <div class="info-item"><strong>Contact Person:</strong> ${supplierDetails.contactPerson}</div>
         <div class="info-item"><strong>Contact Email:</strong> ${supplierDetails.contactEmail}</div>
       </div>
-      
       <div class="info-box" style="background-color: #fef3c7; border-left: 4px solid #f59e0b;">
         <div class="info-box-title" style="color: #92400e;">Credit Account Information</div>
         <div style="white-space: pre-wrap; background-color: white; padding: 10px; border-radius: 4px; color: #374151;">${creditAccountInfo.trim()}</div>
       </div>
-      
       <div class="info-box" style="background-color: #f0fdf4; border-left: 4px solid #22c55e;">
         <div class="info-box-title" style="color: #15803d;">📎 Attached Document</div>
         <p style="margin: 0; color: #374151;">Fully Signed Credit Application (${fileName})</p>
       </div>
-      
       <div style="text-align: center; margin: 30px 0;">
         <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 0 auto;">
           <tr>
@@ -320,49 +253,31 @@ export async function POST(request: NextRequest) {
           </tr>
         </table>
       </div>
-      
-      <p style="margin-top: 30px;">
-        Best regards,<br/>
-        <strong>Schauenburg Systems Procurement System</strong>
-      </p>
+      <p style="margin-top: 30px;">Best regards,<br/><strong>Schauenburg Systems Procurement System</strong></p>
     </div>
-    
     <div class="footer">
       <p>Schauenburg Systems</p>
-      <p>
-        <a href="${smtpConfig.companyWebsite || 'https://schauenburg.co.za'}" class="footer-link">${smtpConfig.companyWebsite || 'https://schauenburg.co.za'}</a>
-      </p>
-      <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
-        This is an automated notification from the Supplier Onboarding System.
-      </p>
+      <p><a href="https://schauenburg.co.za" class="footer-link">https://schauenburg.co.za</a></p>
+      <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">This is an automated notification from the Supplier Onboarding System.</p>
     </div>
   </div>
 </body>
-</html>
-        `
+</html>`
 
-        const fromAddress = getFromAddress(smtpConfig)
-        for (const pm of recipients) {
-          await sendMailAndCheck(transporter, {
-            from: fromAddress,
-            envelope: getEnvelope(smtpConfig, pm.email),
-            to: pm.email,
-            subject: emailSubject,
-            html: emailHtml,
-            attachments: [
-              {
-                filename: 'logo.png',
-                path: path.join(process.cwd(), 'public', 'logo.png'),
-                cid: 'logo'
-              },
-              {
-                filename: fileName,
-                content: pdfBuffer,
-                contentType: 'application/pdf'
-              }
-            ]
-          }, `Credit application notification → ${pm.email}`)
-        }
+        const recipientEmails = recipients.map(r => r.email)
+        await sendNotificationEmail({
+          to: recipientEmails,
+          subject: emailSubject,
+          html: emailHtml,
+          attachments: [
+            logoAttachment(),
+            {
+              filename: fileName,
+              content: pdfBuffer,
+              contentType: 'application/pdf',
+            },
+          ],
+        })
       }
     } catch (emailError) {
       console.error('Error sending credit application notification email:', emailError)
