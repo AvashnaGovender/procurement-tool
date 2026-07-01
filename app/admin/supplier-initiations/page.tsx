@@ -397,10 +397,11 @@ export default function SupplierInitiationsPage() {
                               </Button>
                             )}
                             
-                            {/* Show Edit for drafts, rejections, or PM revision-requested flows */}
+                            {/* Show Edit for drafts, rejections, PM revision-requested, or withdrawn */}
                             {(
                               initiation.status === 'DRAFT' ||
                               initiation.status === 'REJECTED' ||
+                              initiation.status === 'WITHDRAWN' ||
                               (initiation.status === 'MANAGER_APPROVED' &&
                                 initiation.procurementApproval?.status === 'REVISION_REQUESTED')
                             ) && initiation.initiatedById === session?.user?.id && (
@@ -413,9 +414,11 @@ export default function SupplierInitiationsPage() {
                                   <AlertCircle className="h-4 w-4 mr-1" />
                                   {initiation.status === 'DRAFT'
                                     ? 'Continue Editing'
-                                    : initiation.procurementApproval?.status === 'REVISION_REQUESTED'
-                                      ? 'Apply PM revisions'
-                                      : 'Revise & Resubmit'}
+                                    : initiation.status === 'WITHDRAWN'
+                                      ? 'Edit & Resubmit'
+                                      : initiation.procurementApproval?.status === 'REVISION_REQUESTED'
+                                        ? 'Apply PM revisions'
+                                        : 'Revise & Resubmit'}
                                 </Link>
                               </Button>
                             )}

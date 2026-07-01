@@ -44,6 +44,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     }
     return []
   })
+  const [isWithdrawnEdit, setIsWithdrawnEdit] = useState(false)
   const [rejectionInfo, setRejectionInfo] = useState<{
     kind: 'manager_reject' | 'pm_reject' | 'pm_revision'
     comments?: string
@@ -102,7 +103,10 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           console.log('📋 Full draft object:', JSON.stringify(draft, null, 2))
           setCurrentDraftId(draft.id)
           
-          if (draft.procurementApproval?.status === 'REVISION_REQUESTED') {
+          if (draft.status === 'WITHDRAWN') {
+            setIsWithdrawnEdit(true)
+            setRejectionInfo(null)
+          } else if (draft.procurementApproval?.status === 'REVISION_REQUESTED') {
             const approver = draft.procurementApproval.approver
             setRejectionInfo({
               kind: 'pm_revision',
@@ -471,6 +475,17 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
 
   return (
     <div className="space-y-6">
+      {isWithdrawnEdit && (
+        <div className="bg-blue-50 border-2 border-blue-200 p-5 rounded-lg shadow-sm flex items-start gap-3">
+          <FileEdit className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="text-base font-semibold text-blue-900 mb-1">Editing a withdrawn initiation</h3>
+            <p className="text-sm text-blue-800">
+              This request was previously withdrawn. Make your changes below and resubmit — it will go back through the normal approval process from the beginning.
+            </p>
+          </div>
+        </div>
+      )}
       {rejectionInfo ? (
         <div
           className={

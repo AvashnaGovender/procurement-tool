@@ -121,16 +121,19 @@ export async function POST(request: NextRequest) {
         existingInitiation.status === 'MANAGER_APPROVED' &&
         existingInitiation.procurementApproval?.status === 'REVISION_REQUESTED'
 
+      const isWithdrawnEdit = existingInitiation.status === 'WITHDRAWN'
+
       if (
         existingInitiation.status !== 'DRAFT' &&
         existingInitiation.status !== 'REJECTED' &&
-        !isPmRevisionEdit
+        !isPmRevisionEdit &&
+        !isWithdrawnEdit
       ) {
         return NextResponse.json({ 
           success: false,
           error: 'Cannot edit',
           message:
-            'This initiation can only be edited as a draft, after rejection, or after Procurement requests revisions.'
+            'This initiation can only be edited as a draft, after rejection, withdrawal, or after Procurement requests revisions.'
         }, { status: 403 })
       }
 
