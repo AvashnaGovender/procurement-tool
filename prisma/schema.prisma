@@ -380,6 +380,7 @@ enum InitiationStatus {
   REJECTED
   EMAIL_SENT
   SUPPLIER_EMAILED
+  WITHDRAWN
 }
 
 model ManagerApproval {

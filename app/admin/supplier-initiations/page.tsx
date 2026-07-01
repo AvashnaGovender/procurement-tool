@@ -226,6 +226,8 @@ export default function SupplierInitiationsPage() {
         : 'PROCUREMENT MANAGER PENDING APPROVAL'
     }
     
+    if (initiation.status === 'WITHDRAWN') return 'WITHDRAWN'
+
     return initiation.status.replace(/_/g, ' ')
   }
 
@@ -243,6 +245,8 @@ export default function SupplierInitiationsPage() {
         return <Clock className="h-4 w-4 text-yellow-500" />
       case 'REJECTED':
         return <XCircle className="h-4 w-4 text-red-500" />
+      case 'WITHDRAWN':
+        return <XCircle className="h-4 w-4 text-slate-400" />
       default:
         return <AlertCircle className="h-4 w-4 text-gray-500" />
     }
@@ -262,6 +266,8 @@ export default function SupplierInitiationsPage() {
         return 'bg-yellow-100 text-yellow-800'
       case 'REJECTED':
         return 'bg-red-100 text-red-800'
+      case 'WITHDRAWN':
+        return 'bg-slate-100 text-slate-600'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -442,7 +448,7 @@ export default function SupplierInitiationsPage() {
                               </>
                             )}
                             {/* Show delete/withdraw button for initiator-owned eligible requests */}
-                            {(initiation.status === 'DRAFT' || initiation.status === 'REJECTED' || initiation.status === 'SUBMITTED' || initiation.status === 'MANAGER_APPROVED') && initiation.initiatedById === session?.user?.id && (
+                            {(initiation.status === 'DRAFT' || initiation.status === 'REJECTED' || initiation.status === 'SUBMITTED' || initiation.status === 'MANAGER_APPROVED') && initiation.initiatedById === session?.user?.id && initiation.status !== 'WITHDRAWN' && (
                               <Button
                                 size="sm"
                                 variant="destructive"
@@ -618,7 +624,7 @@ export default function SupplierInitiationsPage() {
             </DialogTitle>
             <DialogDescription>
               {(initiationToDelete?.status === 'SUBMITTED' || initiationToDelete?.status === 'MANAGER_APPROVED')
-                ? 'Are you sure you want to withdraw this supplier initiation request? It will be removed from approval queues.'
+                ? 'Are you sure you want to withdraw this supplier initiation request? It will be marked as Withdrawn and removed from approval queues. The record will be kept for reference.'
                 : 'Are you sure you want to delete this supplier initiation request? This action cannot be undone.'}
             </DialogDescription>
           </DialogHeader>

@@ -218,22 +218,31 @@ export async function DELETE(
       }, { status: 400 })
     }
 
-    console.log('✅ Permission granted, proceeding with deletion...')
+    console.log('✅ Permission granted, proceeding...')
 
     const isWithdraw = isOwner && (initiation.status === 'SUBMITTED' || initiation.status === 'MANAGER_APPROVED')
 
-    // If initiator withdraws after manager approval (PM still pending), notify manager.
-    if (isWithdraw && initiation.status === 'MANAGER_APPROVED' && initiation.managerApproval?.status === 'APPROVED' && initiation.managerApproval.approver?.email) {
-      try {
-        const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
-        const managerEmailContent = `
-Dear ${initiation.managerApproval.approver.name},
+    if (isWithdraw) {
+      // ── SOFT DELETE: mark as WITHDRAWN, keep all records intact ─────────────
+      await prisma.supplierInitiation.update({
+        where: { id: initiationId },
+        data: { status: 'WITHDRAWN' },
+      })
+      console.log(`✅ Initiation marked as WITHDRAWN: ${initiationId}`)
+
+      // Notify manager if they had already approved
+      if (initiation.status === 'MANAGER_APPROVED' && initiation.managerApproval?.status === 'APPROVED' && initiation.managerApproval.approver?.email) {
+        try {
+          const initiationsUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/supplier-initiations`
+          await sendEmail({
+            to: initiation.managerApproval.approver.email,
+            subject: 'Supplier Initiation Withdrawn by Initiator',
+            content: `Dear ${initiation.managerApproval.approver.name},
 
 The supplier initiation request below has been withdrawn by the initiator after your approval:
 
 - Supplier Name: ${initiation.supplierName}
 - Supplier Email: ${initiation.supplierEmail}
-- Initiation ID: ${initiation.id}
 
 No further procurement approval is required for this request.
 
@@ -241,90 +250,44 @@ You can view your initiations here:
 ${initiationsUrl}
 
 Best regards,
-Schauenburg Systems Procurement System
-        `.trim()
-
-        await sendEmail({
-          to: initiation.managerApproval.approver.email,
-          subject: 'Supplier Initiation Withdrawn by Initiator',
-          content: managerEmailContent,
-          supplierName: initiation.supplierName,
-          businessType: initiation.productServiceCategory
-        })
-      } catch (emailError) {
-        console.error('⚠️ Failed to send manager withdrawal notification:', emailError)
-        // Do not block withdrawal if notification fails
+Schauenburg Systems Procurement System`.trim(),
+            supplierName: initiation.supplierName,
+            businessType: initiation.productServiceCategory,
+          })
+        } catch (emailError) {
+          console.error('⚠️ Failed to send manager withdrawal notification:', emailError)
+        }
       }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Supplier initiation withdrawn successfully',
+      })
     }
 
-    // Delete the initiation and all related records in a transaction
+    // ── HARD DELETE: only for DRAFT and REJECTED ────────────────────────────
     console.log('Attempting to delete initiation:', initiationId)
-    console.log('Initiation status:', initiation.status)
-    
+
     await prisma.$transaction(async (tx) => {
-      // Get onboarding if it exists
-      const onboarding = await tx.supplierOnboarding.findUnique({
-        where: { initiationId }
-      })
+      const onboarding = await tx.supplierOnboarding.findUnique({ where: { initiationId } })
 
-      // Delete all onboarding-related records if they exist
       if (onboarding) {
-        // Delete onboarding timeline entries
-        await tx.onboardingTimeline.deleteMany({
-          where: { onboardingId: onboarding.id }
-        })
-        console.log(`✅ Deleted timeline entries for onboarding: ${onboarding.id}`)
-
-        // Delete supplier documents
-        await tx.supplierDocument.deleteMany({
-          where: { onboardingId: onboarding.id }
-        })
-        console.log(`✅ Deleted supplier documents for onboarding: ${onboarding.id}`)
-
-        // Delete email reminders
-        await tx.emailReminder.deleteMany({
-          where: { onboardingId: onboarding.id }
-        })
-        console.log(`✅ Deleted email reminders for onboarding: ${onboarding.id}`)
-
-        // Delete verification checks
-        await tx.verificationCheck.deleteMany({
-          where: { onboardingId: onboarding.id }
-        })
-        console.log(`✅ Deleted verification checks for onboarding: ${onboarding.id}`)
+        await tx.onboardingTimeline.deleteMany({ where: { onboardingId: onboarding.id } })
+        await tx.supplierDocument.deleteMany({ where: { onboardingId: onboarding.id } })
+        await tx.emailReminder.deleteMany({ where: { onboardingId: onboarding.id } })
+        await tx.verificationCheck.deleteMany({ where: { onboardingId: onboarding.id } })
+        await tx.supplierOnboarding.delete({ where: { id: onboarding.id } })
       }
 
-      // Delete manager approval if exists
-      await tx.managerApproval.deleteMany({
-        where: { initiationId }
-      })
-      console.log(`✅ Deleted manager approval for initiation: ${initiationId}`)
-      
-      // Delete procurement approval if exists
-      await tx.procurementApproval.deleteMany({
-        where: { initiationId }
-      })
-      console.log(`✅ Deleted procurement approval for initiation: ${initiationId}`)
-      
-      // Delete onboarding if exists
-      if (onboarding) {
-        await tx.supplierOnboarding.delete({
-          where: { id: onboarding.id }
-        })
-        console.log(`✅ Deleted onboarding record: ${onboarding.id}`)
-      }
-      
-      // Delete the initiation
-      await tx.supplierInitiation.delete({
-        where: { id: initiationId }
-      })
-      console.log(`✅ Deleted supplier initiation: ${initiationId}`)
+      await tx.managerApproval.deleteMany({ where: { initiationId } })
+      await tx.procurementApproval.deleteMany({ where: { initiationId } })
+      await tx.supplierInitiation.delete({ where: { id: initiationId } })
     })
 
-    console.log(isWithdraw ? 'Initiation withdrawn successfully' : 'Initiation deleted successfully')
-    return NextResponse.json({ 
-      success: true, 
-      message: isWithdraw ? 'Supplier initiation withdrawn successfully' : 'Supplier initiation deleted successfully'
+    console.log('Initiation deleted successfully')
+    return NextResponse.json({
+      success: true,
+      message: 'Supplier initiation deleted successfully',
     })
 
   } catch (error) {
