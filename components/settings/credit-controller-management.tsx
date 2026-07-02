@@ -39,10 +39,6 @@ const BU_LABELS: Record<string, string> = {
   SCHAUENBURG_PTY_LTD_300: 'Schauenburg (Pty) Ltd 200',
 }
 
-const KNOWN_BUS = Object.keys(BU_LABELS)
-
-const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
-
 function buLabel(bu: string) {
   return BU_LABELS[bu] ?? bu
 }
@@ -497,8 +493,6 @@ const KNOWN_BUS_WITH_LABELS = [
   { value: 'SCHAUENBURG_SYSTEMS_200', label: 'Schauenburg Systems (Pty) Ltd 300' },
   { value: 'SCHAUENBURG_PTY_LTD_300', label: 'Schauenburg (Pty) Ltd 200' },
 ]
-
-const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
 function RuleForm({ form, onChange, controllerNames, disableBusinessUnit, disableRuleType }: RuleFormProps) {
   const set = (key: keyof typeof form, val: string) => onChange({ ...form, [key]: val })
