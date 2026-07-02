@@ -34,7 +34,7 @@ import {
 } from "lucide-react"
 import { workerClient } from "@/lib/worker-client"
 import { getMandatoryDocuments, getDocumentDisplayName, getPurchaseTypeDisplayName, type PurchaseType } from "@/lib/document-requirements"
-import { assignCreditController, getCreditControllers } from "@/lib/credit-controller-assignment"
+import { assignCreditController, computeControllerFromRules, type ClientCreditControllerRule } from "@/lib/credit-controller-assignment"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 
@@ -155,6 +155,8 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
   const [uploadingSignedCreditApp, setUploadingSignedCreditApp] = useState(false)
   const [isApproving, setIsApproving] = useState(false)
   const [creditController, setCreditController] = useState<string>("")
+  const [creditControllersList, setCreditControllersList] = useState<string[]>([])
+  const [creditRules, setCreditRules] = useState<ClientCreditControllerRule[]>([])
   const [resendingApprovalPack, setResendingApprovalPack] = useState(false)
 
   // AI Insights (bank verification only) state
@@ -170,7 +172,35 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
 
   useEffect(() => {
     fetchSupplier()
+    fetchCreditControllersList()
   }, [])
+
+  const fetchCreditControllersList = async () => {
+    try {
+      const [controllersRes, rulesRes] = await Promise.all([
+        fetch('/api/settings/credit-controllers'),
+        fetch('/api/settings/credit-controller-rules'),
+      ])
+      const [controllersData, rulesData] = await Promise.all([
+        controllersRes.json(),
+        rulesRes.json(),
+      ])
+      if (controllersData.success) {
+        setCreditControllersList(
+          (controllersData.controllers as { name: string; isActive: boolean }[])
+            .filter(c => c.isActive)
+            .map(c => c.name)
+        )
+      } else {
+        setCreditControllersList(['Connie', 'Jordan', 'Elizabeth', 'Ntombi', 'Nosi'])
+      }
+      if (rulesData.success) {
+        setCreditRules(rulesData.rules as ClientCreditControllerRule[])
+      }
+    } catch {
+      setCreditControllersList(['Connie', 'Jordan', 'Elizabeth', 'Ntombi', 'Nosi'])
+    }
+  }
 
   useEffect(() => {
     if (supplier?.id) {
@@ -178,6 +208,17 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       fetchBankVerification()
     }
   }, [supplier?.id])
+
+  // Recalculate auto-assigned controller once DB rules are loaded (they arrive in parallel with supplier data)
+  useEffect(() => {
+    if (creditRules.length === 0) return
+    if (!supplier?.onboarding) return
+    if (supplier.onboarding.creditController) return // already saved — don't overwrite
+    const initiation = supplier.onboarding.initiation
+    if (!initiation?.businessUnit || !initiation?.supplierName) return
+    const calculated = computeControllerFromRules(creditRules, initiation.businessUnit, initiation.supplierName)
+    setCreditController(calculated)
+  }, [creditRules, supplier?.id])
 
   // Safety-net: if the worker was offline at submission time, auto-run when PM opens the page.
   useEffect(() => {
@@ -265,6 +306,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
           if (onboarding.creditController) {
             setCreditController(onboarding.creditController)
           } else if (initiation?.businessUnit && initiation?.supplierName) {
+            // creditRules may not be loaded yet; a useEffect below will recalculate once they arrive
             const calculatedController = assignCreditController(
               initiation.businessUnit,
               initiation.supplierName
@@ -1505,65 +1547,6 @@ Procurement Team`
                   </CardContent>
                 </Card>
                 
-                {/* All Docs Verified button for PM */}
-                {supplier.status === 'UNDER_REVIEW' && !supplier.onboarding?.revisionRequested && (session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && (
-                  <Card className="border-green-200 bg-green-50">
-                    <CardContent className="pt-6">
-                      {(() => {
-                        const missingMandatoryDocs = getUnverifiedMandatoryDocuments()
-                        const hasMissingMandatoryDocs = missingMandatoryDocs.length > 0
-                        const missingDocNames = missingMandatoryDocs.map((doc) => doc.name)
-                        return (
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-green-900 mb-1">Ready for Final Approval?</h3>
-                          <p className="text-sm text-green-800">
-                            {hasMissingMandatoryDocs
-                              ? 'Some mandatory documents are still unverified. You can verify them first, or use override for approved edge cases.'
-                              : "Once you've verified all mandatory documents, click this button to mark the supplier as ready for final approval."}
-                          </p>
-                        </div>
-                        <div className="ml-4 flex items-center gap-2">
-                          <Button
-                            onClick={async () => {
-                              if (hasMissingMandatoryDocs) {
-                                setErrorMessage('❌ Cannot update status: Not all mandatory documents are verified. Please verify all required documents first, or use Override.')
-                                setErrorDialogOpen(true)
-                                return
-                              }
-                              await markReadyForFinalApproval(false)
-                            }}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            <CheckCheck className="h-4 w-4 mr-2" />
-                            All Docs Verified
-                          </Button>
-                          {hasMissingMandatoryDocs && (
-                            <Button
-                              variant="outline"
-                              className="border-amber-500 text-amber-700 hover:bg-amber-100"
-                              onClick={() => {
-                                setOverrideMissingDocs(
-                                  missingMandatoryDocs.map((doc) => ({
-                                    key: doc.key,
-                                    name: doc.name,
-                                    reason: (doc as any).reason ?? 'not_verified',
-                                  }))
-                                )
-                                setOverrideDialogOpen(true)
-                              }}
-                            >
-                              <AlertCircle className="h-4 w-4 mr-2" />
-                              Override Missing Docs
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                        )
-                      })()}
-                    </CardContent>
-                  </Card>
-                )}
                 
                 {/* Check for missing mandatory documents across all versions */}
                 {(() => {
@@ -1713,6 +1696,46 @@ Procurement Team`
                         </Alert>
                         {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' && !supplier.onboarding?.revisionRequested && (
                           <div className="flex flex-wrap gap-2">
+                            {supplier.status === 'UNDER_REVIEW' && (session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && (() => {
+                              const unverifiedMandatory = getUnverifiedMandatoryDocuments()
+                              return (
+                                <>
+                                  <Button
+                                    onClick={async () => {
+                                      if (unverifiedMandatory.length > 0) {
+                                        setErrorMessage('❌ Cannot update status: Not all mandatory documents are verified. Please verify all required documents first, or use Override.')
+                                        setErrorDialogOpen(true)
+                                        return
+                                      }
+                                      await markReadyForFinalApproval(false)
+                                    }}
+                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                  >
+                                    <CheckCheck className="h-4 w-4 mr-2" />
+                                    All Docs Verified
+                                  </Button>
+                                  {unverifiedMandatory.length > 0 && (
+                                    <Button
+                                      variant="outline"
+                                      className="border-amber-500 text-amber-700 hover:bg-amber-100"
+                                      onClick={() => {
+                                        setOverrideMissingDocs(
+                                          unverifiedMandatory.map((doc) => ({
+                                            key: doc.key,
+                                            name: doc.name,
+                                            reason: (doc as any).reason ?? 'not_verified',
+                                          }))
+                                        )
+                                        setOverrideDialogOpen(true)
+                                      }}
+                                    >
+                                      <AlertCircle className="h-4 w-4 mr-2" />
+                                      Override Missing Docs
+                                    </Button>
+                                  )}
+                                </>
+                              )
+                            })()}
                             <Button
                               variant="outline"
                               onClick={() => handleRevisionClick(missingDocs)}
@@ -1793,33 +1816,73 @@ Procurement Team`
                             }
                           })
                           
-                          if (incorrectDocsList.length > 0 && supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' && !supplier.onboarding?.revisionRequested) {
-                            return (
-                              <Button
-                                variant="outline"
-                                onClick={() => handleRevisionClick(undefined, incorrectDocsList)}
-                                className="w-full sm:w-auto border-red-500 text-red-700 hover:bg-red-50"
-                              >
-                                <Edit className="h-4 w-4 mr-2" />
-                                Request Revision - Incorrect Documents ({incorrectDocsList.length})
-                              </Button>
-                            )
+                          if (supplier.status === 'APPROVED' || supplier.status === 'REJECTED' || supplier.onboarding?.revisionRequested) {
+                            return null
                           }
-                          
-                          // Show general Request Revision button if no missing or incorrect documents
-                          if (incorrectDocsList.length === 0 && supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' && !supplier.onboarding?.revisionRequested) {
-                            return (
-                              <Button
-                                variant="outline"
-                                onClick={() => handleRevisionClick()}
-                                className="w-full sm:w-auto border-blue-500 text-blue-700 hover:bg-blue-50"
-                              >
-                                <Edit className="h-4 w-4 mr-2" />
-                                Request Revision
-                              </Button>
-                            )
-                          }
-                          return null
+
+                          return (
+                            <div className="flex flex-wrap gap-2">
+                              {supplier.status === 'UNDER_REVIEW' && (session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && (() => {
+                                const unverifiedMandatory = getUnverifiedMandatoryDocuments()
+                                return (
+                                  <>
+                                    <Button
+                                      onClick={async () => {
+                                        if (unverifiedMandatory.length > 0) {
+                                          setErrorMessage('❌ Cannot update status: Not all mandatory documents are verified. Please verify all required documents first, or use Override.')
+                                          setErrorDialogOpen(true)
+                                          return
+                                        }
+                                        await markReadyForFinalApproval(false)
+                                      }}
+                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                    >
+                                      <CheckCheck className="h-4 w-4 mr-2" />
+                                      All Docs Verified
+                                    </Button>
+                                    {unverifiedMandatory.length > 0 && (
+                                      <Button
+                                        variant="outline"
+                                        className="border-amber-500 text-amber-700 hover:bg-amber-100"
+                                        onClick={() => {
+                                          setOverrideMissingDocs(
+                                            unverifiedMandatory.map((doc) => ({
+                                              key: doc.key,
+                                              name: doc.name,
+                                              reason: (doc as any).reason ?? 'not_verified',
+                                            }))
+                                          )
+                                          setOverrideDialogOpen(true)
+                                        }}
+                                      >
+                                        <AlertCircle className="h-4 w-4 mr-2" />
+                                        Override Missing Docs
+                                      </Button>
+                                    )}
+                                  </>
+                                )
+                              })()}
+                              {incorrectDocsList.length > 0 ? (
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleRevisionClick(undefined, incorrectDocsList)}
+                                  className="w-full sm:w-auto border-red-500 text-red-700 hover:bg-red-50"
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Request Revision - Incorrect Documents ({incorrectDocsList.length})
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleRevisionClick()}
+                                  className="w-full sm:w-auto border-blue-500 text-blue-700 hover:bg-blue-50"
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Request Revision
+                                </Button>
+                              )}
+                            </div>
+                          )
                         })()}
                       </div>
                     )
@@ -1946,6 +2009,88 @@ Procurement Team`
                 </CardContent>
               </Card>
             )}
+
+                {/* Bottom action bar - mirrors the top buttons for convenience after scrolling documents */}
+                {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' && !supplier.onboarding?.revisionRequested && (
+                  <div className="mt-6 pt-4 border-t">
+                    {(() => {
+                      const incorrectDocsList: Array<{ version: number, category: string, fileName: string }> = []
+                      Object.keys(incorrectDocuments).forEach(key => {
+                        if (incorrectDocuments[key]) {
+                          const parts = key.split('-')
+                          if (parts.length >= 3) {
+                            incorrectDocsList.push({
+                              version: parseInt(parts[0]),
+                              category: parts[1],
+                              fileName: parts.slice(2).join('-'),
+                            })
+                          }
+                        }
+                      })
+                      const missingMandatoryDocs = getUnverifiedMandatoryDocuments()
+                      return (
+                        <div className="flex flex-wrap gap-2">
+                          {supplier.status === 'UNDER_REVIEW' && (session?.user?.role === 'PROCUREMENT_MANAGER' || session?.user?.role === 'ADMIN') && (
+                            <>
+                              <Button
+                                onClick={async () => {
+                                  if (missingMandatoryDocs.length > 0) {
+                                    setErrorMessage('❌ Cannot update status: Not all mandatory documents are verified. Please verify all required documents first, or use Override.')
+                                    setErrorDialogOpen(true)
+                                    return
+                                  }
+                                  await markReadyForFinalApproval(false)
+                                }}
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                <CheckCheck className="h-4 w-4 mr-2" />
+                                All Docs Verified
+                              </Button>
+                              {missingMandatoryDocs.length > 0 && (
+                                <Button
+                                  variant="outline"
+                                  className="border-amber-500 text-amber-700 hover:bg-amber-100"
+                                  onClick={() => {
+                                    setOverrideMissingDocs(
+                                      missingMandatoryDocs.map((doc) => ({
+                                        key: doc.key,
+                                        name: doc.name,
+                                        reason: (doc as any).reason ?? 'not_verified',
+                                      }))
+                                    )
+                                    setOverrideDialogOpen(true)
+                                  }}
+                                >
+                                  <AlertCircle className="h-4 w-4 mr-2" />
+                                  Override Missing Docs
+                                </Button>
+                              )}
+                            </>
+                          )}
+                          {incorrectDocsList.length > 0 ? (
+                            <Button
+                              variant="outline"
+                              onClick={() => handleRevisionClick(undefined, incorrectDocsList)}
+                              className="w-full sm:w-auto border-red-500 text-red-700 hover:bg-red-50"
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Request Revision - Incorrect Documents ({incorrectDocsList.length})
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              onClick={() => handleRevisionClick()}
+                              className="w-full sm:w-auto border-blue-500 text-blue-700 hover:bg-blue-50"
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Request Revision
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
           </TabsContent>
 
           <TabsContent value="actions">
@@ -2012,7 +2157,7 @@ Procurement Team`
                                   <SelectValue placeholder="Select credit controller" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {getCreditControllers().map((controller) => (
+                                  {creditControllersList.map((controller) => (
                                     <SelectItem key={controller} value={controller}>
                                       {controller}
                                     </SelectItem>

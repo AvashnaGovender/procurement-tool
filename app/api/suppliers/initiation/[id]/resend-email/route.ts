@@ -34,12 +34,6 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only admins and procurement managers can resend
-    const allowedRoles = ['ADMIN', 'PROCUREMENT_MANAGER', 'MANAGER']
-    if (!allowedRoles.includes(session.user.role as string)) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
-    }
-
     const initiationId = params.id
 
     const initiation = await prisma.supplierInitiation.findUnique({
@@ -52,6 +46,14 @@ export async function POST(
 
     if (!initiation) {
       return NextResponse.json({ success: false, error: 'Initiation not found' }, { status: 404 })
+    }
+
+    // Admins, PMs and Managers can always resend.
+    // The original initiator can also resend their own request.
+    const allowedRoles = ['ADMIN', 'PROCUREMENT_MANAGER', 'MANAGER']
+    const isInitiator = initiation.initiatedById === session.user.id
+    if (!allowedRoles.includes(session.user.role as string) && !isInitiator) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
     }
 
     if (initiation.status !== 'APPROVED') {

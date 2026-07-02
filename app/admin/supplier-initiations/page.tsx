@@ -329,7 +329,6 @@ export default function SupplierInitiationsPage() {
                   <TableHead className="w-12"></TableHead>
                   <TableHead>Supplier Name</TableHead>
                   <TableHead>Requester</TableHead>
-                  <TableHead>Business Unit</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -353,18 +352,6 @@ export default function SupplierInitiationsPage() {
                         </TableCell>
                         <TableCell className="font-medium">{initiation.supplierName}</TableCell>
                         <TableCell>{initiation.requesterName}</TableCell>
-                        <TableCell>
-                          {Array.isArray(initiation.businessUnit)
-                            ? initiation.businessUnit.map(unit => 
-                                unit === 'SCHAUENBURG_SYSTEMS_200' 
-                                  ? 'Schauenburg Systems (Pty) Ltd 300' 
-                                  : 'Schauenburg (Pty) Ltd 200'
-                              ).join(', ')
-                            : initiation.businessUnit === 'SCHAUENBURG_SYSTEMS_200' 
-                              ? 'Schauenburg Systems (Pty) Ltd 300' 
-                              : 'Schauenburg (Pty) Ltd 200'
-                          }
-                        </TableCell>
                         <TableCell>
                           {(() => {
                             const displayStatus = getDisplayStatus(initiation)

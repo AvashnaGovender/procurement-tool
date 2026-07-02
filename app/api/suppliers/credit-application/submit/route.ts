@@ -183,18 +183,18 @@ export async function POST(request: NextRequest) {
         supplierCode: supplierDetails.supplierCode
       })
 
-      // Get all Procurement Managers
+      // Get all active Procurement Managers
       const procurementManagers = await prisma.user.findMany({
-        where: { role: 'PROCUREMENT_MANAGER' }
+        where: { role: 'PROCUREMENT_MANAGER', isActive: true }
       })
 
-      // Fallback to admins if no procurement managers
+      // Fallback to active admins if no procurement managers
       const recipients = procurementManagers.length > 0
         ? procurementManagers
-        : await prisma.user.findMany({ where: { role: 'ADMIN' } })
+        : await prisma.user.findMany({ where: { role: 'ADMIN', isActive: true } })
 
       if (recipients.length === 0) {
-        console.warn('No procurement managers or admins found to send notification')
+        console.warn('No active procurement managers or admins found to send notification')
       } else {
         const pdfBuffer = await readFile(filePath)
 
@@ -264,20 +264,26 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`
 
-        const recipientEmails = recipients.map(r => r.email)
-        await sendNotificationEmail({
-          to: recipientEmails,
-          subject: emailSubject,
-          html: emailHtml,
-          attachments: [
-            logoAttachment(),
-            {
-              filename: fileName,
-              content: pdfBuffer,
-              contentType: 'application/pdf',
-            },
-          ],
-        })
+        const recipientEmails = recipients.map(r => r.email).filter(Boolean) as string[]
+        for (const email of recipientEmails) {
+          try {
+            await sendNotificationEmail({
+              to: email,
+              subject: emailSubject,
+              html: emailHtml,
+              attachments: [
+                logoAttachment(),
+                {
+                  filename: fileName,
+                  content: pdfBuffer,
+                  contentType: 'application/pdf',
+                },
+              ],
+            })
+          } catch (recipientError) {
+            console.error(`Failed to send credit application email to ${email}:`, recipientError)
+          }
+        }
       }
     } catch (emailError) {
       console.error('Error sending credit application notification email:', emailError)

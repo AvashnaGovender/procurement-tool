@@ -1605,6 +1605,43 @@ model BankVerification {
 }
 
 // ============================================================================
+// CREDIT CONTROLLERS & ASSIGNMENT RULES
+// ============================================================================
+
+model CreditController {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("credit_controllers")
+}
+
+model CreditControllerRule {
+  id             String         @id @default(cuid())
+  /// Business unit identifier, e.g. "SCHAUENBURG_SYSTEMS_200"
+  businessUnit   String
+  ruleType       CreditRuleType
+  /// For ALPHA_RANGE: first letter of range (inclusive), e.g. "A"
+  fromLetter     String?
+  /// For ALPHA_RANGE: last letter of range (inclusive), e.g. "D"
+  toLetter       String?
+  controllerName String
+  sortOrder      Int            @default(0)
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@map("credit_controller_rules")
+}
+
+enum CreditRuleType {
+  FIXED
+  ALPHA_RANGE
+}
+
+// ============================================================================
 // SYSTEM CONFIGURATION
 // ============================================================================
 

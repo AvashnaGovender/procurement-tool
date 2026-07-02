@@ -7,6 +7,7 @@ import { DelegationManagement } from "@/components/settings/delegation-managemen
 import { ReminderConfiguration } from "@/components/settings/reminder-configuration"
 import { UserManagement } from "@/components/settings/user-management"
 import { ChangePassword } from "@/components/settings/change-password"
+import { CreditControllerManagement } from "@/components/settings/credit-controller-management"
 
 export default function SettingsPage() {
   const { data: session } = useSession()
@@ -32,6 +33,13 @@ export default function SettingsPage() {
           {isAdmin && (
             <div className="bg-card border border-border rounded-lg p-6">
               <ReminderConfiguration />
+            </div>
+          )}
+
+          {/* Credit Controller Management - Admin Only */}
+          {isAdmin && (
+            <div className="bg-card border border-border rounded-lg p-6">
+              <CreditControllerManagement />
             </div>
           )}
 

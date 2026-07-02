@@ -90,9 +90,61 @@ export function assignCreditController(
 }
 
 /**
- * Get list of all available credit controllers
+ * Get list of all available credit controllers (static fallback).
+ * Prefer fetching from /api/settings/credit-controllers at runtime.
  */
 export function getCreditControllers(): string[] {
   return ['Connie', 'Jordan', 'Elizabeth', 'Ntombi', 'Nosi']
+}
+
+export interface ClientCreditControllerRule {
+  id: string
+  businessUnit: string
+  ruleType: 'FIXED' | 'ALPHA_RANGE'
+  fromLetter: string | null
+  toLetter: string | null
+  controllerName: string
+  sortOrder: number
+  isActive: boolean
+}
+
+/**
+ * Compute the recommended credit controller from DB-backed rules.
+ * Rules are evaluated in sortOrder order. FIXED rules take priority over ALPHA_RANGE
+ * for the same business unit.
+ *
+ * Falls back to assignCreditController() if no matching rule is found.
+ */
+export function computeControllerFromRules(
+  rules: ClientCreditControllerRule[],
+  businessUnit: string | string[],
+  supplierName: string
+): string {
+  const buValue = Array.isArray(businessUnit) ? businessUnit[0] : businessUnit
+  const buStr = String(buValue)
+
+  const buRules = rules
+    .filter(r => r.isActive && r.businessUnit === buStr)
+    .sort((a, b) => {
+      // FIXED rules checked before ALPHA_RANGE within the same BU
+      if (a.ruleType === 'FIXED' && b.ruleType !== 'FIXED') return -1
+      if (a.ruleType !== 'FIXED' && b.ruleType === 'FIXED') return 1
+      return a.sortOrder - b.sortOrder
+    })
+
+  for (const rule of buRules) {
+    if (rule.ruleType === 'FIXED') {
+      return rule.controllerName
+    }
+    if (rule.ruleType === 'ALPHA_RANGE' && rule.fromLetter && rule.toLetter) {
+      const first = supplierName.trim().charAt(0).toUpperCase()
+      if (first >= rule.fromLetter.toUpperCase() && first <= rule.toLetter.toUpperCase()) {
+        return rule.controllerName
+      }
+    }
+  }
+
+  // No DB rule matched — fall back to the static hardcoded logic
+  return assignCreditController(businessUnit, supplierName)
 }
 
