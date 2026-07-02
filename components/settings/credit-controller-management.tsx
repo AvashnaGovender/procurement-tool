@@ -494,6 +494,8 @@ const KNOWN_BUS_WITH_LABELS = [
   { value: 'SCHAUENBURG_PTY_LTD_300', label: 'Schauenburg (Pty) Ltd 200' },
 ]
 
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+
 function RuleForm({ form, onChange, controllerNames, disableBusinessUnit, disableRuleType }: RuleFormProps) {
   const set = (key: keyof typeof form, val: string) => onChange({ ...form, [key]: val })
 
