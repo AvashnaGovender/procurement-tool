@@ -231,7 +231,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     if (!hasBankDoc) return
     bankVerificationAutoRan.current = true
     console.log('🏦 No verification result found — auto-running bank verification on page load')
-    handleRunBankVerification()
+    handleRunBankVerification({ silent: true })
   }, [bankVerificationLoading, bankVerification, supplier?.id])
 
   // Handle browser back button to redirect to dashboard
@@ -262,7 +262,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
     }
   }
 
-  const handleRunBankVerification = async () => {
+  const handleRunBankVerification = async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!supplier?.id) return
     setBankVerificationRunning(true)
     try {
@@ -270,13 +270,15 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ suppl
       const data = await res.json()
       if (data.success && data.data) {
         setBankVerification(data.data)
-      } else {
+      } else if (!silent) {
         setErrorMessage(data.error || 'Bank verification failed')
         setErrorDialogOpen(true)
       }
     } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : 'Bank verification failed')
-      setErrorDialogOpen(true)
+      if (!silent) {
+        setErrorMessage(e instanceof Error ? e.message : 'Bank verification failed')
+        setErrorDialogOpen(true)
+      }
     } finally {
       setBankVerificationRunning(false)
     }
