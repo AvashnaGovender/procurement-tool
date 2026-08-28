@@ -7,17 +7,38 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, Lock, AlertCircle, UserPlus, X, CheckCircle, Eye, EyeOff } from "lucide-react"
-import { useRouter, useSearchParams } from "next/navigation"
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle,
+  Clock,
+  Eye,
+  EyeOff,
+  Headphones,
+  Lock,
+  Mail,
+  ShieldCheck,
+  User,
+  UserPlus,
+  X,
+} from "lucide-react"
+import { useSearchParams } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { signIn } from "next-auth/react"
 
+function MicrosoftMark() {
+  return (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 21 21" fill="none" aria-hidden="true">
+      <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+      <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+      <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+      <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+    </svg>
+  )
+}
+
 function LoginForm() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [showRegister, setShowRegister] = useState(false)
   const [registerEmail, setRegisterEmail] = useState("")
@@ -30,74 +51,33 @@ function LoginForm() {
   const [registerLoading, setRegisterLoading] = useState(false)
   const [registerError, setRegisterError] = useState("")
   const [registerSuccess, setRegisterSuccess] = useState("")
-  const [showForgotPassword, setShowForgotPassword] = useState(false)
-  const [resetEmail, setResetEmail] = useState("")
-  const [resetOtp, setResetOtp] = useState("")
-  const [resetNewPassword, setResetNewPassword] = useState("")
-  const [resetConfirmPassword, setResetConfirmPassword] = useState("")
-  const [resetLoading, setResetLoading] = useState(false)
-  const [requestingOtp, setRequestingOtp] = useState(false)
-  const [resetMessage, setResetMessage] = useState("")
-  const [resetError, setResetError] = useState("")
-  const [showLoginPassword, setShowLoginPassword] = useState(false)
   const [showRegisterPassword, setShowRegisterPassword] = useState(false)
   const [showRegisterPasswordConfirm, setShowRegisterPasswordConfirm] = useState(false)
-  const [showResetNewPassword, setShowResetNewPassword] = useState(false)
-  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false)
-  const router = useRouter()
+  const [microsoftLoading, setMicrosoftLoading] = useState(false)
   const searchParams = useSearchParams()
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-
-    try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      })
-
-      if (result?.error) {
-        setError(result.error)
-        setIsLoading(false)
-        return
-      }
-
-      if (result?.ok) {
-        // Check for callback URL from query params
-        const callbackUrl = searchParams.get("callbackUrl")
-        
-        // Validate callback URL - prevent redirecting to pages the user doesn't have access to
-        if (callbackUrl) {
-          // Restricted pages that require specific roles
-          const restrictedPaths = [
-            { path: '/admin/supplier-submissions', allowedRoles: ['PROCUREMENT_MANAGER', 'ADMIN'] },
-            { path: '/admin/approvals', allowedRoles: ['MANAGER', 'PROCUREMENT_MANAGER', 'ADMIN'] }
-          ]
-          
-          // Check if callback URL is a restricted path
-          const restricted = restrictedPaths.find(r => callbackUrl.startsWith(r.path))
-          
-          // If it's restricted and user doesn't have proper role, redirect to dashboard instead
-          // We don't have the session here yet, so we'll just redirect to dashboard for restricted paths
-          // The page itself will handle the authorization check
-          if (restricted) {
-            router.push("/dashboard")
-          } else {
-            router.push(callbackUrl)
-          }
-        } else {
-          router.push("/dashboard")
-        }
-        router.refresh()
-      }
-    } catch {
-      setError("An unexpected error occurred. Please try again.")
-      setIsLoading(false)
+  const afterSignInPath = () => {
+    const callbackUrl = searchParams.get("callbackUrl")
+    if (!callbackUrl) return "/dashboard"
+    const restrictedPaths = ["/admin/supplier-submissions", "/admin/approvals"]
+    if (restrictedPaths.some((path) => callbackUrl.startsWith(path))) {
+      return "/dashboard"
     }
+    return callbackUrl
   }
+
+  const handleMicrosoftSignIn = () => {
+    setMicrosoftLoading(true)
+    setError("")
+    signIn("azure-ad", { callbackUrl: afterSignInPath() })
+  }
+
+  const oauthError = searchParams.get("error")
+  const displayError =
+    error ||
+    (oauthError
+      ? "Microsoft sign-in was cancelled or failed. Please try again, or register first if you do not have access yet."
+      : "")
 
   const checkManager = async () => {
     const email = managerEmail.trim()
@@ -180,570 +160,356 @@ function LoginForm() {
     }
   }
 
-  const handleRequestResetOtp = async () => {
-    if (!resetEmail.trim()) {
-      setResetError("Please enter your email.")
-      return
-    }
-    setRequestingOtp(true)
-    setResetError("")
-    setResetMessage("")
-    try {
-      const res = await fetch("/api/auth/forgot-password/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail.trim() }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setResetError(data.error || "Failed to send reset code.")
-        return
-      }
-      setResetMessage(data.message || "If this email exists, a reset code has been sent.")
-    } catch {
-      setResetError("Failed to send reset code.")
-    } finally {
-      setRequestingOtp(false)
-    }
-  }
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setResetLoading(true)
-    setResetError("")
-    setResetMessage("")
-    try {
-      const res = await fetch("/api/auth/forgot-password/reset", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: resetEmail.trim(),
-          otp: resetOtp.trim(),
-          newPassword: resetNewPassword,
-          confirmPassword: resetConfirmPassword,
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setResetError(data.error || "Failed to reset password.")
-        return
-      }
-      setResetMessage("Password reset successful. You can sign in with your new password.")
-      setPassword("")
-      setTimeout(() => {
-        setShowForgotPassword(false)
-        setResetOtp("")
-        setResetNewPassword("")
-        setResetConfirmPassword("")
-      }, 1200)
-    } catch {
-      setResetError("Failed to reset password.")
-    } finally {
-      setResetLoading(false)
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-slate-100 flex">
-      {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-500 via-blue-600 to-slate-300 p-12 flex-col justify-between relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
-            backgroundSize: '40px 40px'
-          }}></div>
-        </div>
-        
-        <div className="relative z-10">
-          <div className="mb-12">
+    <div className="relative min-h-screen overflow-hidden bg-[#0d5bd7] text-white">
+      <Image
+        src="/login_bg.png"
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover object-center"
+      />
+
+      <div className="relative z-10 mx-auto flex min-h-screen flex-col lg:flex-row">
+        <section className="relative hidden min-h-screen lg:flex lg:w-[46%] lg:flex-col">
+          <div className="relative z-10 flex h-full flex-col px-12 pb-10 pt-12 xl:px-16">
+            <div>
+              <Image
+                src="/logo.png"
+                alt="Schauenburg Systems"
+                width={280}
+                height={88}
+                priority
+                className="h-auto w-[240px] object-contain brightness-0 invert xl:w-[280px]"
+              />
+              <h1 className="mt-14 max-w-md text-4xl font-bold leading-[1.15] tracking-tight text-white xl:text-5xl">
+                Procurement Management System
+              </h1>
+              <div className="mt-6 h-px w-24 bg-white/70" />
+              <p className="mt-5 max-w-sm text-base leading-relaxed text-white/85 xl:text-lg">
+                Smarter procurement. Stronger control.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="flex flex-1 flex-col items-center justify-center px-5 py-6 sm:px-10 lg:px-12">
+          <div className="mb-8 lg:hidden">
             <Image
               src="/logo.png"
               alt="Schauenburg Systems"
-              width={300}
-              height={90}
+              width={220}
+              height={70}
               priority
-              className="object-contain brightness-0 invert"
+              className="h-auto w-[200px] object-contain brightness-0 invert"
             />
           </div>
-          <div className="space-y-6 max-w-md">
-            <h1 className="text-4xl font-bold text-white leading-tight">
-              Procurement Management System
-            </h1>
+          <div className="w-full max-w-[520px] rounded-[28px] bg-white px-7 py-9 text-slate-900 shadow-[0_24px_80px_rgba(8,40,120,0.28)] sm:px-12 sm:py-12 dark:bg-white dark:text-slate-900">
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#1a73e8] shadow-lg shadow-blue-600/30">
+                <ShieldCheck className="h-8 w-8 text-white" strokeWidth={2.2} />
+              </div>
+              <h2 className="text-[1.65rem] font-bold leading-tight text-[#12325c] sm:text-[1.85rem]">
+                Welcome to Schauenburg Systems
+              </h2>
+              <div className="mt-3 h-[3px] w-12 rounded-full bg-[#1a73e8]" />
+              <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-slate-500">
+                Access the Procurement Management System. Use your company Microsoft account to continue.
+              </p>
+            </div>
+
+            {displayError && (
+              <Alert variant="destructive" className="mt-6 bg-red-50 border-red-200 text-red-800">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{displayError}</AlertDescription>
+              </Alert>
+            )}
+
+            <button
+              type="button"
+              onClick={handleMicrosoftSignIn}
+              disabled={microsoftLoading}
+              className="mt-8 flex h-14 w-full items-center justify-between rounded-xl bg-[#1a73e8] px-5 text-base font-semibold text-white shadow-lg shadow-blue-600/25 transition hover:bg-[#155cc2] disabled:opacity-70"
+            >
+              <span className="flex items-center gap-3">
+                <MicrosoftMark />
+                {microsoftLoading ? "Redirecting..." : "Sign in with Microsoft"}
+              </span>
+              <ArrowRight className="h-5 w-5" />
+            </button>
+
+            <div className="mt-7 grid grid-cols-3 gap-2 text-center">
+              {[
+                { icon: ShieldCheck, label: "Secure Enterprise SSO" },
+                { icon: Lock, label: "Your data is protected" },
+                { icon: Clock, label: "Fast, simple & seamless" },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex flex-col items-center gap-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e8f1fd] text-[#1a73e8]">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <p className="text-[11px] font-medium leading-tight text-slate-500">{label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="relative my-5">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-200" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-3 font-medium text-slate-400">New user?</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowRegister(true)}
+              className="h-12 w-full rounded-xl border-[#1a73e8] bg-white text-base font-semibold text-[#1a73e8] hover:bg-[#e8f1fd] hover:text-[#155cc2]"
+            >
+              <UserPlus className="h-5 w-5" />
+              Register for Access
+            </Button>
           </div>
-        </div>
-        
-        <div className="relative z-10 text-blue-100 text-sm">
-          © {new Date().getFullYear()} Schauenburg Systems. All rights reserved.
-        </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-full bg-white/95 px-5 py-2.5 text-sm font-medium text-[#12325c] shadow-md">
+            <a
+              href="mailto:admin@schauenburg.co.za"
+              className="inline-flex items-center gap-2 text-[#12325c] hover:text-[#1a73e8]"
+            >
+              <Headphones className="h-4 w-4 text-[#1a73e8]" />
+              Need help? <span className="font-semibold text-[#1a73e8] underline underline-offset-4">Contact support</span>
+            </a>
+            <span className="hidden text-slate-300 sm:inline">|</span>
+            <a
+              href="https://schauenburg.co.za"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-[#1a73e8] underline underline-offset-4 hover:text-[#155cc2]"
+            >
+              Privacy Policy
+            </a>
+          </div>
+        </section>
       </div>
 
-      {/* Right Side - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          {/* Logo for mobile */}
-          <div className="lg:hidden text-center mb-8">
-            <Image
-              src="/logo.png"
-              alt="Schauenburg Systems"
-              width={300}
-              height={90}
-              priority
-              className="object-contain mx-auto mb-4"
-            />
-          </div>
-
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-slate-800 mb-2">Welcome</h2>
-            <p className="text-slate-600">Sign in to your account to continue</p>
-          </div>
-
-          {error && (
-            <Alert variant="destructive" className="mb-6 bg-red-900/20 border-red-700 text-red-200">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-700 font-medium">Email Address</Label>
-              <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-12 h-12 bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-700 font-medium">Password</Label>
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                <Input
-                  id="password"
-                  type={showLoginPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-12 pr-12 h-12 bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowLoginPassword((prev) => !prev)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors"
-                  aria-label={showLoginPassword ? "Hide password" : "Show password"}
-                >
-                  {showLoginPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForgotPassword(true)
-                    setResetEmail(email)
-                    setResetError("")
-                    setResetMessage("")
-                  }}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                >
-                  Forgot password?
-                </button>
-              </div>
-            </div>
-
-            <Button 
-              type="submit" 
-              className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium text-base shadow-lg shadow-blue-600/20 transition-all duration-200 hover:shadow-blue-600/30" 
-              disabled={isLoading}
+      {/* Register modal */}
+      {showRegister && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="relative w-full max-w-[420px] max-h-[min(92vh,720px)] overflow-y-auto rounded-3xl bg-white px-7 pb-6 pt-8 text-slate-900 shadow-[0_24px_80px_rgba(8,40,120,0.28)]">
+            <button
+              type="button"
+              onClick={() => {
+                setShowRegister(false)
+                setRegisterError("")
+                setRegisterSuccess("")
+                setRegisterPassword("")
+                setRegisterPasswordConfirm("")
+                setManagerCheck(null)
+              }}
+              className="absolute right-4 top-4 rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              aria-label="Close"
             >
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                  Signing in...
-                </div>
-              ) : (
-                "Sign In"
-              )}
-            </Button>
+              <X className="h-5 w-5" />
+            </button>
 
-            {process.env.NEXT_PUBLIC_AZURE_AD_ENABLED === "true" && (
-              <>
+            <div className="mb-6 flex flex-col items-center text-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#1a73e8] text-[#1a73e8]">
+                <UserPlus className="h-5 w-5" />
+              </div>
+              <h3 className="text-2xl font-bold text-[#12325c]">Register your account</h3>
+              <p className="mt-1.5 max-w-[280px] text-sm text-slate-500">
+                Register an account to access the Procurement Management System.
+              </p>
+            </div>
+
+            <form onSubmit={handleRegister} className="space-y-3.5">
+              {registerError && (
+                <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-800">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{registerError}</AlertDescription>
+                </Alert>
+              )}
+              {registerSuccess && (
+                <Alert className="border-green-200 bg-green-50 text-green-800">
+                  <AlertDescription>{registerSuccess}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-1.5">
+                <Label htmlFor="register-email" className="text-sm font-semibold text-[#12325c]">Work email</Label>
                 <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-slate-300" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-slate-100 px-2 text-slate-500">or</span>
-                  </div>
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1a73e8]" />
+                  <Input
+                    id="register-email"
+                    type="email"
+                    placeholder="you@company.com"
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
+                    className="h-11 rounded-xl border-slate-200 pl-10"
+                    required
+                  />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="register-password" className="text-sm font-semibold text-[#12325c]">Create password</Label>
+                <div className="relative">
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1a73e8]" />
+                  <Input
+                    id="register-password"
+                    type={showRegisterPassword ? "text" : "password"}
+                    placeholder="Minimum 8 characters"
+                    autoComplete="new-password"
+                    value={registerPassword}
+                    onChange={(e) => setRegisterPassword(e.target.value)}
+                    className="h-11 rounded-xl border-slate-200 pl-10 pr-10"
+                    required
+                    minLength={8}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegisterPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    aria-label={showRegisterPassword ? "Hide password" : "Show password"}
+                  >
+                    {showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="register-password-confirm" className="text-sm font-semibold text-[#12325c]">Confirm password</Label>
+                <div className="relative">
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1a73e8]" />
+                  <Input
+                    id="register-password-confirm"
+                    type={showRegisterPasswordConfirm ? "text" : "password"}
+                    placeholder="Re-enter your password"
+                    autoComplete="new-password"
+                    value={registerPasswordConfirm}
+                    onChange={(e) => setRegisterPasswordConfirm(e.target.value)}
+                    className="h-11 rounded-xl border-slate-200 pl-10 pr-10"
+                    required
+                    minLength={8}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegisterPasswordConfirm((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    aria-label={showRegisterPasswordConfirm ? "Hide password" : "Show password"}
+                  >
+                    {showRegisterPasswordConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="register-role" className="text-sm font-semibold text-[#12325c]">Role</Label>
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#1a73e8]" />
+                  <Select value={registerRole} onValueChange={setRegisterRole}>
+                    <SelectTrigger id="register-role" className="h-11 rounded-xl border-slate-200 pl-10">
+                      <SelectValue placeholder="Select your role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USER">User</SelectItem>
+                      <SelectItem value="MANAGER">Manager</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="manager-email" className="text-sm font-semibold text-[#12325c]">
+                  {managerRequired ? "Manager email" : "Manager email (optional)"}
+                </Label>
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1a73e8]" />
+                  <Input
+                    id="manager-email"
+                    type="email"
+                    placeholder="manager@company.com"
+                    value={managerEmail}
+                    onChange={(e) => {
+                      setManagerEmail(e.target.value)
+                      setManagerCheck(null)
+                    }}
+                    onBlur={checkManager}
+                    className="h-11 rounded-xl border-slate-200 pl-10"
+                    required={managerRequired}
+                  />
+                </div>
+                {!managerRequired && (
+                  <p className="text-xs leading-relaxed text-slate-500">
+                    You can skip this for now. It may be needed later when submitting supplier requests for approval.
+                  </p>
+                )}
+                {checkingManager && (
+                  <p className="text-sm text-slate-500">Checking if manager is registered...</p>
+                )}
+                {managerCheck?.exists === true && (
+                  <p className="flex items-center gap-1.5 text-sm text-green-600">
+                    <CheckCircle className="h-4 w-4 shrink-0" />
+                    Manager found: {managerCheck.name}
+                  </p>
+                )}
+                {managerCheck?.exists === false && (
+                  <p className="flex items-center gap-1.5 text-sm text-red-600">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {managerCheck.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-3">
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full h-12 border-slate-300 text-slate-700 font-medium text-base hover:bg-slate-50 transition-all"
-                  onClick={() => signIn("azure-ad", { callbackUrl: "/dashboard" })}
+                  className="h-11 flex-1 rounded-xl border-slate-200 text-[#1a73e8] hover:bg-slate-50 hover:text-[#155cc2]"
+                  onClick={() => setShowRegister(false)}
+                  disabled={registerLoading}
                 >
-                  <svg className="mr-2 h-5 w-5" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
-                    <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
-                    <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
-                    <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
-                  </svg>
-                  Sign in with Microsoft
+                  Cancel
                 </Button>
-              </>
-            )}
-
-            <p className="text-center text-slate-600 text-sm">
-              Don&apos;t have an account?{" "}
-              <button
-                type="button"
-                onClick={() => setShowRegister(true)}
-                className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
-              >
-                Register
-              </button>
-            </p>
-          </form>
-
-          {/* Register modal */}
-          {showRegister && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-slate-200">
-                <div className="flex items-center justify-between p-4 border-b border-slate-200">
-                  <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-                    <UserPlus className="h-5 w-5 text-blue-600" />
-                    Register as new user
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowRegister(false)
-                      setRegisterError("")
-                      setRegisterSuccess("")
-                      setRegisterPassword("")
-                      setRegisterPasswordConfirm("")
-                      setManagerCheck(null)
-                    }}
-                    className="p-1.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                    aria-label="Close"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-                <form onSubmit={handleRegister} className="p-4 space-y-4">
-                  {registerError && (
-                    <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{registerError}</AlertDescription>
-                    </Alert>
+                <Button
+                  type="submit"
+                  className="h-11 flex-1 rounded-xl bg-[#1a73e8] font-semibold text-white hover:bg-[#155cc2]"
+                  disabled={
+                    registerLoading ||
+                    (managerRequired && !managerEmail.trim()) ||
+                    (!!managerEmail.trim() && (managerCheck?.exists === false || (managerCheck === null && !checkingManager)))
+                  }
+                >
+                  {registerLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="h-4 w-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                      Registering...
+                    </span>
+                  ) : (
+                    "Register your account"
                   )}
-                  {registerSuccess && (
-                    <Alert className="bg-green-50 border-green-200 text-green-800">
-                      <AlertDescription>{registerSuccess}</AlertDescription>
-                    </Alert>
-                  )}
-                  <div className="space-y-2">
-                    <Label htmlFor="register-email" className="text-slate-700 font-medium">Your email *</Label>
-                    <Input
-                      id="register-email"
-                      type="email"
-                      placeholder="you@company.com"
-                      value={registerEmail}
-                      onChange={(e) => setRegisterEmail(e.target.value)}
-                      className="h-11 border-slate-300"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="register-password" className="text-slate-700 font-medium">Password *</Label>
-                    <div className="relative">
-                    <Input
-                      id="register-password"
-                      type={showRegisterPassword ? "text" : "password"}
-                      placeholder="Choose a password (min. 8 characters)"
-                      autoComplete="new-password"
-                      value={registerPassword}
-                      onChange={(e) => setRegisterPassword(e.target.value)}
-                      className="h-11 border-slate-300 pr-10"
-                      required
-                      minLength={8}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowRegisterPassword((prev) => !prev)}
-                      className="absolute right-3 top-[38px] text-slate-500 hover:text-slate-700 transition-colors"
-                      aria-label={showRegisterPassword ? "Hide password" : "Show password"}
-                    >
-                      {showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="register-password-confirm" className="text-slate-700 font-medium">Confirm password *</Label>
-                    <div className="relative">
-                    <Input
-                      id="register-password-confirm"
-                      type={showRegisterPasswordConfirm ? "text" : "password"}
-                      placeholder="Re-enter your password"
-                      autoComplete="new-password"
-                      value={registerPasswordConfirm}
-                      onChange={(e) => setRegisterPasswordConfirm(e.target.value)}
-                      className="h-11 border-slate-300 pr-10"
-                      required
-                      minLength={8}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowRegisterPasswordConfirm((prev) => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors"
-                      aria-label={showRegisterPasswordConfirm ? "Hide password" : "Show password"}
-                    >
-                      {showRegisterPasswordConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="register-role" className="text-slate-700 font-medium">Role *</Label>
-                    <Select value={registerRole} onValueChange={setRegisterRole}>
-                      <SelectTrigger id="register-role" className="h-11 border-slate-300">
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="USER">User</SelectItem>
-                        <SelectItem value="MANAGER">Manager</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="manager-email" className="text-slate-700 font-medium">
-                      {managerRequired ? "Manager email *" : "Manager email (optional)"}
-                    </Label>
-                    <Input
-                      id="manager-email"
-                      type="email"
-                      placeholder="manager@company.com"
-                      value={managerEmail}
-                      onChange={(e) => {
-                        setManagerEmail(e.target.value)
-                        setManagerCheck(null)
-                      }}
-                      onBlur={checkManager}
-                      className="h-11 border-slate-300"
-                      required={managerRequired}
-                    />
-                    {registerRole === "MANAGER" && (
-                      <p className="text-sm text-slate-500">
-                        You can skip this for now. If you later initiate a supplier request, you will need to add your manager in Settings so they can approve it.
-                      </p>
-                    )}
-                    {checkingManager && (
-                      <p className="text-sm text-slate-500">Checking if manager is registered...</p>
-                    )}
-                    {managerCheck?.exists === true && (
-                      <p className="text-sm text-green-600 flex items-center gap-1.5">
-                        <CheckCircle className="h-4 w-4 shrink-0" />
-                        Manager found: {managerCheck.name}
-                      </p>
-                    )}
-                    {managerCheck?.exists === false && (
-                      <p className="text-sm text-red-600 flex items-center gap-1.5">
-                        <AlertCircle className="h-4 w-4 shrink-0" />
-                        {managerCheck.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => setShowRegister(false)}
-                      disabled={registerLoading}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      disabled={
-                        registerLoading ||
-                        (managerRequired && !managerEmail.trim()) ||
-                        (!!managerEmail.trim() && (managerCheck?.exists === false || (managerCheck === null && !checkingManager)))
-                      }
-                    >
-                      {registerLoading ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                          Registering...
-                        </div>
-                      ) : (
-                        "Register"
-                      )}
-                    </Button>
-                  </div>
-                </form>
+                </Button>
               </div>
-            </div>
-          )}
-
-          {/* Forgot password modal */}
-          {showForgotPassword && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-slate-200">
-                <div className="flex items-center justify-between p-4 border-b border-slate-200">
-                  <h3 className="text-lg font-semibold text-slate-800">Reset your password</h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotPassword(false)}
-                    className="p-1.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                    aria-label="Close"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-                <form onSubmit={handleResetPassword} className="p-4 space-y-4">
-                  {resetError && (
-                    <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{resetError}</AlertDescription>
-                    </Alert>
-                  )}
-                  {resetMessage && (
-                    <Alert className="bg-green-50 border-green-200 text-green-800">
-                      <CheckCircle className="h-4 w-4" />
-                      <AlertDescription>{resetMessage}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-email" className="text-slate-700 font-medium">Email *</Label>
-                    <Input
-                      id="reset-email"
-                      type="email"
-                      placeholder="you@company.com"
-                      value={resetEmail}
-                      onChange={(e) => setResetEmail(e.target.value)}
-                      className="h-11 border-slate-300"
-                      required
-                    />
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleRequestResetOtp}
-                    disabled={requestingOtp}
-                    className="w-full"
-                  >
-                    {requestingOtp ? "Sending code..." : "Send OTP code"}
-                  </Button>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-otp" className="text-slate-700 font-medium">OTP code *</Label>
-                    <Input
-                      id="reset-otp"
-                      type="text"
-                      placeholder="6-digit code"
-                      value={resetOtp}
-                      onChange={(e) => setResetOtp(e.target.value)}
-                      className="h-11 border-slate-300"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-new-password" className="text-slate-700 font-medium">New password *</Label>
-                    <div className="relative">
-                    <Input
-                      id="reset-new-password"
-                      type={showResetNewPassword ? "text" : "password"}
-                      placeholder="At least 8 characters"
-                      value={resetNewPassword}
-                      onChange={(e) => setResetNewPassword(e.target.value)}
-                      className="h-11 border-slate-300 pr-10"
-                      minLength={8}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowResetNewPassword((prev) => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors"
-                      aria-label={showResetNewPassword ? "Hide password" : "Show password"}
-                    >
-                      {showResetNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-confirm-password" className="text-slate-700 font-medium">Confirm new password *</Label>
-                    <div className="relative">
-                    <Input
-                      id="reset-confirm-password"
-                      type={showResetConfirmPassword ? "text" : "password"}
-                      placeholder="Re-enter new password"
-                      value={resetConfirmPassword}
-                      onChange={(e) => setResetConfirmPassword(e.target.value)}
-                      className="h-11 border-slate-300 pr-10"
-                      minLength={8}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowResetConfirmPassword((prev) => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors"
-                      aria-label={showResetConfirmPassword ? "Hide password" : "Show password"}
-                    >
-                      {showResetConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => setShowForgotPassword(false)}
-                      disabled={resetLoading}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      disabled={resetLoading}
-                    >
-                      {resetLoading ? "Resetting..." : "Reset Password"}
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
+            </form>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#0d5bd7]">
+          <div className="h-8 w-8 rounded-full border-4 border-white/20 border-t-white animate-spin" />
+        </div>
+      }
+    >
       <LoginForm />
     </Suspense>
   )
