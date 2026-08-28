@@ -11,12 +11,18 @@ export async function GET(request: NextRequest) {
   const normalized = email.toLowerCase()
   const manager = await prisma.user.findFirst({
     where: { email: { equals: normalized, mode: 'insensitive' } },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, isActive: true },
   })
   if (!manager) {
     return NextResponse.json({
       exists: false,
       message: 'This manager is not registered. Please ask them to register first.',
+    })
+  }
+  if (!manager.isActive) {
+    return NextResponse.json({
+      exists: false,
+      message: 'This manager account is inactive. Please choose a different manager or contact your administrator.',
     })
   }
   return NextResponse.json({
@@ -29,6 +35,30 @@ export async function GET(request: NextRequest) {
 const ALLOWED_ROLES = ['USER', 'MANAGER'] as const
 type AllowedRole = (typeof ALLOWED_ROLES)[number]
 
+async function resolveManager(managerEmail: string, registrantEmail: string) {
+  const normalizedManagerEmail = managerEmail.toLowerCase().trim()
+  if (normalizedManagerEmail === registrantEmail) {
+    return { error: 'You cannot assign yourself as your manager.' }
+  }
+  const manager = await prisma.user.findFirst({
+    where: { email: { equals: normalizedManagerEmail, mode: 'insensitive' } },
+    select: { id: true, name: true, email: true, isActive: true },
+  })
+  if (!manager) {
+    return {
+      error:
+        'This manager is not registered in the system. Please ask your manager to register first, or contact your administrator.',
+    }
+  }
+  if (!manager.isActive) {
+    return {
+      error:
+        'This manager account is inactive. Please choose a different manager or contact your administrator.',
+    }
+  }
+  return { manager }
+}
+
 // POST - Public self-registration (no auth required)
 export async function POST(request: NextRequest) {
   try {
@@ -38,12 +68,6 @@ export async function POST(request: NextRequest) {
     if (!email?.trim()) {
       return NextResponse.json(
         { error: 'Email is required' },
-        { status: 400 }
-      )
-    }
-    if (!managerEmail?.trim()) {
-      return NextResponse.json(
-        { error: 'Manager email is required' },
         { status: 400 }
       )
     }
@@ -63,13 +87,21 @@ export async function POST(request: NextRequest) {
     const roleVal = (role || 'USER').toUpperCase()
     if (!ALLOWED_ROLES.includes(roleVal as AllowedRole)) {
       return NextResponse.json(
-        { error: 'Role must be User, Manager, or Procurement Manager' },
+        { error: 'Role must be User or Manager' },
+        { status: 400 }
+      )
+    }
+
+    const managerEmailTrimmed = typeof managerEmail === 'string' ? managerEmail.trim() : ''
+    const managerRequired = roleVal === 'USER'
+    if (managerRequired && !managerEmailTrimmed) {
+      return NextResponse.json(
+        { error: 'Manager email is required' },
         { status: 400 }
       )
     }
 
     const normalizedEmail = email.toLowerCase().trim()
-    const normalizedManagerEmail = managerEmail.toLowerCase().trim()
 
     const existingUser = await prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -82,20 +114,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Manager must already be registered
-    const manager = await prisma.user.findFirst({
-      where: { email: { equals: normalizedManagerEmail, mode: 'insensitive' } },
-      select: { id: true, name: true, email: true },
-    })
+    let managerId: string | null = null
 
-    if (!manager) {
-      return NextResponse.json(
-        {
-          error:
-            'This manager is not registered in the system. Please ask your manager to register first, or contact your administrator.',
-        },
-        { status: 400 }
-      )
+    if (managerEmailTrimmed) {
+      const resolved = await resolveManager(managerEmailTrimmed, normalizedEmail)
+      if ('error' in resolved) {
+        return NextResponse.json({ error: resolved.error }, { status: 400 })
+      }
+      managerId = resolved.manager.id
     }
 
     // Default display name from email local part (e.g. "john" from "john@example.com")
@@ -110,7 +136,7 @@ export async function POST(request: NextRequest) {
         name: displayName,
         role: roleVal as AllowedRole,
         isActive: true,
-        managerId: manager.id,
+        managerId,
         password: hashedPassword,
       },
       select: {

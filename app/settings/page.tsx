@@ -7,6 +7,7 @@ import { DelegationManagement } from "@/components/settings/delegation-managemen
 import { ReminderConfiguration } from "@/components/settings/reminder-configuration"
 import { UserManagement } from "@/components/settings/user-management"
 import { ChangePassword } from "@/components/settings/change-password"
+import { ManagerSettings } from "@/components/settings/manager-settings"
 import { CreditControllerManagement } from "@/components/settings/credit-controller-management"
 
 export default function SettingsPage() {
@@ -20,6 +21,10 @@ export default function SettingsPage() {
         <div className="space-y-8">
           <div className="bg-card border border-border rounded-lg p-6">
             <ChangePassword />
+          </div>
+
+          <div className="bg-card border border-border rounded-lg p-6">
+            <ManagerSettings />
           </div>
 
           {/* User Management - Admin Only */}

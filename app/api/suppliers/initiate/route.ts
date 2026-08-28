@@ -338,6 +338,19 @@ export async function POST(request: NextRequest) {
 
     console.log('Current user:', currentUser.email, 'Manager:', currentUser.manager?.email || 'None')
 
+    const hasActiveManager = !!(
+      currentUser.managerId &&
+      currentUser.manager &&
+      currentUser.manager.isActive
+    )
+
+    const missingManagerResponse = NextResponse.json({
+      success: false,
+      error: 'MISSING_MANAGER',
+      message:
+        'You need a manager assigned before you can initiate a request. Go to Settings to add your manager — they must approve supplier initiations.',
+    }, { status: 400 })
+
     // If ID is provided, update existing draft (only if it's a DRAFT or REJECTED status)
     let initiation
     if (id) {
@@ -498,6 +511,10 @@ For your information: ${requesterName} has applied the changes requested by Proc
         })
       }
 
+      if (!hasActiveManager) {
+        return missingManagerResponse
+      }
+
       // Full resubmit: manager rejected or PM rejection — reset approvals and restart at manager.
       console.log('Updating existing initiation to SUBMITTED...')
       
@@ -519,6 +536,10 @@ For your information: ${requesterName} has applied the changes requested by Proc
       })
       console.log('Initiation updated and submitted:', initiation.id)
     } else {
+      if (!hasActiveManager) {
+        return missingManagerResponse
+      }
+
       // Create new supplier initiation
       console.log('Creating supplier initiation...')
       initiation = await prisma.supplierInitiation.create({
@@ -572,30 +593,13 @@ For your information: ${requesterName} has applied the changes requested by Proc
       })
       console.log('✅ Manager approval record created for:', assignedManager.email)
     } else {
-      // Fallback: Find any active manager if user doesn't have one assigned
-      console.log('No manager assigned to user, looking for any active manager...')
-      const fallbackManagers = await prisma.user.findMany({
-        where: {
-          role: 'MANAGER',
-          isActive: true
-        },
-        take: 1
-      })
-      
-      if (fallbackManagers.length > 0) {
-        assignedManager = fallbackManagers[0]
-        console.log('Using fallback manager:', assignedManager.email)
-        
-        await prisma.managerApproval.create({
-          data: {
-            initiationId: initiation.id,
-            approverId: assignedManager.id,
-            status: 'PENDING'
-          }
-        })
-      } else {
-        console.warn('⚠️ No manager found for approval!')
-      }
+      console.warn('⚠️ No active manager assigned — blocking initiation')
+      return NextResponse.json({
+        success: false,
+        error: 'MISSING_MANAGER',
+        message:
+          'You need a manager assigned before you can initiate a request. Go to Settings to add your manager — they must approve supplier initiations.',
+      }, { status: 400 })
     }
 
     // Check for active delegations for manager

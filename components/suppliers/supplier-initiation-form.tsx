@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Building2, CheckCircle, AlertCircle, Users, DollarSign, Plus, XCircle, FileEdit } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 interface SupplierInitiationFormProps {
   onSubmissionComplete?: (initiationId: string) => void
@@ -30,6 +31,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
   const [loadingDraft, setLoadingDraft] = useState(!!draftId)
   const [errorDialogOpen, setErrorDialogOpen] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [errorIsMissingManager, setErrorIsMissingManager] = useState(false)
   const [successDialogOpen, setSuccessDialogOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false)
@@ -51,6 +53,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
     rejectedBy?: string
     rejectedByName?: string
   } | null>(null)
+  const [hasManager, setHasManager] = useState<boolean | null>(null)
   const [formData, setFormData] = useState({
     businessUnit: ["SCHAUENBURG_PTY_LTD_300", "SCHAUENBURG_SYSTEMS_200"] as string[],
     processReadUnderstood: false,
@@ -82,6 +85,27 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
       }))
     }
   }, [session?.user?.name])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadManager() {
+      try {
+        const res = await fetch("/api/users/me")
+        if (!res.ok) {
+          if (!cancelled) setHasManager(false)
+          return
+        }
+        const data = await res.json()
+        if (!cancelled) setHasManager(!!data.hasManager)
+      } catch {
+        if (!cancelled) setHasManager(false)
+      }
+    }
+    loadManager()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Load draft data if draftId is provided
   useEffect(() => {
@@ -361,6 +385,12 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (hasManager === false && rejectionInfo?.kind !== 'pm_revision') {
+      setErrorMessage('You need a manager assigned before you can initiate a request. Go to Settings to add your manager — they must approve supplier initiations.')
+      setErrorIsMissingManager(true)
+      setErrorDialogOpen(true)
+      return
+    }
     setIsSubmitting(true)
 
     try {
@@ -428,6 +458,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
           (response.status === 500 ? 'Server error. Please try again or contact support.' : null) ||
           (response.status === 400 ? 'Invalid request. Please check all required fields and try again.' : null) ||
           `Request failed (${response.status}). Please try again.`
+        setErrorIsMissingManager(result.error === 'MISSING_MANAGER')
         setErrorMessage(errorMsg)
         setErrorDialogOpen(true)
       }
@@ -475,6 +506,20 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
 
   return (
     <div className="space-y-6">
+      {hasManager === false && rejectionInfo?.kind !== 'pm_revision' && (
+        <div className="bg-amber-50 border-2 border-amber-300 p-5 rounded-lg shadow-sm flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-amber-700 mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="text-base font-semibold text-amber-900 mb-1">Manager required to initiate</h3>
+            <p className="text-sm text-amber-900 mb-2">
+              Supplier initiations need manager approval. You do not have a manager assigned yet. Go to Settings to add your manager before you submit this request. You can still save a draft.
+            </p>
+            <Button asChild size="sm" className="bg-amber-700 hover:bg-amber-800 text-white">
+              <Link href="/settings#manager">Go to Settings</Link>
+            </Button>
+          </div>
+        </div>
+      )}
       {isWithdrawnEdit && (
         <div className="bg-blue-50 border-2 border-blue-200 p-5 rounded-lg shadow-sm flex items-start gap-3">
           <FileEdit className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -1039,7 +1084,12 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {isFormValid() ? (
+              {hasManager === false && rejectionInfo?.kind !== 'pm_revision' ? (
+                <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Manager required
+                </Badge>
+              ) : isFormValid() ? (
                 <Badge variant="default" className="bg-green-100 text-green-800">
                   <CheckCircle className="h-3 w-3 mr-1" />
                   Ready to Submit
@@ -1064,7 +1114,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
               </Button>
               <Button 
                 type="submit" 
-                disabled={!isFormValid() || isSubmitting}
+                disabled={!isFormValid() || isSubmitting || (hasManager === false && rejectionInfo?.kind !== 'pm_revision')}
                 className="min-w-[120px]"
               >
                 {isSubmitting ? "Submitting..." : rejectionInfo ? "Resubmit for Approval" : "Submit for Approval"}
@@ -1087,10 +1137,15 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
               {errorMessage}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end">
-            <Button onClick={() => setErrorDialogOpen(false)}>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => { setErrorDialogOpen(false); setErrorIsMissingManager(false) }}>
               OK
             </Button>
+            {errorIsMissingManager && (
+              <Button asChild>
+                <Link href="/settings#manager">Go to Settings</Link>
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -1128,6 +1183,7 @@ export function SupplierInitiationForm({ onSubmissionComplete, draftId }: Suppli
                     onSubmissionComplete?.(result.initiationId)
                   } else {
                     const errorData = await response.json().catch(() => ({}))
+                    setErrorIsMissingManager(errorData.error === 'MISSING_MANAGER')
                     setErrorMessage(errorData.message || errorData.error || `Request failed (${response.status})`)
                     setErrorDialogOpen(true)
                   }

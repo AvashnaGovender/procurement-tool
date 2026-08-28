@@ -122,9 +122,15 @@ function LoginForm() {
     }
   }
 
+  const managerRequired = registerRole !== "MANAGER"
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (managerCheck?.exists === false) {
+    if (managerRequired && !managerEmail.trim()) {
+      setRegisterError("Manager email is required for User registration.")
+      return
+    }
+    if (managerEmail.trim() && managerCheck?.exists === false) {
       setRegisterError(managerCheck.message)
       return
     }
@@ -145,7 +151,7 @@ function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: registerEmail.trim(),
-          managerEmail: managerEmail.trim(),
+          managerEmail: managerEmail.trim() || undefined,
           role: registerRole,
           password: registerPassword,
         }),
@@ -519,7 +525,9 @@ function LoginForm() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="manager-email" className="text-slate-700 font-medium">Manager email *</Label>
+                    <Label htmlFor="manager-email" className="text-slate-700 font-medium">
+                      {managerRequired ? "Manager email *" : "Manager email (optional)"}
+                    </Label>
                     <Input
                       id="manager-email"
                       type="email"
@@ -531,8 +539,13 @@ function LoginForm() {
                       }}
                       onBlur={checkManager}
                       className="h-11 border-slate-300"
-                      required
+                      required={managerRequired}
                     />
+                    {registerRole === "MANAGER" && (
+                      <p className="text-sm text-slate-500">
+                        You can skip this for now. If you later initiate a supplier request, you will need to add your manager in Settings so they can approve it.
+                      </p>
+                    )}
                     {checkingManager && (
                       <p className="text-sm text-slate-500">Checking if manager is registered...</p>
                     )}
@@ -562,7 +575,11 @@ function LoginForm() {
                     <Button
                       type="submit"
                       className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      disabled={registerLoading || managerCheck?.exists === false || (managerEmail.trim() && managerCheck === null && !checkingManager)}
+                      disabled={
+                        registerLoading ||
+                        (managerRequired && !managerEmail.trim()) ||
+                        (!!managerEmail.trim() && (managerCheck?.exists === false || (managerCheck === null && !checkingManager)))
+                      }
                     >
                       {registerLoading ? (
                         <div className="flex items-center justify-center gap-2">
